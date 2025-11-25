@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!-- Base URL -->
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="A new Flutter project.">
+
+  <!-- =============================== -->
+  <!-- GOOGLE SIGN-IN CLIENT ID (WEB) -->
+  <!-- =============================== -->
+  <meta name="google-signin-client_id"
+        content="473711579608-up2ti7fp7rm5r91e00l2sd9tb14s2uif.apps.googleusercontent.com">
+
+  <!-- ==================================== -->
+  <!-- reCAPTCHA ENTERPRISE CONFIG (WEB)    -->
+  <!-- ==================================== -->
+  <!-- REPLACE WITH YOUR SITE KEY -->
+  <meta name="recaptcha-site-key" content="6LfHwgwsAAAAAGnIceNu4c_lqrOZ8GwL1B12CGNM">
+
+  <!-- Load reCAPTCHA Enterprise v3 -->
+  <script src="https://www.google.com/recaptcha/enterprise.js?render=6LfHwgwsAAAAAGnIceNu4c_lqrOZ8GwL1B12CGNM"></script>
+
+  <!-- Initialize reCAPTCHA (required by Firebase Phone Auth) -->
+  <script>
+    grecaptcha.enterprise.ready(function() {
+      console.log("reCAPTCHA Enterprise Loaded");
+    });
+  </script>
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="swipify">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="icons/favicon.ico" />
+  <link rel="shortcut icon" type="image/x-icon" href="icons/favicon.ico" />
+
+  <title>Wav</title>
+  <link rel="manifest" href="manifest.json">
+</head>
+
+<body>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
