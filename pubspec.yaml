@@ -74,12 +74,18 @@ flutter:
   assets:
       - assets/images/google.png
       - assets/images/wav_logo.svg
-      - assets/images/likee.svg
-      - assets/images/dislikee.svg
       - assets/images/default_pfp.png
       - assets/sounds/wav_notification.wav
       - assets/images/flame_noti.png
       - assets/images/flamegif.gif
+      - assets/images/like.png
+      - assets/images/dislike.png
+      - assets/images/hh.png
+      - assets/images/home.png
+      - assets/images/profile.png
+      - assets/images/wav.png
+      - assets/images/chat.png
+      - assets/images/send.png
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

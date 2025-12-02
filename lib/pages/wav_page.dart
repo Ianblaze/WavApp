@@ -1,15 +1,15 @@
-// wav_page.dart
+// lib/pages/wav_page.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'dart:ui';
 
-// FIREBASE
+// Firebase
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-// MATCHING
-import '../pages/match_service.dart';
-import '../pages/match_dock_popup.dart'; // the slim dock popup you provided earlier
+// Local widgets / services
+import 'card_stack.dart';
+import 'taste_service.dart';
+import 'match_service.dart';
 
 class WavPage extends StatefulWidget {
   const WavPage({super.key});
@@ -18,54 +18,193 @@ class WavPage extends StatefulWidget {
   State<WavPage> createState() => _WavPageState();
 }
 
-class _WavPageState extends State<WavPage> with TickerProviderStateMixin {
-  int currentIndex = 0;
-  int displayIndex = 0; // Version 1 index system (keeps stack stable)
-  Offset cardOffset = Offset.zero;
-  bool isDragging = false;
-  bool isAnimating = false;
-  bool isExiting = false;
-  late final AnimationController _rotationController;
-  late final Animation<double> _rotationAnimation;
+class _WavPageState extends State<WavPage> {
+  // CardStack key (untyped to avoid private-state type errors)
+  final GlobalKey _stackKey = GlobalKey();
 
-  // ---------- FIRESTORE HELPERS ----------
+  // Firestore / user
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  User? _user;
 
-  // current center song
-  Map<String, String> get _currentSong => _getLoopedSong(displayIndex);
+  // Songs
+  List<Map<String, String>> songs = [];
+  bool _loadingSongs = true;
+  bool _songLoadFailed = false;
 
-  String _songDocId(Map<String, String> song) {
-    final title = (song['title'] ?? 'unknown').replaceAll('/', '_');
-    final artist = (song['artist'] ?? 'unknown').replaceAll('/', '_');
-    return '${title}_$artist';
+  // Daily likes
+  static const int _defaultDailyLimit = 12;
+  int _likesLeft = _defaultDailyLimit;
+  Timestamp? _likesLastReset;
+
+  // UI state for AnimatedSwitcher
+  int _likesShown = _defaultDailyLimit;
+
+  // Button hover/press states
+  bool _dislikeHovered = false;
+  bool _dislikePressed = false;
+  bool _likeHovered = false;
+  bool _likePressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _user = FirebaseAuth.instance.currentUser;
+    _loadSongsFromFirestore();
+    _initLikesFromFirestore();
   }
 
-  Future<void> _recordSwipe({required bool liked}) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      debugPrint('No logged-in user, not recording swipe');
-      return;
-    }
-
-    final song = _currentSong;
-    if ((song['title'] ?? '').isEmpty) {
-      debugPrint('Song has no title, not recording swipe');
-      return;
-    }
-
-    final collectionName = liked ? 'likes' : 'dislikes';
-
+  // --------------------- SONG LOADER ---------------------
+  Future<void> _loadSongsFromFirestore() async {
     try {
-      await FirebaseFirestore.instance
+      final snap = await _db.collection('songs').get();
+      final docs = snap.docs;
+      if (docs.isEmpty) throw Exception('no songs in firestore');
+
+      songs = docs.map((d) {
+        final data = d.data();
+        return {
+          'title': (data['title'] ?? '')?.toString() ?? '',
+          'artist': (data['artist'] ?? '')?.toString() ?? '',
+          'genre': (data['genre'] ?? '')?.toString() ?? '',
+          'mood': (data['mood'] ?? '')?.toString() ?? '',
+          'bpm': (data['bpm'] != null) ? data['bpm'].toString() : '0',
+          'key': (data['key'] ?? '')?.toString() ?? '',
+          'image': (data['cover'] ?? '')?.toString() ?? '',
+        };
+      }).toList();
+
+      if (songs.isEmpty) throw Exception('no songs after mapping');
+
+      setState(() {
+        _loadingSongs = false;
+        _songLoadFailed = false;
+      });
+    } catch (e, st) {
+      debugPrint('Error loading songs: $e\n$st');
+      _loadSampleSongs();
+      setState(() {
+        _loadingSongs = false;
+        _songLoadFailed = true;
+      });
+    }
+  }
+
+  void _loadSampleSongs() {
+    songs = [
+      {'title': 'Blinding Lights', 'artist': 'The Weeknd', 'genre': 'Synthwave', 'mood': 'Energetic', 'bpm': '118', 'key': 'C Major', 'image': 'https://picsum.photos/400/400?random=1'},
+      {'title': 'Levitating', 'artist': 'Dua Lipa', 'genre': 'Disco Pop', 'mood': 'Happy', 'bpm': '103', 'key': 'G Minor', 'image': 'https://picsum.photos/400/400?random=2'},
+      {'title': 'As It Was', 'artist': 'Harry Styles', 'genre': 'Pop Rock', 'mood': 'Melancholic', 'bpm': '174', 'key': 'F# Minor', 'image': 'https://picsum.photos/400/400?random=3'},
+      {'title': 'Anti-Hero', 'artist': 'Taylor Swift', 'genre': 'Synth Pop', 'mood': 'Reflective', 'bpm': '85', 'key': 'A Major', 'image': 'https://picsum.photos/400/400?random=4'},
+      {'title': 'Calm Down', 'artist': 'Rema', 'genre': 'Afrobeats', 'mood': 'Chill', 'bpm': '104', 'key': 'D Major', 'image': 'https://picsum.photos/400/400?random=5'},
+    ];
+  }
+
+  // --------------------- DAILY LIKES (persisted) ---------------------
+  Future<void> _initLikesFromFirestore() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      _user = user;
+
+      final doc = await _db.collection('users').doc(user.uid).get();
+      final data = doc.data() ?? {};
+
+      int savedLeft = (data['dailyLikesLeft'] is int) ? data['dailyLikesLeft'] as int : _defaultDailyLimit;
+      Timestamp? savedTs = data['likesLastReset'] as Timestamp?;
+
+      if (savedTs == null) {
+        await _writeLikesToFirestore(_defaultDailyLimit, Timestamp.now());
+        setState(() {
+          _likesLeft = _defaultDailyLimit;
+          _likesShown = _likesLeft;
+          _likesLastReset = Timestamp.now();
+        });
+        return;
+      }
+
+      final now = DateTime.now();
+      final resetAt = savedTs.toDate();
+      final diff = now.difference(resetAt);
+      if (diff.inHours >= 24) {
+        await _writeLikesToFirestore(_defaultDailyLimit, Timestamp.fromDate(now));
+        setState(() {
+          _likesLeft = _defaultDailyLimit;
+          _likesShown = _likesLeft;
+          _likesLastReset = Timestamp.fromDate(now);
+        });
+      } else {
+        setState(() {
+          _likesLeft = savedLeft;
+          _likesShown = _likesLeft;
+          _likesLastReset = savedTs;
+        });
+      }
+    } catch (e, st) {
+      debugPrint('Error initializing likes: $e\n$st');
+      setState(() {
+        _likesLeft = _defaultDailyLimit;
+        _likesShown = _likesLeft;
+      });
+    }
+  }
+
+  Future<void> _writeLikesToFirestore(int left, Timestamp ts) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      await _db.collection('users').doc(user.uid).set({
+        'dailyLikesLeft': left,
+        'likesLastReset': ts,
+      }, SetOptions(merge: true));
+    } catch (e, st) {
+      debugPrint('Error writing likes: $e\n$st');
+    }
+  }
+
+  Future<bool> _consumeLikeAndPersist() async {
+    if (_likesLeft <= 0) return false;
+    setState(() {
+      _likesLeft = _likesLeft - 1;
+      _likesShown = _likesLeft;
+    });
+    final ts = _likesLastReset ?? Timestamp.now();
+    await _writeLikesToFirestore(_likesLeft, ts);
+    return true;
+  }
+
+  Future<void> _restoreLikesForTest() async {
+    setState(() {
+      _likesLeft = _defaultDailyLimit;
+      _likesShown = _likesLeft;
+      _likesLastReset = Timestamp.now();
+    });
+    await _writeLikesToFirestore(_likesLeft, _likesLastReset!);
+  }
+
+  // --------------------- RECORD SWIPE ---------------------
+  Future<void> _recordSwipe({required bool liked, required Map<String, String> song}) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        debugPrint('No logged-in user; not recording swipe');
+        return;
+      }
+
+      final collectionName = liked ? 'likes' : 'dislikes';
+
+      await _db
           .collection('users')
           .doc(user.uid)
           .collection(collectionName)
-          .doc(_songDocId(song))
+          .doc(_normalizeSongDocId(song))
           .set({
-        'title': song['title'],
-        'artist': song['artist'],
-        'genre': song['genre'],
-        'year': song['year'],
-        'image': song['image'],
+        'title': song['title'] ?? '',
+        'artist': song['artist'] ?? '',
+        'genre': song['genre'] ?? '',
+        'mood': song['mood'] ?? '',
+        'bpm': int.tryParse(song['bpm']?.toString() ?? '0') ?? 0,
+        'key': song['key']?.toString() ?? '',
+        'image': song['image'] ?? '',
         'swipeType': liked ? 'like' : 'dislike',
         'swipedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
@@ -74,777 +213,373 @@ class _WavPageState extends State<WavPage> with TickerProviderStateMixin {
     }
   }
 
-  // ---------- MATCH POPUP HELPERS ----------
-
-  /// Show the new slide-down Match Dock popup.
-  /// Uses the MatchDockPopup widget (slim top-dock style).
-  void _showMatchDock({
-    required String username,
-    required String photoUrl,
-    required String matchedUserId,
-    required String similarityPlaceholder,
-  }) {
-    showGeneralDialog(
-      context: context,
-      barrierLabel: "match",
-      barrierDismissible: true,
-      transitionDuration: const Duration(milliseconds: 450),
-      pageBuilder: (context, anim1, anim2) {
-        // We'll return the popup widget directly so MatchDockPopup can control its internal animation.
-        return SafeArea(
-          child: Material(
-            color: Colors.transparent,
-            child: MatchDockPopup(
-              username: username,
-              photoUrl: photoUrl,
-              similarity: similarityPlaceholder,
-              onConnect: () async {
-                try {
-                  await MatchService().acceptMatch(matchedUserId);
-                } catch (e) {
-                  debugPrint('acceptMatch error: $e');
-                }
-                Navigator.of(context).pop();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Connected!')),
-                  );
-                }
-              },
-              onAbandon: () async {
-                try {
-                  await MatchService().declineMatch(matchedUserId);
-                } catch (e) {
-                  debugPrint('declineMatch error: $e');
-                }
-                Navigator.of(context).pop();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Match abandoned')),
-                  );
-                }
-              },
-              onDismiss: () {
-                Navigator.of(context).pop();
-              },
-            ),
-          ),
-        );
-      },
-      transitionBuilder: (context, a1, a2, widget) {
-        // Fade in behind the dock (the popup itself animates)
-        return FadeTransition(
-          opacity: CurvedAnimation(parent: a1, curve: Curves.easeOut),
-          child: widget,
-        );
-      },
-    );
+  String _normalizeSongDocId(Map<String, String> song) {
+    final t = (song['title'] ?? '').trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '_');
+    final a = (song['artist'] ?? '').trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '_');
+    return '${t}_$a';
   }
 
-  /// Calls match service and shows dock if there's a match.
-  Future<void> _checkAndShowMatch(String likedSongDocId) async {
+  // --------------------- POST-LIKE: Taste + Match ---------------------
+  Future<void> _processAfterLike(Map<String, String> song) async {
     try {
-      final result = await MatchService().checkForMatch(likedSongDocId);
-      // result is Map<String, dynamic>? -> { 'uid', 'username', 'photoUrl' }
-      if (result == null) return;
+      await TasteService().updateTasteProfileFromSong({
+        "artist": song['artist'] ?? '',
+        "genre": song['genre'] ?? '',
+        "mood": song['mood'] ?? '',
+        "bpm": int.tryParse(song['bpm']?.toString() ?? '0') ?? 0,
+        "key": song['key'] ?? '',
+      });
+    } catch (e) {
+      debugPrint('TasteService failed: $e');
+    }
 
-      final String otherUid = (result['uid'] ?? '') as String;
-      final String username = (result['username'] ?? 'Unknown') as String;
-      final String photoUrl = (result['photoUrl'] ?? '') as String;
-
-      if (!mounted) return;
-
-      // placeholder similarity for now as requested
-      const String similarityPlaceholder = "78";
-
-      _showMatchDock(
-        username: username,
-        photoUrl: photoUrl,
-        matchedUserId: otherUid,
-        similarityPlaceholder: similarityPlaceholder,
-      );
-    } catch (e, st) {
-      debugPrint('Error checking for match: $e\n$st');
+    try {
+      await MatchService().processMatchesForUser();
+    } catch (e) {
+      debugPrint('MatchService.processMatchesForUser failed: $e');
     }
   }
 
+  // --------------------- ODOMETER COUNTER ---------------------
+  Widget _buildOdometerCounter(int value) {
+    final String valueStr = value.toString();
+    final List<String> digits = valueStr.split('');
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: digits.asMap().entries.map((entry) {
+        return _OdometerDigit(
+          digit: entry.value,
+          key: ValueKey('digit_pos_${entry.key}'),
+        );
+      }).toList(),
+    );
+  }
+
+  // --------------------- UI BUILD ---------------------
   @override
-  void initState() {
-    super.initState();
-    // Slightly slower, buttery rotation
-    _rotationController = AnimationController(
-      duration: const Duration(milliseconds: 360),
-      vsync: this,
-    );
-    _rotationAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _rotationController, curve: Curves.easeOutBack),
-    );
+  Widget build(BuildContext context) {
+    if (_loadingSongs) {
+      return const Center(child: CircularProgressIndicator(color: Colors.white));
+    }
+
+    return LayoutBuilder(builder: (context, constraints) {
+      return SizedBox(
+        height: constraints.maxHeight,
+        child: Center(
+          child: Column(
+            children: [
+              const SizedBox(height: 36),
+
+              // ---------- DAILY LIKES DISPLAY ----------
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Your daily likes: ',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    // Premium odometer widget
+                    _buildOdometerCounter(_likesShown),
+                  ],
+                ),
+              ),
+
+              // Restore button (testing only)
+              TextButton.icon(
+                onPressed: _restoreLikesForTest,
+                icon: const Icon(Icons.restore, color: Colors.white70, size: 16),
+                label: const Text('Restore (test)', style: TextStyle(color: Colors.white70)),
+              ),
+
+              const SizedBox(height: 12),
+
+              // ---------- Card stack ----------
+              Expanded(
+                child: Center(
+                  child: CardStack(
+                    key: _stackKey,
+                    songs: songs,
+                    canLike: _likesLeft > 0,
+                    onSwipeThreshold: (isLiking, isDisliking) {
+                      // Trigger button hover states based on swipe threshold
+                      setState(() {
+                        _likeHovered = isLiking;
+                        _dislikeHovered = isDisliking;
+                      });
+                    },
+                    onLike: (song) async {
+                      if (_likesLeft <= 0) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text('No likes left — try again tomorrow'),
+                              backgroundColor: Colors.red.shade700,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                        return;
+                      }
+
+                      final consumed = await _consumeLikeAndPersist();
+                      if (!consumed) return;
+
+                      await _recordSwipe(liked: true, song: song);
+                      await _processAfterLike(song);
+                    },
+                    onDislike: (song) async {
+                      await _recordSwipe(liked: false, song: song);
+                    },
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
+              // ---------- Action buttons row ----------
+              Padding(
+                padding: const EdgeInsets.only(bottom: 32.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Dislike (always enabled)
+                    MouseRegion(
+                      onEnter: (_) => setState(() => _dislikeHovered = true),
+                      onExit: (_) => setState(() => _dislikeHovered = false),
+                      child: GestureDetector(
+                        onTapDown: (_) => setState(() => _dislikePressed = true),
+                        onTapUp: (_) => setState(() => _dislikePressed = false),
+                        onTapCancel: () => setState(() => _dislikePressed = false),
+                        onTap: () {
+                          final s = _stackKey.currentState;
+                          try {
+                            (s as dynamic).triggerDislike();
+                          } catch (e) {
+                            debugPrint('triggerDislike failed: $e');
+                          }
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          curve: Curves.easeOut,
+                          transform: Matrix4.identity()
+                            ..translate(
+                              0.0,
+                              _dislikePressed ? 4.0 : (_dislikeHovered ? -6.0 : 0.0),
+                              0.0,
+                            )
+                            ..scale(_dislikePressed ? 0.95 : (_dislikeHovered ? 1.08 : 1.0)),
+                          child: AnimatedOpacity(
+                            duration: const Duration(milliseconds: 150),
+                            opacity: _dislikePressed ? 0.7 : 1.0,
+                            child: Image.asset(
+                              'assets/images/dislike.png',
+                              width: 70,
+                              height: 70,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(width: 64),
+
+                    // Like (disabled when no likes left)
+                    Opacity(
+                      opacity: _likesLeft > 0 ? 1.0 : 0.3,
+                      child: MouseRegion(
+                        onEnter: (_) {
+                          if (_likesLeft > 0) setState(() => _likeHovered = true);
+                        },
+                        onExit: (_) => setState(() => _likeHovered = false),
+                        child: GestureDetector(
+                          onTapDown: (_) {
+                            if (_likesLeft > 0) setState(() => _likePressed = true);
+                          },
+                          onTapUp: (_) => setState(() => _likePressed = false),
+                          onTapCancel: () => setState(() => _likePressed = false),
+                          onTap: () async {
+                            if (_likesLeft <= 0) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text('No likes left — try again tomorrow'),
+                                  backgroundColor: Colors.red.shade700,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                              return;
+                            }
+                            // Decrement counter BEFORE animation starts
+                            setState(() {
+                              _likesShown = _likesLeft - 1;
+                            });
+                            final s = _stackKey.currentState;
+                            try {
+                              (s as dynamic).triggerLike();
+                            } catch (e) {
+                              debugPrint('triggerLike failed: $e');
+                            }
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            curve: Curves.easeOut,
+                            transform: Matrix4.identity()
+                              ..translate(
+                                0.0,
+                                _likePressed ? 4.0 : (_likeHovered ? -6.0 : 0.0),
+                                0.0,
+                              )
+                              ..scale(_likePressed ? 0.95 : (_likeHovered ? 1.08 : 1.0)),
+                            child: AnimatedOpacity(
+                              duration: const Duration(milliseconds: 150),
+                              opacity: _likePressed ? 0.7 : 1.0,
+                              child: Image.asset(
+                                'assets/images/like.png',
+                                width: 70,
+                                height: 70,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
   }
 
   @override
   void dispose() {
-    _rotationController.dispose();
+    super.dispose();
+  }
+}
+
+// Separate StatefulWidget for individual digit animation
+class _OdometerDigit extends StatefulWidget {
+  final String digit;
+
+  const _OdometerDigit({required this.digit, required Key key}) : super(key: key);
+
+  @override
+  State<_OdometerDigit> createState() => _OdometerDigitState();
+}
+
+class _OdometerDigitState extends State<_OdometerDigit> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _slideAnimation;
+  late Animation<double> _fadeOutAnimation;
+  late Animation<double> _fadeInAnimation;
+  
+  String? _oldDigit;
+  String _currentDigit = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _currentDigit = widget.digit;
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1800),
+      vsync: this,
+    );
+
+    _slideAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutQuart),
+    );
+
+    _fadeOutAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+    );
+
+    _fadeInAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+    );
+  }
+
+  @override
+  void didUpdateWidget(_OdometerDigit oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.digit != widget.digit) {
+      _oldDigit = _currentDigit;
+      _currentDigit = widget.digit;
+      _controller.forward(from: 0.0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
     super.dispose();
   }
 
-  // Sample music data
-  final List<Map<String, String>> songs = [
-    {
-      'title': 'Blinding Lights',
-      'artist': 'The Weeknd',
-      'genre': 'Synthwave',
-      'year': '2019',
-      'image': 'https://picsum.photos/400/400?random=1',
-    },
-    {
-      'title': 'Levitating',
-      'artist': 'Dua Lipa',
-      'genre': 'Disco Pop',
-      'year': '2020',
-      'image': 'https://picsum.photos/400/400?random=2',
-    },
-    {
-      'title': 'As It Was',
-      'artist': 'Harry Styles',
-      'genre': 'Pop Rock',
-      'year': '2022',
-      'image': 'https://picsum.photos/400/400?random=3',
-    },
-    {
-      'title': 'Anti-Hero',
-      'artist': 'Taylor Swift',
-      'genre': 'Synth Pop',
-      'year': '2022',
-      'image': 'https://picsum.photos/400/400?random=4',
-    },
-    {
-      'title': 'Calm Down',
-      'artist': 'Rema & Selena Gomez',
-      'genre': 'Afrobeats',
-      'year': '2022',
-      'image': 'https://picsum.photos/400/400?random=5',
-    },
-  ];
-
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return SizedBox(
-          height: constraints.maxHeight,
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+    final bool isAnimating = _controller.status == AnimationStatus.forward || 
+                             _controller.status == AnimationStatus.reverse;
+    
+    return SizedBox(
+      width: 14,
+      height: 28,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          return ClipRect(
+            child: Stack(
+              alignment: Alignment.center,
               children: [
-                // Fanned card stack
-                _buildCardStack(),
-                const SizedBox(height: 36),
-                // Action buttons
-                _buildActionButtons(),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildCardStack() {
-    return AnimatedBuilder(
-      animation: _rotationAnimation,
-      builder: (context, child) {
-        return SizedBox(
-          height: 360 + 20,
-          width: double.infinity,
-          child: Stack(
-            alignment: Alignment.center,
-            clipBehavior: Clip.none,
-            children: _buildRotatingCards(),
-          ),
-        );
-      },
-    );
-  }
-
-  /// Build the stack using Version 1 order:
-  /// - Add back cards first
-  /// - Add center card last so it's always on top and fully draggable
-  List<Widget> _buildRotatingCards() {
-    List<Widget> cards = [];
-    Widget? centerCardWidget;
-
-    // Use rotation progress only when exiting is false so fan animates
-    double progress = isExiting ? 0 : (_rotationAnimation.value);
-
-    // Generate positions from back to front (2 down to -2); center (i==0) will be added last
-    for (int i = 2; i >= -2; i--) {
-      // Hide center card during rotation to avoid snapback
-      if (i == 0 && isAnimating && !isExiting) continue;
-
-      double effectivePosition = i - progress;
-
-      // Card transforms based on effectivePosition
-      double horizontalOffset = effectivePosition * 100; // reduced spread for smaller stack
-      double scale = 0.92 - (effectivePosition.abs() * 0.08); // slightly smaller overall
-      double rotation = effectivePosition * 0.07;
-      bool isBlurred = effectivePosition.abs() > 0.1;
-
-      // Cull distant cards
-      if (effectivePosition < -2.5 || effectivePosition > 2.5) continue;
-
-      // If center card is exiting and far offscreen, skip rendering it here
-      if (i == 0 && isExiting && cardOffset.dy.abs() > 600) continue;
-
-      // Opacity falloff
-      double opacity = isBlurred ? 0.6 : 1.0;
-      if (effectivePosition.abs() > 2) {
-        opacity = (2.5 - effectivePosition.abs()) * 2;
-      }
-
-      Map<String, String> song = _getLoopedSong(displayIndex + i);
-
-      Widget card;
-
-      // CENTER CARD: when it's the active, show a slightly larger scale that animates with progress
-      if (i == 0 && !isAnimating && !isExiting) {
-        // centerScale goes from 1.00 to 1.05 as effectivePosition -> 0
-        double centerScale = 1.0 + (0.08 * (1.0 - effectivePosition.abs()).clamp(0.0, 1.0));
-        Widget center = TweenAnimationBuilder<double>(
-          tween: Tween(begin: 1.0, end: centerScale),
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOutCubic,
-          builder: (context, value, child) => Transform.scale(
-            scale: value,
-            child: child,
-          ),
-          child: _buildCard(
-            song,
-            0,
-            centerScale,
-            0,
-            isBlurred: false,
-            isDraggable: true,
-          ),
-        );
-        centerCardWidget = Opacity(
-          opacity: opacity.clamp(0.0, 1.0),
-          child: center,
-        );
-        continue; // already handled center — add later
-      }
-
-      // If center card is exiting, render it using cardOffset
-      if (i == 0 && isExiting) {
-        double fadeOpacity = (1 - (cardOffset.dy.abs() / 500)).clamp(0.0, 1.0);
-        card = Transform.translate(
-          offset: cardOffset,
-          child: Opacity(
-            opacity: fadeOpacity,
-            child: _buildCard(song, 0, 1.0, 0, isBlurred: false, isDraggable: false),
-          ),
-        );
-      } else {
-        // non-center cards get fan transforms
-        card = _buildCard(song, horizontalOffset, scale, rotation, isBlurred: isBlurred, isDraggable: false);
-      }
-
-      final wrapped = Opacity(opacity: opacity.clamp(0.0, 1.0), child: card);
-
-      // collect back cards first
-      if (i == 0) {
-        centerCardWidget = wrapped;
-      } else {
-        cards.add(wrapped);
-      }
-    }
-
-    // finally add center (top) if present
-    if (centerCardWidget != null) cards.add(centerCardWidget);
-    return cards;
-  }
-
-  // Get song with looping
-  Map<String, String> _getLoopedSong(int index) {
-    if (songs.isEmpty) {
-      return {
-        'title': '',
-        'artist': '',
-        'genre': '',
-        'year': '',
-        'image': ''
-      };
-    }
-    int loopedIndex = index % songs.length;
-    if (loopedIndex < 0) loopedIndex += songs.length;
-    return songs[loopedIndex];
-  }
-
-  Widget _buildCard(
-    Map<String, String> song,
-    double horizontalOffset,
-    double scale,
-    double rotation, {
-    required bool isBlurred,
-    required bool isDraggable,
-  }) {
-    Widget cardContent = Container(
-      width: 260,
-      height: 360,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.35),
-            blurRadius: 24,
-            spreadRadius: 4,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
-        child: Stack(
-          children: [
-            // Album art background
-            Positioned.fill(
-              child: Transform.translate(
-                offset: isDraggable ? Offset(cardOffset.dx * -0.05, cardOffset.dy * -0.05) : Offset.zero,
-                child: Image.network(
-                  song['image'] ?? '',
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: const Color(0xFF282828),
-                    );
-                  },
-                ),
-              ),
-            ),
-
-            // Gradient overlay
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withOpacity(0.6),
-                      Colors.black.withOpacity(0.9),
-                    ],
-                    stops: const [0.4, 0.75, 1.0],
+                // Old digit sliding up and fading out
+                if (_oldDigit != null && isAnimating)
+                  Transform.translate(
+                    offset: Offset(0, -42 * _slideAnimation.value),
+                    child: Opacity(
+                      opacity: _fadeOutAnimation.value,
+                      child: Text(
+                        _oldDigit!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          fontFeatures: [FontFeature.tabularFigures()],
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            ),
-
-            // Song info
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Padding(
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      song['title'] ?? '',
+                // New digit sliding up from below and fading in
+                Transform.translate(
+                  offset: Offset(0, isAnimating ? 42 * (1 - _slideAnimation.value) : 0),
+                  child: Opacity(
+                    opacity: isAnimating ? _fadeInAnimation.value : 1.0,
+                    child: Text(
+                      _currentDigit,
+                      textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.5,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      song['artist'] ?? '',
-                      style: const TextStyle(
-                        color: Color(0xFFB3B3B3),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                        height: 1.4,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${song['genre'] ?? ''} • ${song['year'] ?? ''}',
-                      style: const TextStyle(
-                        color: Color(0xFF888888),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
-    );
-
-    // Apply blur effect to non-center cards
-    if (isBlurred) {
-      cardContent = ImageFiltered(
-        imageFilter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
-        child: Opacity(
-          opacity: 0.6,
-          child: cardContent,
-        ),
-      );
-    }
-
-    // If draggable, wrap with gesture detector (v1: opaque hit-testing)
-    if (isDraggable) {
-      cardContent = GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onPanStart: (_) {
-          setState(() => isDragging = true);
+          );
         },
-        onPanUpdate: (details) {
-          setState(() {
-            cardOffset += details.delta;
-          });
-        },
-        onPanEnd: (details) {
-          setState(() => isDragging = false);
-
-          // Detect swipe up / down thresholds
-          if (cardOffset.dy > 150) {
-            _handleLikeWithSwipe();
-          } else if (cardOffset.dy < -150) {
-            _handleDislikeWithSwipe();
-          } else {
-            // Reset smoothly
-            setState(() {
-              cardOffset = Offset.zero;
-            });
-          }
-        },
-        child: AnimatedContainer(
-          duration: isDragging ? Duration.zero : const Duration(milliseconds: 300),
-          curve: Curves.easeOutQuad,
-          transform: Matrix4.translationValues(cardOffset.dx, cardOffset.dy, 0),
-          child: Opacity(
-            opacity: isDragging ? (1 - (cardOffset.dy.abs() / 500)).clamp(0.3, 1.0) : 1.0,
-            child: cardContent,
-          ),
-        ),
-      );
-
-      return cardContent;
-    }
-
-    // Non-draggable card - apply fan transforms
-    return Transform.translate(
-      offset: Offset(horizontalOffset, 0),
-      child: Transform.rotate(
-        angle: rotation,
-        child: Transform.scale(
-          scale: scale,
-          child: cardContent,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionButtons() {
-    return SizedBox(
-      width: 300,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 15),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            // Dislike
-            GestureDetector(
-              onTap: _handleDislike,
-              child: Container(
-                width: 70,
-                height: 70,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.red.withOpacity(0.3),
-                      blurRadius: 15,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: SvgPicture.asset(
-                  'assets/images/dislikee.svg',
-                  width: 70,
-                  height: 70,
-                ),
-              ),
-            ),
-
-            // Like
-            GestureDetector(
-              onTap: _handleLike,
-              child: Container(
-                width: 70,
-                height: 70,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.green.withOpacity(0.3),
-                      blurRadius: 15,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: SvgPicture.asset(
-                  'assets/images/likee.svg',
-                  width: 70,
-                  height: 70,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ----------------- SWIPE HANDLERS (corrected order) -----------------
-
-  Future<void> _handleLikeWithSwipe() async {
-    if (isAnimating) return;
-
-    // capture liked song docId BEFORE we change indices
-    final likedSong = _currentSong;
-    final likedSongDocId = _songDocId(likedSong);
-
-    // record like
-    await _recordSwipe(liked: true);
-
-    setState(() {
-      isAnimating = true;
-      isExiting = true;
-    });
-
-    // Continue the current drag off-screen smoothly
-    final currentY = cardOffset.dy;
-    final int steps = 30;
-    final double targetY = 700;
-    final double stepSize = (targetY - currentY) / steps;
-
-    for (int i = 0; i < steps; i++) {
-      if (!mounted) return;
-      setState(() {
-        cardOffset = Offset(0, currentY + (stepSize * (i + 1)));
-      });
-      await Future.delayed(const Duration(milliseconds: 14));
-    }
-
-    if (!mounted) return;
-
-    // Enable rotation animation to run using progress
-    setState(() {
-      isExiting = false;
-    });
-
-    // Run rotation animation
-    await _rotationController.forward();
-
-    if (!mounted) return;
-
-    // Now advance displayIndex (v1 style) so stack shows the next set and reset flags AFTER rotation
-    setState(() {
-      displayIndex = (displayIndex + 1) % songs.length;
-      currentIndex = displayIndex; // stable index
-      cardOffset = Offset.zero; // reset AFTER rotation to avoid snapback
-      isExiting = false;
-      isAnimating = false;
-    });
-    _rotationController.reset();
-
-    // Check for mutual match based on liked song
-    await _checkAndShowMatch(likedSongDocId);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('❤️ Added to your likes!'),
-        backgroundColor: Color(0xFF1DB954),
-        duration: Duration(milliseconds: 800),
-      ),
-    );
-  }
-
-  Future<void> _handleDislikeWithSwipe() async {
-    if (isAnimating) return;
-
-    // capture disliked song id (if needed)
-    final dislikedSong = _currentSong;
-    final dislikedSongDocId = _songDocId(dislikedSong);
-
-    // record dislike (no match check for dislikes)
-    await _recordSwipe(liked: false);
-
-    setState(() {
-      isAnimating = true;
-      isExiting = true;
-    });
-
-    final currentY = cardOffset.dy;
-    final int steps = 30;
-    final double targetY = -700;
-    final double stepSize = (targetY - currentY) / steps;
-
-    for (int i = 0; i < steps; i++) {
-      if (!mounted) return;
-      setState(() {
-        cardOffset = Offset(0, currentY + (stepSize * (i + 1)));
-      });
-      await Future.delayed(const Duration(milliseconds: 14));
-    }
-
-    if (!mounted) return;
-
-    // Enable rotation animation to run using progress
-    setState(() {
-      isExiting = false;
-    });
-
-    await _rotationController.forward();
-
-    if (!mounted) return;
-
-    setState(() {
-      displayIndex = (displayIndex + 1) % songs.length;
-      currentIndex = displayIndex;
-      cardOffset = Offset.zero; // reset AFTER rotation
-      isExiting = false;
-      isAnimating = false;
-    });
-    _rotationController.reset();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('👎 Passed'),
-        backgroundColor: Color(0xFF535353),
-        duration: Duration(milliseconds: 800),
-      ),
-    );
-  }
-
-  // ----------------- BUTTON HANDLERS (like above) -----------------
-
-  Future<void> _handleLike() async {
-    if (isAnimating) return;
-
-    // capture liked song docId BEFORE we change indices
-    final likedSong = _currentSong;
-    final likedSongDocId = _songDocId(likedSong);
-
-    // record like
-    await _recordSwipe(liked: true);
-
-    setState(() {
-      isAnimating = true;
-      isExiting = true;
-    });
-
-    final int steps = 30;
-    final double targetY = 700;
-    final double stepSize = targetY / steps;
-
-    for (int i = 0; i < steps; i++) {
-      if (!mounted) return;
-      setState(() {
-        cardOffset = Offset(0, stepSize * (i + 1));
-      });
-      await Future.delayed(const Duration(milliseconds: 14));
-    }
-
-    if (!mounted) return;
-
-    // Allow rotation to animate
-    setState(() {
-      isExiting = false;
-    });
-
-    await _rotationController.forward();
-
-    if (!mounted) return;
-
-    setState(() {
-      displayIndex = (displayIndex + 1) % songs.length;
-      currentIndex = displayIndex;
-      cardOffset = Offset.zero; // reset AFTER rotation
-      isExiting = false;
-      isAnimating = false;
-    });
-    _rotationController.reset();
-
-    // Check for mutual match based on liked song
-    await _checkAndShowMatch(likedSongDocId);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('❤️ Added to your likes!'),
-        backgroundColor: Color(0xFF1DB954),
-        duration: Duration(milliseconds: 800),
-      ),
-    );
-  }
-
-  Future<void> _handleDislike() async {
-    if (isAnimating) return;
-
-    // record dislike
-    await _recordSwipe(liked: false);
-
-    setState(() {
-      isAnimating = true;
-      isExiting = true;
-    });
-
-    final int steps = 30;
-    final double targetY = -700;
-    final double stepSize = targetY / steps;
-
-    for (int i = 0; i < steps; i++) {
-      if (!mounted) return;
-      setState(() {
-        cardOffset = Offset(0, stepSize * (i + 1));
-      });
-      await Future.delayed(const Duration(milliseconds: 14));
-    }
-
-    if (!mounted) return;
-
-    setState(() {
-      isExiting = false;
-    });
-
-    await _rotationController.forward();
-
-    if (!mounted) return;
-
-    setState(() {
-      displayIndex = (displayIndex + 1) % songs.length;
-      currentIndex = displayIndex;
-      cardOffset = Offset.zero; // reset AFTER rotation
-      isExiting = false;
-      isAnimating = false;
-    });
-    _rotationController.reset();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('👎 Passed'),
-        backgroundColor: Color(0xFF535353),
-        duration: Duration(milliseconds: 800),
       ),
     );
   }

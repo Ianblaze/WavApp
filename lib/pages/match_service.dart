@@ -1,169 +1,222 @@
+// match_service.dart
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class MatchService {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final _db = FirebaseFirestore.instance;
 
-  // ---------------------------------------------------------
-  // 🔥 Save mutual match for both users
-  // ---------------------------------------------------------
-  Future<void> _saveMutualMatch(String userA, String userB) async {
-    // Create match doc under A
-    await _db
-        .collection('users')
-        .doc(userA)
-        .collection('matches')
-        .doc(userB)
-        .set({
-      'userId': userB,
-      'status': 'pending',
-      'timestamp': FieldValue.serverTimestamp(),
-    });
+  // ============================================================
+  // 🔥 SEND MATCH REQUEST (WE ARE INITIATOR)
+  // ============================================================
+  Future<void> sendMatchRequest(String otherUserId) async {
+    final me = FirebaseAuth.instance.currentUser?.uid;
+    if (me == null || me == otherUserId) return;
 
-    // Create match doc under B
-    await _db
-        .collection('users')
-        .doc(userB)
-        .collection('matches')
-        .doc(userA)
-        .set({
-      'userId': userA,
+    final myRef = _db.collection('users').doc(me).collection('matches').doc(otherUserId);
+    final otherRef = _db.collection('users').doc(otherUserId).collection('matches').doc(me);
+
+    final batch = _db.batch();
+
+    // My outgoing request
+    batch.set(myRef, {
+      'userId': otherUserId,
       'status': 'pending',
+      'decision': 'connect',
+      'assignedRole': 'initiator',
+      'reason': '',
       'timestamp': FieldValue.serverTimestamp(),
-    });
+    }, SetOptions(merge: true));
+
+    // Their incoming request
+    batch.set(otherRef, {
+      'userId': me,
+      'status': 'incoming',
+      'decision': 'none',
+      'assignedRole': 'receiver',
+      'reason': '',
+      'timestamp': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    await batch.commit();
   }
 
-  // ---------------------------------------------------------
-  // 🔥 Check if a mutual match occurred
-  // Returns: { uid, username, photoUrl }
-  // ---------------------------------------------------------
-  Future<Map<String, dynamic>?> checkForMatch(String songId) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return null;
+  // ============================================================
+  // 🔥 ACCEPT REQUEST (RECEIVER → CONNECT)
+  // ============================================================
+  Future<void> acceptIncomingRequest(String otherUserId) async {
+    final me = FirebaseAuth.instance.currentUser?.uid;
+    if (me == null) return;
 
-    final currentUserId = user.uid;
+    final myRef = _db.collection('users').doc(me).collection('matches').doc(otherUserId);
+    final otherRef = _db.collection('users').doc(otherUserId).collection('matches').doc(me);
 
-    // Get all users (we filter in Dart to avoid permission issues)
+    final batch = _db.batch();
+
+    batch.update(myRef, {
+      'status': 'connected',
+      'decision': 'connect',
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+
+    batch.update(otherRef, {
+      'status': 'connected',
+      'decision': 'connect',
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
+  }
+
+  // ============================================================
+  // 🔥 DECLINE REQUEST (RECEIVER → ABANDON)
+  // ============================================================
+  Future<void> declineIncomingRequest(String otherUserId, String? reason) async {
+    final me = FirebaseAuth.instance.currentUser?.uid;
+    if (me == null) return;
+
+    final myRef = _db.collection('users').doc(me).collection('matches').doc(otherUserId);
+    final otherRef = _db.collection('users').doc(otherUserId).collection('matches').doc(me);
+
+    final batch = _db.batch();
+
+    // YOU abandoned
+    batch.update(myRef, {
+      'status': 'abandoned',
+      'decision': 'abandon',
+      'reason': reason ?? '',
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+
+    // OTHER sees "abandon_by_other"
+    batch.update(otherRef, {
+      'status': 'abandoned',
+      'decision': 'abandon_by_other',
+      'reason': reason ?? '',
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
+  }
+
+  // ============================================================
+  // 🔥 MAIN MATCHING LOGIC — CALLED AFTER EACH LIKE
+  // ============================================================
+  Future<void> processMatchesForUser() async {
+    final me = FirebaseAuth.instance.currentUser?.uid;
+    if (me == null) return;
+
+    final meDoc = await _db.collection('users').doc(me).get();
+    final meProfile = (meDoc.data()?['tasteProfile'] as Map<String, dynamic>?) ?? {};
+
+    if (meProfile.isEmpty) return;
+
     final allUsers = await _db.collection('users').get();
 
     for (var doc in allUsers.docs) {
-      final otherUserId = doc.id;
-      if (otherUserId == currentUserId) continue;
+      final otherId = doc.id;
+      if (otherId == me) continue;
 
-      // Check if OTHER liked this song
-      final otherLiked = await _db
-          .collection('users')
-          .doc(otherUserId)
-          .collection('likes')
-          .doc(songId)
-          .get();
+      final otherProfile =
+          (doc.data()['tasteProfile'] as Map<String, dynamic>?) ?? {};
 
-      if (!otherLiked.exists) continue;
+      if (otherProfile.isEmpty) continue;
 
-      // Check if ME liked song
-      final meLiked = await _db
-          .collection('users')
-          .doc(currentUserId)
-          .collection('likes')
-          .doc(songId)
-          .get();
+      final sim = _computeSimilarity(meProfile, otherProfile);
 
-      if (!meLiked.exists) continue;
+      // Only strong matches
+      if (sim < 60.0) continue;
 
-      // At this point → mutual match
-      await _saveMutualMatch(currentUserId, otherUserId);
+      try {
+        await _handleCompatibility(me, otherId);
+      } catch (e) {
+        print("⚠️ match error with $otherId → $e");
+      }
+    }
+  }
 
-      // Fetch user's data for popup
-      final otherDoc =
-          await _db.collection('users').doc(otherUserId).get();
+  // ============================================================
+  // 🔥 INTERNAL COMPATIBILITY HANDLER
+  // ============================================================
+  Future<void> _handleCompatibility(String me, String otherId) async {
+    final myRef = _db.collection('users').doc(me).collection('matches').doc(otherId);
+    final otherRef = _db.collection('users').doc(otherId).collection('matches').doc(me);
 
-      return {
-        'uid': otherUserId,
-        'username': otherDoc['username'] ?? 'Unknown',
-        'photoUrl': otherDoc['photoUrl'] ?? '',
-      };
+    final mySnap = await myRef.get();
+    final otherSnap = await otherRef.get();
+
+    // 1 — They already sent us a request → Auto connect
+    if (mySnap.exists && mySnap.data()?['status'] == 'incoming') {
+      await acceptIncomingRequest(otherId);
+      return;
     }
 
-    return null;
+    // 2 — If ANY existing status → skip duplicates
+    if (mySnap.exists) {
+      final s = mySnap.data()?['status'];
+      if (s == 'pending' || s == 'incoming' || s == 'connected' || s == 'abandoned') {
+        return;
+      }
+    }
+
+    // 3 — Random initiator coin flip
+    final coin = Random().nextBool();
+
+    if (coin) {
+      await sendMatchRequest(otherId);
+    } else {
+      return; // other user will initiate later
+    }
   }
 
-  // ---------------------------------------------------------
-  // 🔥 Accept (Connect)
-  // ---------------------------------------------------------
-  Future<void> acceptMatch(String otherUserId) async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return;
+  // ============================================================
+  // 🔥 SIMILARITY CALCULATION
+  // ============================================================
+  double _computeSimilarity(Map<String, dynamic> a, Map<String, dynamic> b) {
+    int matches = 0;
+    final keys = ['topArtist', 'topGenre', 'topMood', 'bpmRange', 'key'];
 
-    await _db
-        .collection('users')
-        .doc(currentUser.uid)
-        .collection('matches')
-        .doc(otherUserId)
-        .update({'status': 'connected'});
+    for (var k in keys) {
+      final va = (a[k] ?? '').toString().toLowerCase();
+      final vb = (b[k] ?? '').toString().toLowerCase();
+      if (va.isNotEmpty && va == vb) matches++;
+    }
 
-    await _db
-        .collection('users')
-        .doc(otherUserId)
-        .collection('matches')
-        .doc(currentUser.uid)
-        .update({'status': 'connected'});
+    return (matches / keys.length) * 100;
   }
 
-  // ---------------------------------------------------------
-  // 🔥 Abandon (Decline)
-  // NOTE: Your WavPage calls this as declineMatch()
-  // ---------------------------------------------------------
-  Future<void> declineMatch(String otherUserId) async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return;
-
-    await _db
-        .collection('users')
-        .doc(currentUser.uid)
-        .collection('matches')
-        .doc(otherUserId)
-        .update({'status': 'abandoned'});
-
-    await _db
-        .collection('users')
-        .doc(otherUserId)
-        .collection('matches')
-        .doc(currentUser.uid)
-        .update({'status': 'abandoned'});
-  }
-
-  // ---------------------------------------------------------
-  // 🔥 Get all match entries
-  // (pending + connected + abandoned)
-  // ---------------------------------------------------------
+  // ============================================================
+  // 🔥 FETCH MATCHES FOR MATCH PAGE
+  // ============================================================
   Future<List<Map<String, dynamic>>> getMatches() async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return [];
+    final me = FirebaseAuth.instance.currentUser?.uid;
+    if (me == null) return [];
 
-    final matchSnapshot = await _db
+    final snap = await _db
         .collection('users')
-        .doc(currentUser.uid)
+        .doc(me)
         .collection('matches')
         .orderBy('timestamp', descending: true)
         .get();
 
-    List<Map<String, dynamic>> matches = [];
+    List<Map<String, dynamic>> out = [];
 
-    for (var doc in matchSnapshot.docs) {
-      final otherUserId = doc['userId'];
+    for (var doc in snap.docs) {
+      final otherId = doc.id;
+      final otherUser = await _db.collection('users').doc(otherId).get();
 
-      final userDoc =
-          await _db.collection('users').doc(otherUserId).get();
-
-      matches.add({
-        'userId': otherUserId,
-        'username': userDoc['username'] ?? 'Unknown',
-        'photoUrl': userDoc['photoUrl'] ?? '',
-        'status': doc['status'] ?? 'pending',
+      out.add({
+        'userId': otherId,
+        'username': otherUser.data()?['username'] ?? 'Unknown',
+        'photoUrl': otherUser.data()?['photoUrl'] ?? '',
+        'status': doc['status'],
+        'decision': doc['decision'],
+        'reason': doc['reason'],
+        'assignedRole': doc['assignedRole'],
         'timestamp': doc['timestamp'],
       });
     }
 
-    return matches;
+    return out;
   }
 }

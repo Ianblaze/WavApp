@@ -1,3 +1,5 @@
+// home_page.dart
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -7,9 +9,26 @@ import 'profile_page.dart';
 import 'profile_setup_dialog.dart';
 import 'match_page.dart';
 
-// NEW: MatchDockPopup + MatchService
 import '../pages/match_dock_popup.dart';
 import '../pages/match_service.dart';
+import '../auth/login_page.dart';
+
+// ---------------------------------------------------------
+// 🎨 LIGHT Y2K BUBBLEGUM POP PALETTE
+// ---------------------------------------------------------
+const bgTop = Color(0xFFFFE6FF);        // pearl pink
+const bgMid = Color(0xFFF3E5FF);        // lilac pink
+const bgBottom = Color(0xFFE1E9FF);     // cotton blue
+
+const y2kPink = Color(0xFFFF6FE8);      // bubblegum neon pink
+const y2kBlue = Color(0xFF7BA7FF);      // candy blue
+const y2kPurple = Color(0xFFB69CFF);    // lavender
+const y2kGlowPink = Color(0xFFFFC0FA);  // bright glow pink
+const y2kGlowBlue = Color(0xFFC4D8FF);  // glow blue
+
+const textDark = Color(0xFF3A2A45);     // readable violet-brown
+const mutedText = Color(0xFF8A7EA5);     // pastel lavender-grey
+
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -24,54 +43,73 @@ class _HomePageState extends State<HomePage> {
   OverlayEntry? _tutorialOverlay;
   bool _tutorialShown = false;
 
+  StreamSubscription? _matchListener;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _maybeShowProfileTutorial();
     });
-
-    _listenForNewMatches(); // realtime listener
+    _startMatchListener();
   }
 
-  // -----------------------------------------------------------
-  // 🔥 REAL-TIME MATCH LISTENER — Uses MatchDockPopup
-  // -----------------------------------------------------------
-  void _listenForNewMatches() {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+  @override
+  void dispose() {
+    _matchListener?.cancel();
+    _tutorialOverlay?.remove();
+    super.dispose();
+  }
 
-    FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .collection('matches')
-        .orderBy('timestamp', descending: true)
+  // ---------------------------------------------------------
+  // 🔥 MATCH LISTENER
+  // ---------------------------------------------------------
+  void _startMatchListener() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    _matchListener = FirebaseFirestore.instance
+        .collection("users")
+        .doc(uid)
+        .collection("matches")
+        .where("status", isEqualTo: "incoming")
+        .orderBy("timestamp", descending: true)
         .snapshots()
         .listen((snapshot) async {
       if (snapshot.docChanges.isEmpty) return;
 
-      final change = snapshot.docChanges.first;
+      for (var change in snapshot.docChanges) {
+        if (change.type == DocumentChangeType.added) {
+          final data = change.doc.data();
+          if (data == null) continue;
 
-      if (change.type == DocumentChangeType.added) {
-        final matchedUserId = change.doc['userId'];
+          final otherId = data["userId"];
+          final score = data["compatibilityScore"] ?? 80;
 
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(matchedUserId)
-            .get();
+          final userDoc = await FirebaseFirestore.instance
+              .collection("users")
+              .doc(otherId)
+              .get();
 
-        final username = userDoc['username'] ?? 'Unknown';
-        final photoUrl = userDoc['photoUrl'] ?? '';
+          final username = userDoc["username"] ?? "Someone";
+          final photoUrl = userDoc["photoUrl"] ?? "";
 
-        _showMatchPopup(username, matchedUserId, photoUrl);
+          _showMatchPopup(
+            otherId,
+            username,
+            photoUrl,
+            score.toString(),
+          );
+        }
       }
     });
   }
 
-  // -----------------------------------------------------------
-  // ❤️ SHOW MATCH DOCK POPUP
-  // -----------------------------------------------------------
-  void _showMatchPopup(String username, String userId, String photoUrl) {
+  // ---------------------------------------------------------
+  // ❤️ MATCH POPUP
+  // ---------------------------------------------------------
+  void _showMatchPopup(
+      String otherId, String username, String photoUrl, String similarity) {
     showDialog(
       context: context,
       barrierDismissible: true,
@@ -79,26 +117,23 @@ class _HomePageState extends State<HomePage> {
         return MatchDockPopup(
           username: username,
           photoUrl: photoUrl,
-          similarity: "85", // placeholder
+          similarity: similarity,
           onConnect: () async {
-            await MatchService().acceptMatch(userId);
-            Navigator.of(context).pop();
+            await MatchService().acceptIncomingRequest(otherId);
           },
-          onAbandon: () async {
-            await MatchService().declineMatch(userId);
-            Navigator.of(context).pop();
+          onAbandon: (reason) async {
+            await MatchService()
+                .declineIncomingRequest(otherId, reason ?? "No reason");
           },
-          onDismiss: () {
-            Navigator.of(context).pop();
-          },
+          onDismiss: () => Navigator.of(context).pop(),
         );
       },
     );
   }
 
-  // -----------------------------------------------------------
-  // PROFILE TOOLTIP LOGIC (unchanged)
-  // -----------------------------------------------------------
+  // ---------------------------------------------------------
+  // 🧭 PROFILE TOOLTIP (unchanged)
+  // ---------------------------------------------------------
   Future<void> _maybeShowProfileTutorial() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -107,7 +142,7 @@ class _HomePageState extends State<HomePage> {
         await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
 
     final username = doc.data()?['username'];
-    if (!_tutorialShown && (username == null || (username as String).isEmpty)) {
+    if (!_tutorialShown && (username == null || username.isEmpty)) {
       _showTooltipBubble();
       _tutorialShown = true;
     }
@@ -123,12 +158,11 @@ class _HomePageState extends State<HomePage> {
     final pos = box.localToGlobal(Offset.zero);
     final size = box.size;
 
-    final left = (((pos.dx) - 140).clamp(
-      8,
-      MediaQuery.of(context).size.width - 240,
-    )).toDouble();
+    final left = (((pos.dx) - 140)
+        .clamp(8, MediaQuery.of(context).size.width - 240))
+      .toDouble();
 
-    final top = (pos.dy + size.height + 8);
+    final top = pos.dy + size.height + 8;
 
     _tutorialOverlay = OverlayEntry(
       builder: (_) => Positioned(
@@ -163,47 +197,81 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  @override
-  void dispose() {
-    _tutorialOverlay?.remove();
-    super.dispose();
-  }
-
-  // -----------------------------------------------------------
-  // UI LAYOUT
-  // -----------------------------------------------------------
+  // ---------------------------------------------------------
+  // 🖥 UI
+  // ---------------------------------------------------------
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildTopBar(),
-            Expanded(child: _buildTabContent()),
-            _buildBottomNav(),
-          ],
+    return Stack(
+      children: [
+        _buildBackground(),   // 🌈 Y2K GRADIENT + GLOW BLOBS
+        Scaffold(
+          backgroundColor: Colors.transparent,
+          body: SafeArea(
+            child: Column(
+              children: [
+                _buildTopBar(),
+                Expanded(child: _buildTabContent()),
+                _buildBottomNav(),
+              ],
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 
+  // ---------------------------------------------------------
+  // 🌈 BACKGROUND GRADIENT + MAX GLOW BLOBS
+  // ---------------------------------------------------------
+  Widget _buildBackground() {
+  return Container(
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          bgTop,     // soft pearl pink
+          bgMid,     // light lilac
+          bgBottom,  // pastel baby blue
+        ],
+      ),
+    ),
+  );
+}
+
+
+  // ---------------------------------------------------------
+  // 🔝 TOP BAR
+  // ---------------------------------------------------------
   Widget _buildTopBar() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
+          // LOGOUT
+          GestureDetector(
+            onTap: () async {
+              await FirebaseAuth.instance.signOut();
+              if (!mounted) return;
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginPage()),
+              );
+            },
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: y2kPink.withOpacity(0.25),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.logout, color: y2kPink),
             ),
-            child: const Icon(Icons.music_note, color: Colors.black),
           ),
 
+          // PROFILE ICON
           GestureDetector(
             onTap: () => setState(() => selectedTab = 3),
             child: Container(
@@ -211,11 +279,11 @@ class _HomePageState extends State<HomePage> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: const Color(0xFF282828),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFF535353), width: 2),
+                border: Border.all(color: y2kBlue, width: 2),
+                color: Colors.white.withOpacity(0.35),
               ),
-              child: const Icon(Icons.person_outline, color: Colors.white),
+              child: const Icon(Icons.person_outline, color: y2kBlue),
             ),
           ),
         ],
@@ -223,6 +291,9 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // ---------------------------------------------------------
+  // 📑 TABS
+  // ---------------------------------------------------------
   Widget _buildTabContent() {
     switch (selectedTab) {
       case 0:
@@ -230,8 +301,8 @@ class _HomePageState extends State<HomePage> {
       case 1:
         return const WavPage();
       case 2:
-        final user = FirebaseAuth.instance.currentUser;
-        return MatchPage(uid: user?.uid ?? "");
+        final uid = FirebaseAuth.instance.currentUser?.uid ?? "";
+        return MatchPage(uid: uid);
       case 3:
         return const ProfilePage();
       default:
@@ -244,77 +315,105 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: const Color(0xFF1DB954), size: 80),
+          Icon(icon, color: y2kPink, size: 80),
           const SizedBox(height: 24),
-          Text(name,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 32,
-                  fontWeight: FontWeight.w700)),
+          Text(
+            name,
+            style: const TextStyle(
+              color: y2kPurple,
+              fontSize: 32,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           const SizedBox(height: 12),
-          const Text('Coming soon...',
-              style: TextStyle(color: Color(0xFF7F7F7F), fontSize: 16)),
+          const Text(
+            'Coming soon...',
+            style: TextStyle(color: mutedText, fontSize: 16),
+          ),
         ],
       ),
     );
   }
 
+  // ---------------------------------------------------------
+  // ⬇️ BOTTOM NAVIGATION (PNG ICONS PRESERVED)
+  // ---------------------------------------------------------
   Widget _buildBottomNav() {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16),
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: Color(0xFF282828), width: 1)),
-      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _buildNavItem(Icons.home_rounded, 'Home', 0),
-          _buildNavItem(Icons.graphic_eq_rounded, 'Wav', 1),
-          _buildNavItem(Icons.favorite_rounded, 'Matches', 2),
-          _buildNavItem(Icons.person_rounded, 'Profile', 3),
+          _navItemPNG('assets/images/home.png', 'Home', 0),
+          _navItemPNG('assets/images/wav.png', 'Wav', 1),
+          _navItemPNG('assets/images/hh.png', 'Matches', 2),
+          _navItemPNG('assets/images/profile.png', 'Profile', 3),
         ],
       ),
     );
   }
 
-  Widget _buildNavItem(IconData icon, String label, int index) {
-    bool isActive = selectedTab == index;
+  // ---------------------------------------------------------
+  // 🔘 Y2K NAV ITEM WITH BIG BUBBLEGUM RIPPLE
+  // ---------------------------------------------------------
+  Widget _navItemPNG(String assetPath, String label, int index) {
+    final isActive = selectedTab == index;
 
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          selectedTab = index;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon,
-                color:
-                    isActive ? const Color(0xFF1DB954) : const Color(0xFF7F7F7F),
-                size: 28),
-            const SizedBox(height: 4),
-            Text(label,
-                style: TextStyle(
-                    color:
-                        isActive ? const Color(0xFF1DB954) : const Color(0xFF7F7F7F),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600)),
-          ],
+    return Material(
+      color: Colors.transparent,
+      child: InkResponse(
+        onTap: () => setState(() => selectedTab = index),
+        radius: 150, // huge ripple
+        splashColor: y2kPink.withOpacity(0.45),
+        highlightColor: y2kBlue.withOpacity(0.4),
+        containedInkWell: false,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: AnimatedScale(
+            scale: isActive ? 1.0 : 0.90,
+            duration: const Duration(milliseconds: 200),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Opacity(
+                  opacity: isActive ? 1.0 : 0.55,
+                  child: Image.asset(
+                    assetPath,
+                    width: 34,
+                    height: 34,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: isActive ? y2kPink : y2kPurple,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
-// TOOLTIP STUFF (unchanged)
+// ---------------------------------------------------------
+// 🗨 TOOLTIP BUBBLE
+// ---------------------------------------------------------
 class TooltipBubble extends StatelessWidget {
   final VoidCallback onClose;
   final VoidCallback onSetup;
 
-  const TooltipBubble({required this.onClose, required this.onSetup, super.key});
+  const TooltipBubble({
+    required this.onClose,
+    required this.onSetup,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -324,43 +423,52 @@ class TooltipBubble extends StatelessWidget {
           width: 240,
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E1E1E),
-            borderRadius: BorderRadius.circular(10),
+            color: Colors.white.withOpacity(0.75),
+            borderRadius: BorderRadius.circular(12),
             boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 8)
+              BoxShadow(color: y2kPink.withOpacity(0.4), blurRadius: 20),
             ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("Set up your profile",
-                  style: TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.w700)),
+              const Text(
+                "Set up your profile",
+                style: TextStyle(
+                  color: textDark,
+                  fontWeight: FontWeight.w700),
+              ),
               const SizedBox(height: 6),
-              const Text("Tap here to add a photo and username.",
-                  style: TextStyle(color: Color(0xFFCCCCCC), fontSize: 13)),
+              const Text(
+                "Tap here to add a photo and username.",
+                style: TextStyle(color: mutedText, fontSize: 13),
+              ),
               const SizedBox(height: 10),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
-                      onPressed: onClose,
-                      child: const Text(
-                        "Later",
-                        style: TextStyle(color: Color(0xFFBBBBBB)),
-                      )),
+                    onPressed: onClose,
+                    child: const Text(
+                      "Later",
+                      style: TextStyle(color: mutedText),
+                    ),
+                  ),
                   ElevatedButton(
                     onPressed: onSetup,
                     style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1DB954)),
-                    child: const Text("Set Up",
-                        style: TextStyle(color: Colors.black)),
+                        backgroundColor: y2kPink),
+                    child: const Text(
+                      "Set Up",
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ),
                 ],
               ),
             ],
           ),
         ),
+
         CustomPaint(
           painter: _ArrowPainter(),
           child: const SizedBox(width: 20, height: 12),
@@ -373,7 +481,7 @@ class TooltipBubble extends StatelessWidget {
 class _ArrowPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final p = Paint()..color = const Color(0xFF1E1E1E);
+    final p = Paint()..color = Colors.white.withOpacity(0.75);
     final path = Path()
       ..moveTo(0, 0)
       ..lineTo(size.width / 2, size.height)
