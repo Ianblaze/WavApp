@@ -38,6 +38,13 @@ class _ChatPageState extends State<ChatPage> {
   final ScrollController _scrollController = ScrollController();
 
   bool _sending = false;
+  Map<String, dynamic>? _replyingTo;
+
+  @override
+  void initState() {
+    super.initState();
+    _markMessagesAsRead();
+  }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> _chatStream() {
     return FirebaseFirestore.instance
@@ -48,19 +55,19 @@ class _ChatPageState extends State<ChatPage> {
         .snapshots();
   }
 
-  // ------------------------
-  // AUTO SCROLL (Fixed)
-  // ------------------------
-  void _scrollToBottom() {
-    if (!_scrollController.hasClients) return;
+  // Mark messages as read when user opens chat
+  Future<void> _markMessagesAsRead() async {
+    final messages = await FirebaseFirestore.instance
+        .collection("chats")
+        .doc(widget.chatId)
+        .collection("messages")
+        .where("senderId", isEqualTo: widget.otherUserId)
+        .where("status", isNotEqualTo: "read")
+        .get();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.jumpTo(
-          _scrollController.position.maxScrollExtent,
-        );
-      }
-    });
+    for (var doc in messages.docs) {
+      doc.reference.update({"status": "read"});
+    }
   }
 
   // ------------------------
@@ -72,24 +79,63 @@ class _ChatPageState extends State<ChatPage> {
     if (text.isEmpty) return;
 
     _sending = true;
+
+    // Capture reply data before clearing (don't use setState yet)
+    Map<String, dynamic>? replyData;
+    if (_replyingTo != null) {
+      replyData = {
+        "replyTo": _replyingTo!["text"],
+        "replyToSender": _replyingTo!["senderId"],
+      };
+      _replyingTo = null; // Clear without setState
+    }
+
     _messageController.clear();
 
     try {
+      final messageData = <String, dynamic>{
+        "senderId": FirebaseAuth.instance.currentUser!.uid,
+        "text": text,
+        "timestamp": Timestamp.now(),
+        "status": "sent",
+      };
+
+      // Add reply info if it exists
+      if (replyData != null) {
+        messageData.addAll(replyData);
+      }
+
       await FirebaseFirestore.instance
           .collection("chats")
           .doc(widget.chatId)
           .collection("messages")
-          .add({
-        "senderId": FirebaseAuth.instance.currentUser!.uid,
-        "text": text,
-        "timestamp": Timestamp.now(), // Client-side timestamp to prevent double-update
-      });
-
+          .add(messageData);
     } catch (e) {
       debugPrint("send message error: $e");
     }
 
     _sending = false;
+    
+    // Update UI only once at the end if reply bar was showing
+    if (replyData != null && mounted) {
+      setState(() {});
+    }
+  }
+
+  // ------------------------
+  // REPLY TO MESSAGE
+  // ------------------------
+  void _replyToMessage(Map<String, dynamic> msg) {
+    setState(() {
+      _replyingTo = msg;
+    });
+  }
+
+  // ------------------------
+  // CANCEL REPLY
+  // ------------------------
+  void _cancelReply() {
+    setState(() => _replyingTo = null);
   }
 
   @override
@@ -105,13 +151,13 @@ class _ChatPageState extends State<ChatPage> {
             ),
           ),
         ),
-
         Scaffold(
           backgroundColor: Colors.transparent,
           appBar: _buildAppBar(),
           body: Column(
             children: [
               Expanded(child: _buildMessageList()),
+              if (_replyingTo != null) _buildReplyPreview(),
               _buildMessageInput(),
             ],
           ),
@@ -173,54 +219,219 @@ class _ChatPageState extends State<ChatPage> {
 
         return ListView.builder(
           controller: _scrollController,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           itemCount: messages.length,
           reverse: true,
           addAutomaticKeepAlives: true,
+          physics: const BouncingScrollPhysics(),
           itemBuilder: (context, index) {
-            final msg = messages[index].data();
-            final msgId = messages[index].id;
+            final doc = messages[index];
+            final msg = doc.data();
+            final msgId = doc.id;
             final isMe =
                 msg["senderId"] == FirebaseAuth.instance.currentUser!.uid;
 
-            return Align(
-              key: ValueKey(msgId), // Prevents rebuilds
-              alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-              child: Container(
-                margin: const EdgeInsets.symmetric(vertical: 6),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-
-                decoration: BoxDecoration(
-                  color: isMe ? y2kPink : Colors.white,
-                  borderRadius: BorderRadius.only(
-                    topLeft: const Radius.circular(4),
-                    topRight: const Radius.circular(20),
-                    bottomLeft: Radius.circular(isMe ? 20 : 4),
-                    bottomRight: Radius.circular(isMe ? 4 : 20),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    )
-                  ],
-                ),
-
-                child: Text(
-                  msg["text"] ?? "",
-                  style: TextStyle(
-                    color: isMe ? Colors.white : textDark,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            );
+            return _buildSwipeableMessage(msg, msgId, isMe);
           },
         );
       },
+    );
+  }
+
+  // ---------------------
+  // SWIPEABLE MESSAGE
+  // ---------------------
+  Widget _buildSwipeableMessage(
+      Map<String, dynamic> msg, String msgId, bool isMe) {
+    return GestureDetector(
+      onDoubleTap: () => _replyToMessage(msg),
+      child: Align(
+        key: ValueKey(msgId),
+        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.8,
+          ),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isMe ? y2kPink : Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(4),
+              topRight: const Radius.circular(18),
+              bottomLeft: Radius.circular(isMe ? 18 : 4),
+              bottomRight: Radius.circular(isMe ? 4 : 18),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              )
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Reply preview if this message is a reply
+              if (msg["replyTo"] != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  margin: const EdgeInsets.only(bottom: 6),
+                  decoration: BoxDecoration(
+                    color: isMe
+                        ? Colors.white.withOpacity(0.25)
+                        : Colors.grey.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border(
+                      left: BorderSide(
+                        color: isMe ? Colors.white : y2kPink,
+                        width: 2.5,
+                      ),
+                    ),
+                  ),
+                  child: Text(
+                    msg["replyTo"],
+                    style: TextStyle(
+                      color:
+                          isMe ? Colors.white70 : textDark.withOpacity(0.7),
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+
+              // Message text
+              Text(
+                msg["text"] ?? "",
+                style: TextStyle(
+                  color: isMe ? Colors.white : textDark,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  height: 1.3,
+                ),
+              ),
+
+              const SizedBox(height: 3),
+
+              // Status and time row
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    _formatTime(msg["timestamp"]),
+                    style: TextStyle(
+                      color: isMe ? Colors.white70 : mutedText,
+                      fontSize: 10,
+                    ),
+                  ),
+                  if (isMe) ...[
+                    const SizedBox(width: 3),
+                    _buildReadReceipt(msg["status"] ?? "sent"),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---------------------
+  // READ RECEIPT ICONS
+  // ---------------------
+  Widget _buildReadReceipt(String status) {
+    if (status == "read") {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.done_all, size: 16, color: Colors.blue[400]),
+        ],
+      );
+    } else if (status == "delivered") {
+      return const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.done_all, size: 16, color: Colors.white70),
+        ],
+      );
+    } else {
+      return const Icon(Icons.done, size: 16, color: Colors.white70);
+    }
+  }
+
+  // ---------------------
+  // FORMAT TIME
+  // ---------------------
+  String _formatTime(Timestamp? timestamp) {
+    if (timestamp == null) return "";
+    final date = timestamp.toDate();
+    return "${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}";
+  }
+
+  // ---------------------
+  // REPLY PREVIEW BAR
+  // ---------------------
+  Widget _buildReplyPreview() {
+    final isMyMessage =
+        _replyingTo!["senderId"] == FirebaseAuth.instance.currentUser!.uid;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7EBFF),
+        border: Border(
+          top: BorderSide(color: Colors.purple.withOpacity(0.15), width: 1),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 3,
+            height: 35,
+            decoration: BoxDecoration(
+              color: y2kPink,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  isMyMessage ? "You" : widget.otherUsername,
+                  style: const TextStyle(
+                    color: y2kPink,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _replyingTo!["text"],
+                  style: const TextStyle(color: textDark, fontSize: 13),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: _cancelReply,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            icon: const Icon(Icons.close, color: mutedText, size: 20),
+          ),
+        ],
+      ),
     );
   }
 
@@ -229,53 +440,56 @@ class _ChatPageState extends State<ChatPage> {
   // ---------------------
   Widget _buildMessageInput() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           // Text input pill
           Expanded(
             child: Container(
               padding:
-                  const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+                  const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
               decoration: BoxDecoration(
                 color: const Color(0xFFF7EBFF),
-                borderRadius: BorderRadius.circular(40),
+                borderRadius: BorderRadius.circular(25),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.purple.withOpacity(0.25),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
+                    color: Colors.purple.withOpacity(0.15),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
               child: TextField(
                 controller: _messageController,
                 textInputAction: TextInputAction.send,
-
-                // ENTER sends the message without button animation
+                maxLines: null,
+                minLines: 1,
+                textCapitalization: TextCapitalization.sentences,
                 onSubmitted: (_) {
                   _sendMessage();
                 },
-
                 decoration: const InputDecoration(
                   border: InputBorder.none,
-                  hintText: "Type a message...",
-                  hintStyle: TextStyle(color: mutedText),
+                  hintText: "Message...",
+                  hintStyle: TextStyle(color: mutedText, fontSize: 15),
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
                 ),
-                style: const TextStyle(color: textDark, fontSize: 16),
+                style: const TextStyle(color: textDark, fontSize: 15),
               ),
             ),
           ),
 
-          const SizedBox(width: 14),
+          const SizedBox(width: 10),
 
-          // Send button - simple tap, no animation states
+          // Send button
           GestureDetector(
             onTap: _sendMessage,
             child: Image.asset(
               "assets/images/send.png",
-              width: 52,
-              height: 52,
+              width: 46,
+              height: 46,
             ),
           ),
         ],

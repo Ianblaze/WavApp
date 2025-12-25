@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
 // Pages
+import 'pages/splash.dart';
 import 'auth/login_page.dart';
 import 'pages/chat_page.dart';   // <-- Make sure this path matches your project
 
@@ -51,7 +52,7 @@ class MyApp extends StatelessWidget {
         },
       },
 
-      home: const LoginPage(),
+      home: const SplashScreen(), // Changed from LoginPage to SplashScreen
     );
   }
 }
