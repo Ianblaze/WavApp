@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:swipify/pages/home_page.dart';
 import '../auth/auth_service.dart';
 import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
-import 'package:flutter/services.dart' show rootBundle;
+import 'login_dialogs.dart'; // Import the dialogs helper
 
 // ----------------------
 // Y2K COLORS (STRONGER PASTELS)
@@ -199,6 +200,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     ));
     
     _entranceController.forward();
+    
+    // Check for auto-login (Remember Me)
+    _checkAutoLogin();
   }
 
   @override
@@ -234,6 +238,89 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           _activeCardIndex = null;
         });
       }
+    });
+  }
+
+  void _navigateToHome() {
+    print('🏠 _navigateToHome called!');
+    print('📍 Context: $context');
+    print('🔄 Navigating to HomePage...');
+    
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const HomePage()),
+      (route) => false,
+    );
+    
+    print('✅ Navigation initiated!');
+  }
+
+  // Auto-login check (Remember Me functionality)
+  Future<void> _checkAutoLogin() async {
+    print('🔄 Checking for auto-login...');
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final rememberMe = prefs.getBool('remember_me') ?? false;
+      
+      if (!rememberMe) {
+        print('❌ Remember me not enabled');
+        return;
+      }
+      
+      final user = FirebaseAuth.instance.currentUser;
+      
+      if (user != null) {
+        // User is already logged in
+        await user.reload();
+        final currentUser = FirebaseAuth.instance.currentUser;
+        
+        if (currentUser != null && currentUser.emailVerified) {
+          // User is verified, auto-login!
+          print('✅ Auto-login successful for: ${currentUser.email}');
+          
+          if (mounted) {
+            _navigateToHome();
+          }
+        } else if (currentUser != null && !currentUser.emailVerified) {
+          // User exists but not verified
+          print('⚠️  User not verified, cannot auto-login');
+        }
+      } else {
+        print('❌ No user logged in');
+      }
+    } catch (e) {
+      print('❌ Auto-login check failed: $e');
+    }
+  }
+
+  // Password validation method
+  void _validatePassword(String password) {
+    setState(() {
+      _hasMinLength = password.length >= 8;
+      _hasUppercase = password.contains(RegExp(r'[A-Z]'));
+      _hasNumber = password.contains(RegExp(r'[0-9]'));
+      _hasSpecialChar = password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
+    });
+  }
+  
+  // Email validation method
+  void _validateEmail(String email) {
+    setState(() {
+      _isValidEmail = RegExp(
+        r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+      ).hasMatch(email);
+    });
+  }
+  
+  // Reset validation states
+  void _resetValidation() {
+    setState(() {
+      _hasMinLength = false;
+      _hasUppercase = false;
+      _hasNumber = false;
+      _hasSpecialChar = false;
+      _isValidEmail = false;
     });
   }
 
@@ -572,94 +659,144 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   }
 
   Widget _buildMainCards() {
-    return Center(
-      child: SizedBox(
-        height: 360,
-        width: double.infinity,
-        child: AnimatedBuilder(
-          animation: Listenable.merge([_entranceController, _floatingController]),
-          builder: (context, child) {
-            return Stack(
-              alignment: Alignment.center,
-              clipBehavior: Clip.none,
-              children: [
-                SlideTransition(
-                  position: _slideAnimation1,
-                  child: FadeTransition(
-                    opacity: _entranceOpacity,
-                    child: Transform.translate(
-                      offset: Offset(0, _floatingAnimation.value),
-                      child: _buildMainAuthCard(
-                        cardIndex: 0,
-                        title: "Sign up",
-                        subtitle: "Make a new account in seconds",
-                        rotation: -8,
-                        horizontalOffset: -65,
-                        gradientColors: const [
-                          Color(0xFFFFB8E6),
-                          Color(0xFFFFD8F0),
-                          Color(0xFFFFE8F7),
-                        ],
-                        accentColor: const Color(0xFFFF88D4),
-                        decorationType: 'blob',
-                        onTap: () => _showAuthMethodsWithAnimation(true),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        
+        // Calculate responsive values
+        // Maintain minimum 24px edge padding on both sides
+        const minEdgePadding = 24.0;
+        const cardSpacing = 16.0; // Minimum space between cards
+        
+        // Calculate available width for both cards plus spacing
+        final availableWidth = screenWidth - (minEdgePadding * 2);
+        
+        // Calculate optimal card width (max 220, scales down on smaller screens)
+        final cardWidth = (availableWidth - cardSpacing) / 2;
+        final responsiveCardWidth = cardWidth.clamp(160.0, 220.0);
+        
+        // Calculate horizontal offset to maintain spacing
+        final horizontalOffset = (responsiveCardWidth + cardSpacing) / 2;
+        
+        // Scale card height proportionally
+        final cardHeight = (responsiveCardWidth * 1.27).clamp(200.0, 280.0);
+        
+        return Center(
+          child: SizedBox(
+            height: cardHeight + 80, // Extra space for shadows and animations
+            width: double.infinity,
+            child: AnimatedBuilder(
+              animation: Listenable.merge([_entranceController, _floatingController]),
+              builder: (context, child) {
+                return Stack(
+                  alignment: Alignment.center,
+                  clipBehavior: Clip.none,
+                  children: [
+                    SlideTransition(
+                      position: _slideAnimation1,
+                      child: FadeTransition(
+                        opacity: _entranceOpacity,
+                        child: Transform.translate(
+                          offset: Offset(0, _floatingAnimation.value),
+                          child: _buildMainAuthCard(
+                            cardIndex: 0,
+                            title: "Sign up",
+                            subtitle: "Make a new account in seconds",
+                            rotation: -8,
+                            horizontalOffset: -horizontalOffset,
+                            cardWidth: responsiveCardWidth,
+                            cardHeight: cardHeight,
+                            gradientColors: const [
+                              Color(0xFFFFB8E6),
+                              Color(0xFFFFD8F0),
+                              Color(0xFFFFE8F7),
+                            ],
+                            accentColor: const Color(0xFFFF88D4),
+                            decorationType: 'blob',
+                            onTap: () => _showAuthMethodsWithAnimation(true),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-                
-                SlideTransition(
-                  position: _slideAnimation2,
-                  child: FadeTransition(
-                    opacity: _entranceOpacity,
-                    child: Transform.translate(
-                      offset: Offset(0, -_floatingAnimation.value),
-                      child: _buildMainAuthCard(
-                        cardIndex: 1,
-                        title: "Log in",
-                        subtitle: "Pick up right where you left off",
-                        rotation: 8,
-                        horizontalOffset: 65,
-                        gradientColors: const [
-                          Color(0xFFB8DCFF),
-                          Color(0xFFD8EBFF),
-                          Color(0xFFE8F4FF),
-                        ],
-                        accentColor: const Color(0xFF88C8FF),
-                        decorationType: 'streak',
-                        onTap: () => _showAuthMethodsWithAnimation(false),
+                    
+                    SlideTransition(
+                      position: _slideAnimation2,
+                      child: FadeTransition(
+                        opacity: _entranceOpacity,
+                        child: Transform.translate(
+                          offset: Offset(0, -_floatingAnimation.value),
+                          child: _buildMainAuthCard(
+                            cardIndex: 1,
+                            title: "Log in",
+                            subtitle: "Pick up right where you left off",
+                            rotation: 8,
+                            horizontalOffset: horizontalOffset,
+                            cardWidth: responsiveCardWidth,
+                            cardHeight: cardHeight,
+                            gradientColors: const [
+                              Color(0xFFB8DCFF),
+                              Color(0xFFD8EBFF),
+                              Color(0xFFE8F4FF),
+                            ],
+                            accentColor: const Color(0xFF88C8FF),
+                            decorationType: 'streak',
+                            onTap: () => _showAuthMethodsWithAnimation(false),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
+                  ],
+                );
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildAuthMethodCards() {
-    return Center(
-      child: SizedBox(
-        height: 300,
-        width: double.infinity,
-        child: AnimatedBuilder(
-          animation: _floatingController,
-          builder: (context, child) {
-            return Stack(
-              alignment: Alignment.center,
-              clipBehavior: Clip.none,
-              children: [
-                // Email card - left with left tilt
-                Transform.translate(
-                  offset: Offset(-95, 10 + _floatingAnimation.value),
-                  child: Transform.rotate(
-                    angle: -16 * math.pi / 180,
-                    child: _buildScrollingAuthCard(
-                      cardIndex: 0,
-                      iconWidget: SvgPicture.string(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        
+        // Calculate responsive values - MUCH TIGHTER spacing
+        const minEdgePadding = 24.0; // Same as main cards
+        const cardSpacing = 5.0; // Very tight spacing for compact look
+        
+        // Calculate available width for 3 cards
+        final availableWidth = screenWidth - (minEdgePadding * 2);
+        
+        // Calculate card width (3 cards + 2 gaps)
+        final cardWidth = (availableWidth - (cardSpacing * 2)) / 3;
+        final responsiveCardWidth = cardWidth.clamp(118.0, 145.0);
+        
+        // Calculate horizontal offset
+        final horizontalOffset = responsiveCardWidth + cardSpacing;
+        
+        // Scale card height proportionally
+        final centerCardHeight = (responsiveCardWidth * 1.62).clamp(180.0, 235.0);
+        final sideCardHeight = (responsiveCardWidth * 1.48).clamp(165.0, 215.0);
+        
+        return Center(
+          child: SizedBox(
+            height: centerCardHeight + 80, // Extra space for tilted cards
+            width: double.infinity,
+            child: AnimatedBuilder(
+              animation: _floatingController,
+              builder: (context, child) {
+                return Stack(
+                  alignment: Alignment.center,
+                  clipBehavior: Clip.none,
+                  children: [
+                    // Email card - left with left tilt
+                    Transform.translate(
+                      offset: Offset(-horizontalOffset, 10 + _floatingAnimation.value),
+                      child: Transform.rotate(
+                        angle: -16 * math.pi / 180,
+                        child: _buildScrollingAuthCard(
+                          cardIndex: 0,
+                          iconWidget: SvgPicture.string(
   '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="100" height="100">
     <path fill="#4caf50" d="M45,16.2l-5,2.75l-5,4.75L35,40h7c1.657,0,3-1.343,3-3V16.2z"/>
     <path fill="#1e88e5" d="M3,16.2l3.614,1.71L13,23.7V40H6c-1.657,0-3-1.343-3-3V16.2z"/>
@@ -667,74 +804,124 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     <path fill="#c62828" d="M3,12.298V16.2l10,7.5V11.2L9.876,8.859C9.132,8.301,8.228,8,7.298,8h0C4.924,8,3,9.924,3,12.298z"/>
     <path fill="#fbc02d" d="M45,12.298V16.2l-10,7.5V11.2l3.124-2.341C38.868,8.301,39.772,8,40.702,8h0 C43.076,8,45,9.924,45,12.298z"/>
   </svg>''',
-  width: 100,
-  height: 100,
+  width: responsiveCardWidth * 0.62,
+  height: responsiveCardWidth * 0.62,
 ),
-                      title: "",
-                      subtitle: "Classic & private",
-                      gradientColors: const [Color(0xFFFFB3C1), Color(0xFFFFCCDA)],
-                      onTap: () => isSignUp 
-                          ? _showEmailSignUpDialog() 
-                          : _showEmailLoginDialog(),
-                      isCenter: false,
+                          title: "",
+                          subtitle: "Classic & private",
+                          cardWidth: responsiveCardWidth,
+                          cardHeight: sideCardHeight,
+                          gradientColors: const [Color(0xFFFFB3C1), Color(0xFFFFCCDA)],
+                          onTap: () => isSignUp 
+                              ? LoginDialogsHelper.showEmailSignUpDialog(
+                                  context: context,
+                                  floatingController: _floatingController,
+                                  floatingAnimation: _floatingAnimation,
+                                  authService: authService,
+                                  onLoadingChanged: (loading) => setState(() => isLoading = loading),
+                                  onNavigateHome: _navigateToHome,
+                                  hasMinLength: _hasMinLength,
+                                  hasUppercase: _hasUppercase,
+                                  hasNumber: _hasNumber,
+                                  hasSpecialChar: _hasSpecialChar,
+                                  isValidEmail: _isValidEmail,
+                                  onValidatePassword: _validatePassword,
+                                  onValidateEmail: _validateEmail,
+                                  onResetValidation: _resetValidation,
+                                )
+                              : LoginDialogsHelper.showEmailLoginDialog(
+                                  context: context,
+                                  floatingController: _floatingController,
+                                  floatingAnimation: _floatingAnimation,
+                                  authService: authService,
+                                  onLoadingChanged: (loading) => setState(() => isLoading = loading),
+                                  onNavigateHome: _navigateToHome,
+                                  isValidEmail: _isValidEmail,
+                                  onValidateEmail: _validateEmail,
+                                  onResetValidation: _resetValidation,
+                                ),
+                          isCenter: false,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                
-                // Google card - center, no tilt
-                Transform.translate(
-                  offset: Offset(0, -_floatingAnimation.value),
-                  child: _buildScrollingAuthCard(
-                    cardIndex: 1,
-                    iconWidget: SvgPicture.string(
-                      '''<svg width="90" height="90" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                      </svg>''',
-                      width: 90,
-                      height: 90,
+                    
+                    // Google card - center, no tilt
+                    Transform.translate(
+                      offset: Offset(0, -_floatingAnimation.value),
+                      child: _buildScrollingAuthCard(
+                        cardIndex: 1,
+                        iconWidget: SvgPicture.string(
+                          '''<svg width="90" height="90" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                          </svg>''',
+                          width: responsiveCardWidth * 0.62,
+                          height: responsiveCardWidth * 0.62,
+                        ),
+                        title: "",
+                        subtitle: "One-tap access",
+                        cardWidth: responsiveCardWidth,
+                        cardHeight: centerCardHeight,
+                        gradientColors: const [Color(0xFFE8E8FF), Color(0xFFF0F0FF)],
+                        onTap: isLoading 
+                            ? null 
+                            : () => LoginDialogsHelper.handleGoogleSignIn(
+                                context: context,
+                                authService: authService,
+                                onLoadingChanged: (loading) => setState(() => isLoading = loading),
+                                onNavigateHome: _navigateToHome,
+                              ),
+                        showLoading: isLoading,
+                        isCenter: true,
+                      ),
                     ),
-                    title: "",
-                    subtitle: "One-tap access",
-                    gradientColors: const [Color(0xFFE8E8FF), Color(0xFFF0F0FF)],
-                    onTap: isLoading ? null : _handleGoogleSignIn,
-                    showLoading: isLoading,
-                    isCenter: true,
-                  ),
-                ),
-                
-                // Phone card - right with right tilt
-                Transform.translate(
-                  offset: Offset(95, 10 + _floatingAnimation.value),
-                  child: Transform.rotate(
-                    angle: 16 * math.pi / 180,
-                    child: _buildScrollingAuthCard(
-                      cardIndex: 2,
-                      icon: Icons.phone_android_rounded,
-                      title: "",
-                      subtitle: "Fast & secure",
-                      gradientColors: const [Color(0xFFB3D9FF), Color(0xFFCCE6FF)],
-                      onTap: () => _showPhoneSignInDialog(),
-                      isCenter: false,
+                    
+                    // Phone card - right with right tilt
+                    Transform.translate(
+                      offset: Offset(horizontalOffset, 10 + _floatingAnimation.value),
+                      child: Transform.rotate(
+                        angle: 16 * math.pi / 180,
+                        child: _buildScrollingAuthCard(
+                          cardIndex: 2,
+                          icon: Icons.phone_android_rounded,
+                          iconSize: responsiveCardWidth * 0.62,
+                          title: "",
+                          subtitle: "Fast & secure",
+                          cardWidth: responsiveCardWidth,
+                          cardHeight: sideCardHeight,
+                          gradientColors: const [Color(0xFFB3D9FF), Color(0xFFCCE6FF)],
+                          onTap: () => LoginDialogsHelper.showPhoneSignInDialog(
+                            context: context,
+                            floatingController: _floatingController,
+                            floatingAnimation: _floatingAnimation,
+                            phoneAuthService: phoneAuthService,
+                            onNavigateHome: _navigateToHome,
+                          ),
+                          isCenter: false,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
+                  ],
+                );
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildScrollingAuthCard({
     required int cardIndex,
     IconData? icon,
+    double? iconSize,
     Widget? iconWidget,
     required String title,
     required String subtitle,
+    required double cardWidth,
+    required double cardHeight,
     required List<Color> gradientColors,
     VoidCallback? onTap,
     bool showLoading = false,
@@ -742,6 +929,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   }) {
     bool isActive = showAuthMethods && _activeCardIndex == cardIndex;
     bool isHovered = showAuthMethods && _hoveredCardIndex == cardIndex;
+    
+    // Calculate responsive icon size
+    final responsiveIconSize = iconSize ?? cardWidth * 0.62;
     
     return MouseRegion(
       onEnter: (_) {
@@ -777,8 +967,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOut,
           child: Container(
-            width: 145,
-            height: isCenter ? 235 : 215,
+            width: cardWidth,
+            height: cardHeight,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
@@ -817,7 +1007,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                   children: [
                     // Large icon at the top
                     Positioned(
-                      top: 25,
+                      top: cardHeight * 0.12,
                       left: 0,
                       right: 0,
                       child: Center(
@@ -825,23 +1015,23 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                           opacity: isHovered ? 1.0 : 0.5,
                           duration: const Duration(milliseconds: 200),
                           child: showLoading
-                              ? const SizedBox(
-                                  width: 90,
-                                  height: 90,
+                              ? SizedBox(
+                                  width: responsiveIconSize,
+                                  height: responsiveIconSize,
                                   child: CircularProgressIndicator(
-                                    strokeWidth: 3,
+                                    strokeWidth: cardWidth * 0.02,
                                     color: Colors.white,
                                   ),
                                 )
                               : (iconWidget != null
                                   ? SizedBox(
-                                      width: 90,
-                                      height: 90,
+                                      width: responsiveIconSize,
+                                      height: responsiveIconSize,
                                       child: iconWidget,
                                     )
                                   : Icon(
                                       icon,
-                                      size: 90,
+                                      size: responsiveIconSize,
                                       color: Colors.white,
                                     )),
                         ),
@@ -850,14 +1040,14 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                     
                     // Single-word label at bottom
                     Positioned(
-                      bottom: 30,
+                      bottom: cardHeight * 0.14,
                       left: 0,
                       right: 0,
                       child: Text(
                         title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: 'Circular',
-                          fontSize: 24,
+                          fontSize: cardWidth * 0.165,
                           fontWeight: FontWeight.w700,
                           color: Colors.white,
                           height: 1.2,
@@ -882,6 +1072,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     required String subtitle,
     required double rotation,
     required double horizontalOffset,
+    required double cardWidth,
+    required double cardHeight,
     required List<Color> gradientColors,
     required Color accentColor,
     required String decorationType,
@@ -889,6 +1081,11 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   }) {
     bool isActive = !showAuthMethods && _activeCardIndex == cardIndex;
     bool isHovered = !showAuthMethods && _hoveredCardIndex == cardIndex;
+    
+    // Calculate responsive font sizes
+    final titleFontSize = (cardWidth * 0.164).clamp(24.0, 36.0);
+    final subtitleFontSize = (cardWidth * 0.073).clamp(13.0, 16.0);
+    final padding = (cardWidth * 0.127).clamp(20.0, 28.0);
     
     return Transform.translate(
       offset: Offset(horizontalOffset, isActive ? -20.0 : 0.0),
@@ -934,21 +1131,21 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeOut,
                 child: Container(
-                  width: 220,
-                  height: 280,
+                  width: cardWidth,
+                  height: cardHeight,
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: isHovered ? Alignment.bottomCenter : Alignment.bottomRight,
-                      colors: [
-                        gradientColors[0].withOpacity(isHovered ? 0.75 : 0.65),
-                        gradientColors[1].withOpacity(isHovered ? 0.6 : 0.5),
-                        gradientColors[2].withOpacity(isHovered ? 0.45 : 0.35),
-                      ],
-                      stops: const [0.0, 0.5, 1.0],
-                    ),
-                    borderRadius: BorderRadius.circular(28),
-                    boxShadow: [
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: isHovered ? Alignment.bottomCenter : Alignment.bottomRight,
+                        colors: [
+                          gradientColors[0].withOpacity(isHovered ? 0.75 : 0.65),
+                          gradientColors[1].withOpacity(isHovered ? 0.6 : 0.5),
+                          gradientColors[2].withOpacity(isHovered ? 0.45 : 0.35),
+                        ],
+                        stops: const [0.0, 0.5, 1.0],
+                      ),
+                      borderRadius: BorderRadius.circular(28),
+                      boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.2),
                         blurRadius: isActive ? 50 : isHovered ? 40 : 30,
@@ -973,16 +1170,16 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                     child: BackdropFilter(
                       filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                       child: Padding(
-                        padding: const EdgeInsets.all(28),
+                        padding: EdgeInsets.all(padding),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
                               title,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontFamily: 'Circular',
-                                fontSize: 36,
+                                fontSize: titleFontSize,
                                 fontWeight: FontWeight.w800,
                                 color: Colors.white,
                                 height: 1.0,
@@ -993,7 +1190,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                               subtitle,
                               style: TextStyle(
                                 fontFamily: 'Circular',
-                                fontSize: 16,
+                                fontSize: subtitleFontSize,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.white.withOpacity(0.85),
                                 letterSpacing: 0.2,
@@ -1014,1843 +1211,5 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         ),
       ),
     );
-  }
-
-  void _navigateToHome() {
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const HomePage()),
-      (route) => false,
-    );
-  }
-
-  // Password validation method
-  void _validatePassword(String password) {
-    setState(() {
-      _hasMinLength = password.length >= 8;
-      _hasUppercase = password.contains(RegExp(r'[A-Z]'));
-      _hasNumber = password.contains(RegExp(r'[0-9]'));
-      _hasSpecialChar = password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
-    });
-  }
-  
-  // Email validation method
-  void _validateEmail(String email) {
-    setState(() {
-      _isValidEmail = RegExp(
-        r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-      ).hasMatch(email);
-    });
-  }
-  
-  // Reset validation states
-  void _resetValidation() {
-    setState(() {
-      _hasMinLength = false;
-      _hasUppercase = false;
-      _hasNumber = false;
-      _hasSpecialChar = false;
-      _isValidEmail = false;
-    });
-  }
-
-  // Build password requirement indicator
-  Widget _buildPasswordRequirement(String text, bool isMet) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            width: 18,
-            height: 18,
-            decoration: BoxDecoration(
-              color: isMet ? Colors.green : Colors.white.withOpacity(0.3),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: isMet ? Colors.green : Colors.white.withOpacity(0.5),
-                width: 1.5,
-              ),
-            ),
-            child: isMet
-                ? const Icon(
-                    Icons.check,
-                    size: 12,
-                    color: Colors.white,
-                  )
-                : null,
-          ),
-          const SizedBox(width: 10),
-          Text(
-            text,
-            style: TextStyle(
-              fontFamily: 'Circular',
-              color: isMet ? Colors.green : Colors.white.withOpacity(0.8),
-              fontSize: 12,
-              fontWeight: isMet ? FontWeight.w600 : FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  // Build password requirements section
-  Widget _buildPasswordRequirements() {
-    return Container(
-      margin: const EdgeInsets.only(top: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.25),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Password must contain:",
-            style: TextStyle(
-              fontFamily: 'Circular',
-              color: Colors.white.withOpacity(0.9),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          _buildPasswordRequirement("At least 8 characters", _hasMinLength),
-          _buildPasswordRequirement("One uppercase letter", _hasUppercase),
-          _buildPasswordRequirement("One number", _hasNumber),
-          _buildPasswordRequirement("One special character (!@#\$%^&*)", _hasSpecialChar),
-        ],
-      ),
-    );
-  }
-
-  // Show email verification dialog
-  void _showEmailVerificationDialog(String email,{String? password}) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      barrierColor: Colors.black.withOpacity(0.85),
-      builder: (BuildContext dialogContext) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(32),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 440),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(32),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.3),
-                  width: 1.5,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 60,
-                    offset: const Offset(0, 20),
-                    spreadRadius: -10,
-                  ),
-                  BoxShadow(
-                    color: accentGlow.withOpacity(0.5),
-                    blurRadius: 30,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: Stack(
-                children: [
-                  // Animated color mesh gradient background
-                  AnimatedBuilder(
-                    animation: _floatingController,
-                    builder: (context, child) {
-                      final offset = _floatingAnimation.value / 50;
-                      return Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(32),
-                          gradient: LinearGradient(
-                            begin: Alignment(offset, -1.0 + offset),
-                            end: Alignment(-offset, 1.0 - offset),
-                            colors: [
-                              accentGlow.withOpacity(0.85),
-                              cardHotPink.withOpacity(0.75),
-                              cardNeonPurple.withOpacity(0.7),
-                              cardLavenderPop.withOpacity(0.65),
-                              cardElectricBlue.withOpacity(0.6),
-                              cardDigitalBlue.withOpacity(0.7),
-                            ],
-                            stops: const [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  // Content
-                  Padding(
-                    padding: const EdgeInsets.all(40),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Success icon
-                        Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.4),
-                              width: 2,
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.mark_email_read_rounded,
-                            size: 40,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        
-                        // Title
-                        const Text(
-                          "Verify Your Email",
-                          style: TextStyle(
-                            fontFamily: 'Circular',
-                            color: Colors.white,
-                            fontSize: 26,
-                            fontWeight: FontWeight.w800,
-                            height: 1.2,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        
-                        // Description
-                        RichText(
-                          textAlign: TextAlign.center,
-                          text: TextSpan(
-                            style: TextStyle(
-                              fontFamily: 'Circular',
-                              color: Colors.white.withOpacity(0.9),
-                              fontSize: 15,
-                              fontWeight: FontWeight.w500,
-                              height: 1.5,
-                            ),
-                            children: [
-                              const TextSpan(
-                                text: "We've sent a verification link to\n",
-                              ),
-                              TextSpan(
-                                text: email,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        
-                        // Info box
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.3),
-                              width: 1,
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.info_outline_rounded,
-                                    color: Colors.white.withOpacity(0.9),
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      "Click the link in the email to verify your account",
-                                      style: TextStyle(
-                                        fontFamily: 'Circular',
-                                        color: Colors.white.withOpacity(0.9),
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        height: 1.4,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.schedule_rounded,
-                                    color: Colors.white.withOpacity(0.9),
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      "Check your spam folder if you don't see it",
-                                      style: TextStyle(
-                                        fontFamily: 'Circular',
-                                        color: Colors.white.withOpacity(0.9),
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        height: 1.4,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 32),
-                        
-                        // Buttons
-                        Column(
-                          children: [
-                            // Continue button
-                            SizedBox(
-                              width: double.infinity,
-                              height: 56,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: cardHotPink,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  elevation: 8,
-                                  shadowColor: Colors.black.withOpacity(0.3),
-                                ),
-                                onPressed: () async {
-                                  Navigator.pop(dialogContext);
-                                  await FirebaseAuth.instance.signOut();
-                                  _showSnackBar(
-                                    "Please verify your email before logging in",
-                                    accentGlow,
-                                  );
-                                },
-                                child: const Text(
-                                  "Got it!",
-                                  style: TextStyle(
-                                    fontFamily: 'Circular',
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.2,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            
-                            // Resend email button
-                            TextButton(
-                              onPressed: () async {
-                                try {
-                                  final user = FirebaseAuth.instance.currentUser;
-                                  print('🔄 Attempting to resend verification email...');
-                                  print('User: ${user?.email}');
-                                  print('Email verified: ${user?.emailVerified}');
-                                  
-                                  if (user != null && !user.emailVerified) {
-                                    await user.sendEmailVerification();
-                                    print('✅ Verification email resent successfully!');
-                                    _showSnackBar(
-                                      "Verification email sent again!",
-                                      accentGlow,
-                                    );
-                                  } else if (user?.emailVerified == true) {
-                                    print('⚠️ Email already verified');
-                                    _showSnackBar(
-                                      "Email already verified! Try logging in.",
-                                      Colors.green,
-                                    );
-                                  } else {
-                                    print('❌ No user found');
-                                    _showSnackBar(
-                                      "Please sign up first.",
-                                      Colors.orange,
-                                    );
-                                  }
-                                } catch (e) {
-                                  print('❌ Error resending email: $e');
-                                  if (e.toString().contains('too-many-requests')) {
-                                    _showSnackBar(
-                                      "Too many requests. Please wait a few minutes.",
-                                      Colors.orange,
-                                    );
-                                  } else {
-                                    _showSnackBar(
-                                      "Failed to resend email. Please try again later.",
-                                      Colors.red,
-                                    );
-                                  }
-                                }
-                              },
-                              child: Text(
-                                "Resend verification email",
-                                style: TextStyle(
-                                  fontFamily: 'Circular',
-                                  color: Colors.white.withOpacity(0.9),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  decoration: TextDecoration.underline,
-                                  decorationColor: Colors.white.withOpacity(0.9),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Show email not verified dialog (for login attempts)
-  void _showEmailNotVerifiedDialog(String email) {
-    showDialog(
-      context: context,
-      barrierColor: Colors.black.withOpacity(0.85),
-      builder: (BuildContext dialogContext) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(32),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 440),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(32),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.3),
-                  width: 1.5,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 60,
-                    offset: const Offset(0, 20),
-                    spreadRadius: -10,
-                  ),
-                  BoxShadow(
-                    color: Colors.orange.withOpacity(0.5),
-                    blurRadius: 30,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: Stack(
-                children: [
-                  // Animated color mesh gradient background
-                  AnimatedBuilder(
-                    animation: _floatingController,
-                    builder: (context, child) {
-                      final offset = _floatingAnimation.value / 50;
-                      return Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(32),
-                          gradient: LinearGradient(
-                            begin: Alignment(offset, -1.0 + offset),
-                            end: Alignment(-offset, 1.0 - offset),
-                            colors: [
-                              Colors.orange.withOpacity(0.85),
-                              Colors.deepOrange.withOpacity(0.75),
-                              cardHotPink.withOpacity(0.7),
-                              cardNeonPurple.withOpacity(0.65),
-                              cardElectricBlue.withOpacity(0.6),
-                              cardDigitalBlue.withOpacity(0.7),
-                            ],
-                            stops: const [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  // Content
-                  Padding(
-                    padding: const EdgeInsets.all(40),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Warning icon
-                        Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.4),
-                              width: 2,
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.email_outlined,
-                            size: 40,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        
-                        // Title
-                        const Text(
-                          "Email Not Verified",
-                          style: TextStyle(
-                            fontFamily: 'Circular',
-                            color: Colors.white,
-                            fontSize: 26,
-                            fontWeight: FontWeight.w800,
-                            height: 1.2,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        
-                        // Description
-                        Text(
-                          "Please verify your email address before logging in. Check your inbox for the verification link.",
-                          style: TextStyle(
-                            fontFamily: 'Circular',
-                            color: Colors.white.withOpacity(0.9),
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                            height: 1.5,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 24),
-                        
-                        // Info box
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.3),
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.lightbulb_outline_rounded,
-                                color: Colors.white.withOpacity(0.9),
-                                size: 20,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  "Already verified? Try logging in again after clicking the link",
-                                  style: TextStyle(
-                                    fontFamily: 'Circular',
-                                    color: Colors.white.withOpacity(0.9),
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    height: 1.4,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 32),
-                        
-                        // Buttons
-                        Column(
-                          children: [
-                            // Resend email button
-                            SizedBox(
-                              width: double.infinity,
-                              height: 56,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: Colors.orange,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  elevation: 8,
-                                  shadowColor: Colors.black.withOpacity(0.3),
-                                ),
-                                onPressed: () async {
-                                  try {
-                                    final user = FirebaseAuth.instance.currentUser;
-                                    print('🔄 Resending verification email from login dialog...');
-                                    print('User: ${user?.email}');
-                                    
-                                    if (user != null && !user.emailVerified) {
-                                      await user.sendEmailVerification();
-                                      print('✅ Verification email resent!');
-                                      _showSnackBar(
-                                        "Verification email sent!",
-                                        accentGlow,
-                                      );
-                                    }
-                                  } catch (e) {
-                                    print('❌ Error resending: $e');
-                                    if (e.toString().contains('too-many-requests')) {
-                                      _showSnackBar(
-                                        "Too many requests. Wait a few minutes.",
-                                        Colors.orange,
-                                      );
-                                    } else {
-                                      _showSnackBar(
-                                        "Failed to resend email. Please try again later.",
-                                        Colors.red,
-                                      );
-                                    }
-                                  }
-                                },
-                                child: const Text(
-                                  "Resend verification email",
-                                  style: TextStyle(
-                                    fontFamily: 'Circular',
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.2,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            
-                            // Close button
-                            TextButton(
-                              onPressed: () async {
-                                Navigator.pop(dialogContext);
-                                await FirebaseAuth.instance.signOut();
-                              },
-                              child: Text(
-                                "Close",
-                                style: TextStyle(
-                                  fontFamily: 'Circular',
-                                  color: Colors.white.withOpacity(0.9),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showPhoneSignInDialog() {
-    final phoneCtrl = TextEditingController();
-    final codeCtrl = TextEditingController();
-    String verificationId = '';
-    bool codeSent = false;
-    bool isProcessing = false;
-
-    showDialog(
-      context: context,
-      barrierColor: Colors.black.withOpacity(0.85),
-      builder: (BuildContext dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
-          
-          return Dialog(
-            backgroundColor: Colors.transparent,
-            insetPadding: EdgeInsets.symmetric(
-              horizontal: 24,
-              vertical: keyboardHeight > 0 ? 16 : 24,
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(32),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 440),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(32),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.3),
-                      width: 1.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
-                        blurRadius: 60,
-                        offset: const Offset(0, 20),
-                        spreadRadius: -10,
-                      ),
-                      BoxShadow(
-                        color: cardElectricBlue.withOpacity(0.5),
-                        blurRadius: 30,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: Stack(
-                    children: [
-                      // Animated color mesh gradient background
-                      AnimatedBuilder(
-                        animation: _floatingController,
-                        builder: (context, child) {
-                          final offset = _floatingAnimation.value / 50;
-                          return Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(32),
-                              gradient: LinearGradient(
-                                begin: Alignment(offset, -1.0 + offset),
-                                end: Alignment(-offset, 1.0 - offset),
-                                colors: [
-                                  cardDigitalBlue.withOpacity(0.85),
-                                  cardElectricBlue.withOpacity(0.75),
-                                  cardHotPink.withOpacity(0.6),
-                                  cardNeonPurple.withOpacity(0.7),
-                                  cardLavenderPop.withOpacity(0.65),
-                                  accentGlow.withOpacity(0.6),
-                                ],
-                                stops: const [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      // Content with scroll
-                      SingleChildScrollView(
-                        physics: const BouncingScrollPhysics(),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Header
-                            Container(
-                              padding: const EdgeInsets.fromLTRB(32, 32, 24, 20),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 48,
-                                    height: 48,
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          codeSent ? "Verify your number" : "Phone Sign In",
-                                          style: const TextStyle(
-                                            fontFamily: 'Circular',
-                                            color: Colors.white,
-                                            fontSize: 22,
-                                            fontWeight: FontWeight.w700,
-                                            height: 1.2,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  IconButton(
-                                    onPressed: () => Navigator.pop(dialogContext),
-                                    icon: Container(
-                                      padding: const EdgeInsets.all(6),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.2),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Icon(
-                                        Icons.close_rounded,
-                                        color: Colors.white.withOpacity(0.9),
-                                        size: 20,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            
-                            // Content
-                            Padding(
-                              padding: EdgeInsets.fromLTRB(
-                                32,
-                                0,
-                                32,
-                                keyboardHeight > 0 ? 24 : 32,
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (!codeSent) ...[
-                                    _buildModernTextField(
-                                      phoneCtrl,
-                                      "Phone number",
-                                      hint: "+91 98765 43210",
-                                      icon: Icons.phone_outlined,
-                                      keyboardType: TextInputType.phone,
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.25),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: const [
-                                          Icon(
-                                            Icons.info_outline,
-                                            size: 14,
-                                            color: Colors.white,
-                                          ),
-                                          SizedBox(width: 6),
-                                          Flexible(
-                                            child: Text(
-                                              "Include country code (e.g., +91)",
-                                              style: TextStyle(
-                                                fontFamily: 'Circular',
-                                                color: Colors.white,
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ] else ...[
-                                    _buildModernTextField(
-                                      codeCtrl,
-                                      "Verification code",
-                                      hint: "000000",
-                                      icon: Icons.lock_outline,
-                                      keyboardType: TextInputType.number,
-                                      maxLength: 6,
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Container(
-                                      padding: const EdgeInsets.all(16),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.25),
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(
-                                          color: Colors.white.withOpacity(0.3),
-                                          width: 1,
-                                        ),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.mark_email_read_outlined,
-                                            color: Colors.white,
-                                            size: 20,
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Text(
-                                              "Check your messages for the 6-digit code",
-                                              style: TextStyle(
-                                                fontFamily: 'Circular',
-                                                color: Colors.white.withOpacity(0.9),
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w500,
-                                                height: 1.4,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                  const SizedBox(height: 24),
-                                  
-                                  // Action button
-                                  SizedBox(
-                                    width: double.infinity,
-                                    height: 56,
-                                    child: ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.white,
-                                        foregroundColor: cardElectricBlue,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(16),
-                                        ),
-                                        elevation: 8,
-                                        shadowColor: Colors.black.withOpacity(0.3),
-                                      ),
-                                      onPressed: isProcessing
-                                          ? null
-                                          : () async {
-                                              if (!codeSent) {
-                                                final phone = phoneCtrl.text.trim();
-                                                if (phone.isEmpty) {
-                                                  _showSnackBar(
-                                                      "Please enter phone number", Colors.orange);
-                                                  return;
-                                                }
-
-                                                if (!phone.startsWith('+')) {
-                                                  _showSnackBar(
-                                                      "Phone number must start with country code (e.g., +91)",
-                                                      Colors.orange);
-                                                  return;
-                                                }
-
-                                                setDialogState(() => isProcessing = true);
-
-                                                await phoneAuthService.sendOtp(
-                                                  phoneNumber: phone,
-                                                  onCodeSent: (String verId) {
-                                                    verificationId = verId;
-                                                    setDialogState(() {
-                                                      codeSent = true;
-                                                      isProcessing = false;
-                                                    });
-                                                    _showSnackBar(
-                                                      "Verification code sent!",
-                                                      accentGlow,
-                                                    );
-                                                  },
-                                                  onError: (String error) {
-                                                    setDialogState(() => isProcessing = false);
-                                                    _showSnackBar(error, Colors.red);
-                                                  },
-                                                );
-                                              } else {
-                                                final code = codeCtrl.text.trim();
-                                                if (code.isEmpty) {
-                                                  _showSnackBar(
-                                                      "Please enter verification code",
-                                                      Colors.orange);
-                                                  return;
-                                                }
-
-                                                if (code.length != 6) {
-                                                  _showSnackBar(
-                                                      "Verification code must be 6 digits",
-                                                      Colors.orange);
-                                                  return;
-                                                }
-
-                                                setDialogState(() => isProcessing = true);
-
-                                                final user = await phoneAuthService.verifyOtp(
-                                                  otp: code,
-                                                  verificationId: verificationId,
-                                                  onError: (String error) {
-                                                    setDialogState(() => isProcessing = false);
-                                                    _showSnackBar(error, Colors.red);
-                                                  },
-                                                );
-
-                                                if (user != null && mounted) {
-                                                  Navigator.pop(dialogContext);
-                                                  _showSnackBar(
-                                                    "Signed in successfully!",
-                                                    accentGlow,
-                                                  );
-                                                  _navigateToHome();
-                                                } else {
-                                                  setDialogState(() => isProcessing = false);
-                                                }
-                                              }
-                                            },
-                                      child: isProcessing
-                                          ? const SizedBox(
-                                              height: 24,
-                                              width: 24,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2.5,
-                                                color: cardElectricBlue,
-                                              ),
-                                            )
-                                          : Row(
-                                              mainAxisAlignment: MainAxisAlignment.center,
-                                              children: [
-                                                Text(
-                                                  codeSent ? "Verify code" : "Send code",
-                                                  style: const TextStyle(
-                                                    fontFamily: 'Circular',
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.w700,
-                                                    letterSpacing: 0.2,
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 8),
-                                              ],
-                                            ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  void _showEmailSignUpDialog() {
-    final nameCtrl = TextEditingController();
-    final emailCtrl = TextEditingController();
-    final passCtrl = TextEditingController();
-    bool isProcessing = false;
-    
-    // Reset validation when dialog opens
-    _resetValidation();
-
-    showDialog(
-      context: context,
-      barrierColor: Colors.black.withOpacity(0.85),
-      builder: (BuildContext dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
-          
-          return Dialog(
-            backgroundColor: Colors.transparent,
-            insetPadding: EdgeInsets.symmetric(
-              horizontal: 24,
-              vertical: keyboardHeight > 0 ? 16 : 24,
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(32),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 440),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(32),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.3),
-                      width: 1.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
-                        blurRadius: 60,
-                        offset: const Offset(0, 20),
-                        spreadRadius: -10,
-                      ),
-                      BoxShadow(
-                        color: cardHotPink.withOpacity(0.5),
-                        blurRadius: 30,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: Stack(
-                    children: [
-                      // Animated color mesh gradient background
-                      AnimatedBuilder(
-                        animation: _floatingController,
-                        builder: (context, child) {
-                          final offset = _floatingAnimation.value / 50;
-                          return Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(32),
-                              gradient: LinearGradient(
-                                begin: Alignment(offset, -1.0 + offset),
-                                end: Alignment(-offset, 1.0 - offset),
-                                colors: [
-                                  cardHotPink.withOpacity(0.85),
-                                  cardCyberPink.withOpacity(0.75),
-                                  cardElectricBlue.withOpacity(0.6),
-                                  cardDigitalBlue.withOpacity(0.65),
-                                  cardLavenderPop.withOpacity(0.7),
-                                  cardNeonPurple.withOpacity(0.6),
-                                ],
-                                stops: const [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      // Content with scroll
-                      SingleChildScrollView(
-                        physics: const BouncingScrollPhysics(),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Header
-                            Container(
-                              padding: const EdgeInsets.fromLTRB(32, 32, 24, 20),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 48,
-                                    height: 48,
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: const [
-                                        Text(
-                                          "Create Account",
-                                          style: TextStyle(
-                                            fontFamily: 'Circular',
-                                            color: Colors.white,
-                                            fontSize: 22,
-                                            fontWeight: FontWeight.w700,
-                                            height: 1.2,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  IconButton(
-                                    onPressed: () {
-                                      _resetValidation();
-                                      Navigator.pop(dialogContext);
-                                    },
-                                    icon: Container(
-                                      padding: const EdgeInsets.all(6),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.2),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Icon(
-                                        Icons.close_rounded,
-                                        color: Colors.white.withOpacity(0.9),
-                                        size: 20,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            
-                            // Content
-                            Padding(
-                              padding: EdgeInsets.fromLTRB(
-                                32,
-                                0,
-                                32,
-                                keyboardHeight > 0 ? 24 : 32,
-                              ),
-                              child: Column(
-                                children: [
-                                  _buildModernTextField(
-                                    nameCtrl,
-                                    "Username",
-                                    hint: "fiery phoenix",
-                                    icon: Icons.person_outline,
-                                  ),
-                                  const SizedBox(height: 16),
-                                  _buildModernTextField(
-                                    emailCtrl,
-                                    "Email address",
-                                    hint: "name@domain.com",
-                                    icon: Icons.email_outlined,
-                                    keyboardType: TextInputType.emailAddress,
-                                    onChanged: (value) {
-                                      setDialogState(() {
-                                        _validateEmail(value);
-                                      });
-                                    },
-                                  ),
-                                  // Email validation indicator
-                                  if (emailCtrl.text.isNotEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 8),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            _isValidEmail ? Icons.check_circle : Icons.cancel,
-                                            size: 16,
-                                            color: _isValidEmail ? Colors.green : Colors.red.shade300,
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            _isValidEmail ? "Valid email" : "Invalid email format",
-                                            style: TextStyle(
-                                              fontFamily: 'Circular',
-                                              color: _isValidEmail ? Colors.green : Colors.red.shade300,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  const SizedBox(height: 16),
-                                  _buildModernTextField(
-                                    passCtrl,
-                                    "Password",
-                                    hint: "Min. 8 characters",
-                                    icon: Icons.lock_outline,
-                                    isPassword: true,
-                                    onChanged: (value) {
-                                      setDialogState(() {
-                                        _validatePassword(value);
-                                      });
-                                    },
-                                  ),
-                                  // Password requirements
-                                  if (passCtrl.text.isNotEmpty)
-                                    _buildPasswordRequirements(),
-                                  const SizedBox(height: 24),
-                                  
-                                  // Action button
-                                  SizedBox(
-                                    width: double.infinity,
-                                    height: 56,
-                                    child: ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.white,
-                                        foregroundColor: cardHotPink,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(16),
-                                        ),
-                                        elevation: 8,
-                                        shadowColor: Colors.black.withOpacity(0.3),
-                                      ),
-                                      onPressed: isProcessing
-                                          ? null
-                                          : () async {
-                                              // Validate before proceeding
-                                              if (!_isValidEmail) {
-                                                _showSnackBar("Please enter a valid email", Colors.orange);
-                                                return;
-                                              }
-                                              
-                                              if (!(_hasMinLength && _hasUppercase && _hasNumber && _hasSpecialChar)) {
-                                                _showSnackBar("Password doesn't meet requirements", Colors.orange);
-                                                return;
-                                              }
-                                              
-                                              setDialogState(() => isProcessing = true);
-                                              _resetValidation();
-                                              Navigator.pop(dialogContext);
-                                              await _handleEmailSignUp(
-                                                nameCtrl.text.trim(),
-                                                emailCtrl.text.trim(),
-                                                passCtrl.text.trim(),
-                                              );
-                                            },
-                                      child: isProcessing
-                                          ? const SizedBox(
-                                              height: 24,
-                                              width: 24,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2.5,
-                                                color: cardHotPink,
-                                              ),
-                                            )
-                                          : Row(
-                                              mainAxisAlignment: MainAxisAlignment.center,
-                                              children: const [
-                                                Text(
-                                                  "Create account",
-                                                  style: TextStyle(
-                                                    fontFamily: 'Circular',
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.w700,
-                                                    letterSpacing: 0.2,
-                                                  ),
-                                                ),
-                                                SizedBox(width: 8),
-                                              ],
-                                            ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  void _showEmailLoginDialog() {
-    final emailCtrl = TextEditingController();
-    final passCtrl = TextEditingController();
-    bool isProcessing = false;
-    
-    // Reset validation when dialog opens
-    _resetValidation();
-
-    showDialog(
-      context: context,
-      barrierColor: Colors.black.withOpacity(0.85),
-      builder: (BuildContext dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
-          
-          return Dialog(
-            backgroundColor: Colors.transparent,
-            insetPadding: EdgeInsets.symmetric(
-              horizontal: 24,
-              vertical: keyboardHeight > 0 ? 16 : 24,
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(32),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 440),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(32),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.3),
-                      width: 1.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
-                        blurRadius: 60,
-                        offset: const Offset(0, 20),
-                        spreadRadius: -10,
-                      ),
-                      BoxShadow(
-                        color: cardElectricBlue.withOpacity(0.5),
-                        blurRadius: 30,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: Stack(
-                    children: [
-                      // Animated color mesh gradient background
-                      AnimatedBuilder(
-                        animation: _floatingController,
-                        builder: (context, child) {
-                          final offset = _floatingAnimation.value / 50;
-                          return Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(32),
-                              gradient: LinearGradient(
-                                begin: Alignment(offset, -1.0 + offset),
-                                end: Alignment(-offset, 1.0 - offset),
-                                colors: [
-                                  cardElectricBlue.withOpacity(0.85),
-                                  cardDigitalBlue.withOpacity(0.75),
-                                  cardHotPink.withOpacity(0.6),
-                                  cardNeonPurple.withOpacity(0.7),
-                                  cardLavenderPop.withOpacity(0.65),
-                                  accentGlow.withOpacity(0.6),
-                                ],
-                                stops: const [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      // Content with scroll
-                      SingleChildScrollView(
-                        physics: const BouncingScrollPhysics(),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Header
-                            Container(
-                              padding: const EdgeInsets.fromLTRB(32, 32, 24, 20),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 48,
-                                    height: 48,
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: const [
-                                        Text(
-                                          "Welcome Back",
-                                          style: TextStyle(
-                                            fontFamily: 'Circular',
-                                            color: Colors.white,
-                                            fontSize: 22,
-                                            fontWeight: FontWeight.w700,
-                                            height: 1.2,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  IconButton(
-                                    onPressed: () {
-                                      _resetValidation();
-                                      Navigator.pop(dialogContext);
-                                    },
-                                    icon: Container(
-                                      padding: const EdgeInsets.all(6),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.2),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Icon(
-                                        Icons.close_rounded,
-                                        color: Colors.white.withOpacity(0.9),
-                                        size: 20,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            
-                            // Content
-                            Padding(
-                              padding: EdgeInsets.fromLTRB(
-                                32,
-                                0,
-                                32,
-                                keyboardHeight > 0 ? 24 : 32,
-                              ),
-                              child: Column(
-                                children: [
-                                  _buildModernTextField(
-                                    emailCtrl,
-                                    "Email address",
-                                    hint: "name@domain.com",
-                                    icon: Icons.email_outlined,
-                                    keyboardType: TextInputType.emailAddress,
-                                    onChanged: (value) {
-                                      setDialogState(() {
-                                        _validateEmail(value);
-                                      });
-                                    },
-                                  ),
-                                  // Email validation indicator
-                                  if (emailCtrl.text.isNotEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 8),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            _isValidEmail ? Icons.check_circle : Icons.cancel,
-                                            size: 16,
-                                            color: _isValidEmail ? Colors.green : Colors.red.shade300,
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            _isValidEmail ? "Valid email" : "Invalid email format",
-                                            style: TextStyle(
-                                              fontFamily: 'Circular',
-                                              color: _isValidEmail ? Colors.green : Colors.red.shade300,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  const SizedBox(height: 16),
-                                  _buildModernTextField(
-                                    passCtrl,
-                                    "Password",
-                                    hint: "Enter password",
-                                    icon: Icons.lock_outline,
-                                    isPassword: true,
-                                  ),
-                                  const SizedBox(height: 24),
-                                  
-                                  // Action button
-                                  SizedBox(
-                                    width: double.infinity,
-                                    height: 56,
-                                    child: ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.white,
-                                        foregroundColor: cardElectricBlue,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(16),
-                                        ),
-                                        elevation: 8,
-                                        shadowColor: Colors.black.withOpacity(0.3),
-                                      ),
-                                      onPressed: isProcessing
-                                          ? null
-                                          : () async {
-                                              // Validate email before proceeding
-                                              if (!_isValidEmail) {
-                                                _showSnackBar("Please enter a valid email", Colors.orange);
-                                                return;
-                                              }
-                                              
-                                              setDialogState(() => isProcessing = true);
-                                              _resetValidation();
-                                              Navigator.pop(dialogContext);
-                                              await _handleEmailLogin(
-                                                emailCtrl.text.trim(),
-                                                passCtrl.text.trim(),
-                                              );
-                                            },
-                                      child: isProcessing
-                                          ? const SizedBox(
-                                              height: 24,
-                                              width: 24,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2.5,
-                                                color: cardElectricBlue,
-                                              ),
-                                            )
-                                          : Row(
-                                              mainAxisAlignment: MainAxisAlignment.center,
-                                              children: const [
-                                                Text(
-                                                  "Log in",
-                                                  style: TextStyle(
-                                                    fontFamily: 'Circular',
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.w700,
-                                                    letterSpacing: 0.2,
-                                                  ),
-                                                ),
-                                                SizedBox(width: 8),
-                                              ],
-                                            ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildModernTextField(
-    TextEditingController controller,
-    String label, {
-    String? hint,
-    IconData? icon,
-    bool isPassword = false,
-    TextInputType? keyboardType,
-    int? maxLength,
-    Function(String)? onChanged,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontFamily: 'Circular',
-            color: Colors.white.withOpacity(0.9),
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.2,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.95),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: Colors.white,
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: TextField(
-            controller: controller,
-            obscureText: isPassword,
-            keyboardType: keyboardType,
-            maxLength: maxLength,
-            onChanged: onChanged,
-            style: const TextStyle(
-              fontFamily: 'Circular',
-              color: textDark,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
-            decoration: InputDecoration(
-              filled: false,
-              hintText: hint,
-              counterText: "",
-              hintStyle: TextStyle(
-                fontFamily: 'Circular',
-                color: textDark.withOpacity(0.4),
-                fontWeight: FontWeight.w400,
-                fontSize: 15,
-              ),
-              prefixIcon: icon != null
-                  ? Padding(
-                      padding: const EdgeInsets.only(left: 16, right: 12),
-                      child: Icon(
-                        icon,
-                        color: textDark.withOpacity(0.5),
-                        size: 22,
-                      ),
-                    )
-                  : null,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 16,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide.none,
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(
-                  color: accentGlow,
-                  width: 2,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _handleGoogleSignIn() async {
-    setState(() => isLoading = true);
-
-    try {
-      final user = await authService.signInWithGoogle();
-
-      if (!mounted) return;
-
-      if (user != null) {
-        _showSnackBar("Welcome ${user.displayName ?? 'User'}!", accentGlow);
-        _navigateToHome();
-      } else {
-        _showSnackBar("Google sign-in cancelled", Colors.orange);
-      }
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-      _showSnackBar(_getErrorMessage(e), Colors.red);
-    } catch (e) {
-      if (!mounted) return;
-      _showSnackBar("An error occurred. Please try again.", Colors.red);
-    } finally {
-      if (mounted) {
-        setState(() => isLoading = false);
-      }
-    }
-  }
-
-  Future<void> _handleEmailSignUp(
-      String name, String email, String password) async {
-    if (name.isEmpty || email.isEmpty || password.isEmpty) {
-      _showSnackBar("Please fill in all fields", Colors.orange);
-      return;
-    }
-
-    if (password.length < 8) {
-      _showSnackBar("Password must be at least 8 characters", Colors.orange);
-      return;
-    }
-    
-    if (!password.contains(RegExp(r'[A-Z]'))) {
-      _showSnackBar("Password must contain at least one uppercase letter", Colors.orange);
-      return;
-    }
-    
-    if (!password.contains(RegExp(r'[0-9]'))) {
-      _showSnackBar("Password must contain at least one number", Colors.orange);
-      return;
-    }
-    
-    if (!password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) {
-      _showSnackBar("Password must contain at least one special character", Colors.orange);
-      return;
-    }
-
-    setState(() => isLoading = true);
-
-    try {
-      final user = await authService.signUpWithEmail(
-        email: email,
-        password: password,
-        name: name,
-      );
-
-      if (!mounted) return;
-
-      if (user != null) {
-        // Send verification email with better error handling
-        try {
-          await user.sendEmailVerification();
-          print('✅ Verification email sent successfully to: $email');
-          
-          // Show verification dialog
-          _showEmailVerificationDialog(email);
-          
-          setState(() => isLoading = false);
-        } catch (emailError) {
-          print('❌ Error sending verification email: $emailError');
-          
-          // Still show the dialog but with a warning
-          setState(() => isLoading = false);
-          
-          _showSnackBar(
-            "Account created! Please check if you received the verification email.",
-            Colors.orange,
-          );
-          
-          // Show the dialog anyway so user can resend
-          _showEmailVerificationDialog(email);
-        }
-      }
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-      print('❌ Firebase Auth Error: ${e.code} - ${e.message}');
-      _showSnackBar(_getErrorMessage(e), Colors.red);
-      setState(() => isLoading = false);
-    } catch (e) {
-      if (!mounted) return;
-      print('❌ General Error: $e');
-      _showSnackBar("An error occurred. Please try again.", Colors.red);
-      setState(() => isLoading = false);
-    }
-  }
-
-  Future<void> _handleEmailLogin(String email, String password) async {
-    if (email.isEmpty || password.isEmpty) {
-      _showSnackBar("Please fill in all fields", Colors.orange);
-      return;
-    }
-
-    setState(() => isLoading = true);
-
-    try {
-      final user = await authService.signInWithEmail(
-        email: email,
-        password: password,
-      );
-
-      if (!mounted) return;
-
-      if (user != null) {
-        // Check if email is verified
-        await user.reload(); // Refresh user data
-        final currentUser = FirebaseAuth.instance.currentUser;
-        
-        if (currentUser != null && !currentUser.emailVerified) {
-          // Email not verified - show dialog
-          setState(() => isLoading = false);
-          _showEmailNotVerifiedDialog(email);
-        } else {
-          // Email verified - proceed to home
-          _showSnackBar("Welcome back!", accentGlow);
-          _navigateToHome();
-        }
-      }
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-      _showSnackBar(_getErrorMessage(e), Colors.red);
-      setState(() => isLoading = false);
-    } catch (e) {
-      if (!mounted) return;
-      _showSnackBar("An error occurred. Please try again.", Colors.red);
-      setState(() => isLoading = false);
-    }
-  }
-
-  void _showSnackBar(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: const TextStyle(
-            fontFamily: 'Circular',
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        margin: const EdgeInsets.all(16),
-        duration: const Duration(seconds: 3),
-      ),
-    );
-  }
-
-  String _getErrorMessage(FirebaseAuthException e) {
-    switch (e.code) {
-      case 'weak-password':
-        return 'The password is too weak.';
-      case 'email-already-in-use':
-        return 'An account already exists with this email.';
-      case 'invalid-email':
-        return 'The email address is invalid.';
-      case 'user-not-found':
-        return 'No account found with this email.';
-      case 'wrong-password':
-        return 'Incorrect password.';
-      case 'user-disabled':
-        return 'This account has been disabled.';
-      case 'too-many-requests':
-        return 'Too many attempts. Please try again later.';
-      case 'operation-not-allowed':
-        return 'This sign-in method is not enabled.';
-      case 'network-request-failed':
-        return 'Network error. Check your connection.';
-      default:
-        return e.message ?? 'An error occurred. Please try again.';
-    }
   }
 }
