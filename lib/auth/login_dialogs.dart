@@ -295,7 +295,6 @@ class LoginDialogsHelper {
     required AuthService authService,
     required Function(bool) onLoadingChanged,
     required VoidCallback onNavigateHome,
-    required bool rememberMe,
   }) async {
     if (email.isEmpty || password.isEmpty) {
       _showSnackBar(context, "Please fill in all fields", Colors.orange);
@@ -313,14 +312,6 @@ class LoginDialogsHelper {
       if (!context.mounted) return;
 
       if (user != null) {
-        // Store remember me preference
-        if (rememberMe) {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setBool('remember_me', true);
-          await prefs.setString('user_email', email);
-          print('✅ Remember me enabled for: $email');
-        }
-
         // Check if email is verified
         await user.reload(); // Refresh user data
         final currentUser = FirebaseAuth.instance.currentUser;
@@ -625,7 +616,11 @@ class LoginDialogsHelper {
     showDialog(
       context: context,
       barrierColor: Colors.black.withOpacity(0.85),
-      builder: (BuildContext dialogContext) => StatefulBuilder(
+      builder: (BuildContext dialogContext) => MediaQuery(
+        data: MediaQuery.of(dialogContext).copyWith(
+          viewInsets: EdgeInsets.zero,  // ✅ Ignore keyboard - overlay instead
+        ),
+        child: StatefulBuilder(
         builder: (context, setDialogState) {
           return Dialog(
             backgroundColor: Colors.transparent,
@@ -633,10 +628,7 @@ class LoginDialogsHelper {
               horizontal: 24,
               vertical: 24,
             ),
-            child: Scaffold(
-              backgroundColor: Colors.transparent,
-              resizeToAvoidBottomInset: false, // ✅ Keyboard overlays, doesn't resize
-              body: ClipRRect(
+            child: ClipRRect(
               borderRadius: BorderRadius.circular(32),
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
@@ -966,9 +958,9 @@ class LoginDialogsHelper {
                 ),
               ),
             ),
-        ),  // Scaffold
           );
         },
+      ),  // MediaQuery (keyboard overlay)
       ),
     );
   }
@@ -1015,7 +1007,11 @@ class LoginDialogsHelper {
     showDialog(
       context: context,
       barrierColor: Colors.black.withOpacity(0.85),
-      builder: (BuildContext dialogContext) => StatefulBuilder(
+      builder: (BuildContext dialogContext) => MediaQuery(
+        data: MediaQuery.of(dialogContext).copyWith(
+          viewInsets: EdgeInsets.zero,  // ✅ Ignore keyboard - overlay instead
+        ),
+        child: StatefulBuilder(
         builder: (context, setDialogState) {
           return Dialog(
             backgroundColor: Colors.transparent,
@@ -1023,10 +1019,7 @@ class LoginDialogsHelper {
               horizontal: 24,
               vertical: 24,
             ),
-            child: Scaffold(
-              backgroundColor: Colors.transparent,
-              resizeToAvoidBottomInset: false, // ✅ Keyboard overlays, doesn't resize
-              body: ClipRRect(
+            child: ClipRRect(
               borderRadius: BorderRadius.circular(32),
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
@@ -1157,75 +1150,87 @@ class LoginDialogsHelper {
                                         ),
                                       ),
                                       const SizedBox(height: 8),
-                                      TextField(
-                                        controller: nameCtrl,
-                                        style: const TextStyle(
-                                          fontFamily: 'Circular',
-                                          color: Colors.white,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.95), // ✅ Solid white like others
+                                          borderRadius: BorderRadius.circular(14),
+                                          border: Border.all(
+                                            color: Colors.white,
+                                            width: 1.5,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withOpacity(0.1),
+                                              blurRadius: 10,
+                                              offset: const Offset(0, 4),
+                                            ),
+                                          ],
                                         ),
-                                        textCapitalization: TextCapitalization.none,
-                                        decoration: InputDecoration(
-                                          hintText: "fiery_phoenix",
-                                          hintStyle: TextStyle(
+                                        child: TextField(
+                                          controller: nameCtrl,
+                                          style: const TextStyle(
                                             fontFamily: 'Circular',
-                                            color: Colors.white.withOpacity(0.4),
+                                            color: textDark, // ✅ Dark text like others
                                             fontSize: 16,
                                             fontWeight: FontWeight.w500,
                                           ),
-                                          filled: true,
-                                          fillColor: Colors.white.withOpacity(0.15),
-                                          prefixIcon: Icon(
-                                            Icons.person_outline,
-                                            color: Colors.white.withOpacity(0.7),
-                                            size: 22,
-                                          ),
-                                          suffixIcon: isCheckingUsername
-                                              ? Padding(
-                                                  padding: const EdgeInsets.all(12),
-                                                  child: SizedBox(
-                                                    width: 20,
-                                                    height: 20,
-                                                    child: CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                      color: Colors.white.withOpacity(0.7),
+                                          textCapitalization: TextCapitalization.none,
+                                          decoration: InputDecoration(
+                                            hintText: "fiery_phoenix",
+                                            hintStyle: TextStyle(
+                                              fontFamily: 'Circular',
+                                              color: textDark.withOpacity(0.4), // ✅ Dark hint
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w400,
+                                            ),
+                                            filled: false,
+                                            prefixIcon: Padding(
+                                              padding: const EdgeInsets.only(left: 16, right: 12),
+                                              child: Icon(
+                                                Icons.person_outline,
+                                                color: textDark.withOpacity(0.5), // ✅ Dark icon
+                                                size: 22,
+                                              ),
+                                            ),
+                                            suffixIcon: isCheckingUsername
+                                                ? Padding(
+                                                    padding: const EdgeInsets.all(12),
+                                                    child: SizedBox(
+                                                      width: 20,
+                                                      height: 20,
+                                                      child: CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                        color: accentGlow,
+                                                      ),
                                                     ),
-                                                  ),
-                                                )
-                                              : isUsernameAvailable == null
-                                                  ? null
-                                                  : Icon(
-                                                      isUsernameAvailable!
-                                                          ? Icons.check_circle
-                                                          : Icons.cancel,
-                                                      color: isUsernameAvailable!
-                                                          ? Colors.green
-                                                          : Colors.red,
-                                                      size: 22,
-                                                    ),
-                                          border: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(16),
-                                            borderSide: BorderSide(
-                                              color: Colors.white.withOpacity(0.3),
-                                              width: 1.5,
+                                                  )
+                                                : isUsernameAvailable == null
+                                                    ? null
+                                                    : Icon(
+                                                        isUsernameAvailable!
+                                                            ? Icons.check_circle
+                                                            : Icons.cancel,
+                                                        color: isUsernameAvailable!
+                                                            ? Colors.green
+                                                            : Colors.red,
+                                                        size: 22,
+                                                      ),
+                                            border: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(14),
+                                              borderSide: BorderSide.none,
                                             ),
-                                          ),
-                                          enabledBorder: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(16),
-                                            borderSide: BorderSide(
-                                              color: Colors.white.withOpacity(0.3),
-                                              width: 1.5,
+                                            enabledBorder: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(14),
+                                              borderSide: BorderSide.none,
                                             ),
-                                          ),
-                                          focusedBorder: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(16),
-                                            borderSide: const BorderSide(
-                                              color: Colors.white,
-                                              width: 2,
+                                            focusedBorder: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(14),
+                                              borderSide: BorderSide(
+                                                color: accentGlow,
+                                                width: 2,
+                                              ),
                                             ),
-                                          ),
-                                          contentPadding: const EdgeInsets.symmetric(
+                                            contentPadding: const EdgeInsets.symmetric(
                                             horizontal: 16,
                                             vertical: 16,
                                           ),
@@ -1267,6 +1272,7 @@ class LoginDialogsHelper {
                                           });
                                         },
                                       ),
+                                    ),  // Container
                                       if (usernameError != null && isUsernameAvailable == false)
                                         Padding(
                                           padding: const EdgeInsets.only(top: 8, left: 4),
@@ -1473,9 +1479,9 @@ class LoginDialogsHelper {
                 ),
               ),
             ),
-        ),  // Scaffold
           );
         },
+      ),  // MediaQuery (keyboard overlay)
       ),
     );
   }
@@ -1497,7 +1503,6 @@ class LoginDialogsHelper {
     final emailCtrl = TextEditingController();
     final passCtrl = TextEditingController();
     bool isProcessing = false;
-    bool rememberMe = false; // Remember me state
 
     // Local validation state
     bool localIsValidEmail = isValidEmail;
@@ -1508,7 +1513,11 @@ class LoginDialogsHelper {
     showDialog(
       context: context,
       barrierColor: Colors.black.withOpacity(0.85),
-      builder: (BuildContext dialogContext) => StatefulBuilder(
+      builder: (BuildContext dialogContext) => MediaQuery(
+        data: MediaQuery.of(dialogContext).copyWith(
+          viewInsets: EdgeInsets.zero,  // ✅ Ignore keyboard - overlay instead
+        ),
+        child: StatefulBuilder(
         builder: (context, setDialogState) {
           return Dialog(
             backgroundColor: Colors.transparent,
@@ -1516,10 +1525,7 @@ class LoginDialogsHelper {
               horizontal: 24,
               vertical: 24,
             ),
-            child: Scaffold(
-              backgroundColor: Colors.transparent,
-              resizeToAvoidBottomInset: false, // ✅ Keyboard overlays, doesn't resize
-              body: ClipRRect(
+            child: ClipRRect(
               borderRadius: BorderRadius.circular(32),
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
@@ -1691,74 +1697,35 @@ class LoginDialogsHelper {
                                   const SizedBox(height: 20),
 
                                   // Remember Me & Forgot Password row
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      // Remember Me checkbox
-                                      Row(
-                                        children: [
-                                          SizedBox(
-                                            width: 24,
-                                            height: 24,
-                                            child: Checkbox(
-                                              value: rememberMe,
-                                              onChanged: (value) {
-                                                setDialogState(() {
-                                                  rememberMe = value ?? false;
-                                                });
-                                              },
-                                              activeColor: Colors.white,
-                                              checkColor: cardElectricBlue,
-                                              side: BorderSide(
-                                                color: Colors.white.withOpacity(0.7),
-                                                width: 2,
-                                              ),
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.circular(4),
-                                              ),
-                                            ),
-                                          ),
-                                          SizedBox(width: 8),
-                                          Text(
-                                            "Remember me",
-                                            style: TextStyle(
-                                              fontFamily: 'Circular',
-                                              color: Colors.white.withOpacity(0.9),
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
+                                  // Forgot Password link aligned to the right
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton(
+                                      onPressed: () {
+                                        Navigator.pop(dialogContext);
+                                        showForgotPasswordDialog(
+                                          context: context,
+                                          floatingController: floatingController,
+                                          floatingAnimation: floatingAnimation,
+                                        );
+                                      },
+                                      style: TextButton.styleFrom(
+                                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        minimumSize: Size(0, 0),
+                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                       ),
-
-                                      // Forgot Password link
-                                      TextButton(
-                                        onPressed: () {
-                                          Navigator.pop(dialogContext);
-                                          showForgotPasswordDialog(
-                                            context: context,
-                                            floatingController: floatingController,
-                                            floatingAnimation: floatingAnimation,
-                                          );
-                                        },
-                                        style: TextButton.styleFrom(
-                                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                          minimumSize: Size(0, 0),
-                                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                        ),
-                                        child: Text(
-                                          "Forgot Password?",
-                                          style: TextStyle(
-                                            fontFamily: 'Circular',
-                                            color: Colors.white,
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w700,
-                                            decoration: TextDecoration.underline,
-                                            decorationColor: Colors.white,
-                                          ),
+                                      child: Text(
+                                        "Forgot Password?",
+                                        style: TextStyle(
+                                          fontFamily: 'Circular',
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                          decoration: TextDecoration.underline,
+                                          decorationColor: Colors.white,
                                         ),
                                       ),
-                                    ],
+                                    ),
                                   ),
                                   const SizedBox(height: 24),
 
@@ -1798,7 +1765,6 @@ class LoginDialogsHelper {
                                                 authService: authService,
                                                 onLoadingChanged: onLoadingChanged,
                                                 onNavigateHome: onNavigateHome,
-                                                rememberMe: rememberMe,
                                               );
                                               
                                               if (context.mounted) {
@@ -1842,9 +1808,9 @@ class LoginDialogsHelper {
                 ),
               ),
             ),
-        ),  // Scaffold
           );
         },
+      ),  // MediaQuery (keyboard overlay)
       ),
     );
   }
@@ -1866,17 +1832,18 @@ class LoginDialogsHelper {
       context: context,
       barrierDismissible: false,
       barrierColor: Colors.black.withOpacity(0.85),
-      builder: (BuildContext dialogContext) => StatefulBuilder(
+      builder: (BuildContext dialogContext) => MediaQuery(
+        data: MediaQuery.of(dialogContext).copyWith(
+          viewInsets: EdgeInsets.zero,  // ✅ Ignore keyboard - overlay instead
+        ),
+        child: StatefulBuilder(
         builder: (context, setState) {
           bool isChecking = false; // Track if we're currently checking
           
           return Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        child: Scaffold(
-          backgroundColor: Colors.transparent,
-          resizeToAvoidBottomInset: false, // ✅ Keyboard overlays, doesn't resize
-          body: ClipRRect(
+        child: ClipRRect(
           borderRadius: BorderRadius.circular(32),
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
@@ -2203,10 +2170,11 @@ class LoginDialogsHelper {
             ),
           ),
         ),
-      ));
+      );
         },
+      ),  // MediaQuery (keyboard overlay)
       ),
-    );  // Scaffold
+    );
   }
 
   // ============================================================================
@@ -2219,26 +2187,27 @@ class LoginDialogsHelper {
     showDialog(
       context: context,
       barrierColor: Colors.black.withOpacity(0.85),
-      builder: (BuildContext dialogContext) => Dialog(
+      builder: (BuildContext dialogContext) => MediaQuery(
+        data: MediaQuery.of(dialogContext).copyWith(
+          viewInsets: EdgeInsets.zero,  // ✅ Ignore keyboard - overlay instead
+        ),
+        child: Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        child: Scaffold(
-          backgroundColor: Colors.transparent,
-          resizeToAvoidBottomInset: false, // ✅ Keyboard overlays, doesn't resize
-          body: ClipRRect(
-            borderRadius: BorderRadius.circular(32),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 440),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(32),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.3),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(32),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 440),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(32),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.3),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
                     color: Colors.black.withOpacity(0.3),
                     blurRadius: 60,
                     offset: const Offset(0, 20),
@@ -2442,8 +2411,8 @@ class LoginDialogsHelper {
             ),
           ),
         ),
+      ),  // MediaQuery (keyboard overlay)
       ),
-  ),  // Scaffold
     );
   }
 
@@ -2476,7 +2445,7 @@ class LoginDialogsHelper {
         const SizedBox(height: 10),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.95),
+            color: Colors.white.withOpacity(0.95), // ✅ Solid white
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: Colors.white,
@@ -2498,7 +2467,7 @@ class LoginDialogsHelper {
             onChanged: onChanged,
             style: const TextStyle(
               fontFamily: 'Circular',
-              color: textDark,
+              color: textDark, // ✅ Dark text
               fontSize: 16,
               fontWeight: FontWeight.w500,
             ),
@@ -2508,7 +2477,7 @@ class LoginDialogsHelper {
               counterText: "",
               hintStyle: TextStyle(
                 fontFamily: 'Circular',
-                color: textDark.withOpacity(0.4),
+                color: textDark.withOpacity(0.4), // ✅ Dark hint
                 fontWeight: FontWeight.w400,
                 fontSize: 15,
               ),
@@ -2517,7 +2486,7 @@ class LoginDialogsHelper {
                       padding: const EdgeInsets.only(left: 16, right: 12),
                       child: Icon(
                         icon,
-                        color: textDark.withOpacity(0.5),
+                        color: textDark.withOpacity(0.5), // ✅ Dark icon
                         size: 22,
                       ),
                     )
@@ -2672,15 +2641,16 @@ class LoginDialogsHelper {
     showDialog(
       context: context,
       barrierColor: Colors.black.withOpacity(0.85),
-      builder: (BuildContext dialogContext) => StatefulBuilder(
+      builder: (BuildContext dialogContext) => MediaQuery(
+        data: MediaQuery.of(dialogContext).copyWith(
+          viewInsets: EdgeInsets.zero,  // ✅ Ignore keyboard - overlay instead
+        ),
+        child: StatefulBuilder(
         builder: (context, setState) {
           return Dialog(
             backgroundColor: Colors.transparent,
             insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-            child: Scaffold(
-              backgroundColor: Colors.transparent,
-              resizeToAvoidBottomInset: false, // ✅ Keyboard overlays, doesn't resize
-              body: ClipRRect(
+            child: ClipRRect(
               borderRadius: BorderRadius.circular(32),
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
@@ -2968,9 +2938,9 @@ class LoginDialogsHelper {
                 ),
               ),
             ),
-        ),  // Scaffold
           );
         },
+      ),  // MediaQuery (keyboard overlay)
       ),
     );
   }

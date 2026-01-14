@@ -326,13 +326,15 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        // Animated mesh gradient background with color shifting
-        AnimatedBuilder(
-          animation: _gradientShiftController,
-          builder: (context, child) {
-            final shift = _gradientShift.value;
+    return Scaffold(
+      resizeToAvoidBottomInset: false, // ✅ CRITICAL: Prevents keyboard from resizing UI
+      body: Stack(
+        children: [
+          // Animated mesh gradient background with color shifting
+          AnimatedBuilder(
+            animation: _gradientShiftController,
+            builder: (context, child) {
+              final shift = _gradientShift.value;
             
             const bubblegumPink = Color(0xFFFF69B4);
             const chromeSilver = Color(0xFFC8C8C8);
@@ -587,15 +589,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                 ),
                               ),
                               const Spacer(),
-                              Text(
-                                isSignUp ? "Sign up" : "Log in",
-                                style: const TextStyle(
-                                  fontFamily: 'Circular',
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                  color: textLight,
-                                ),
-                              ),
                               const Spacer(),
                               const SizedBox(width: 40),
                             ],
@@ -604,22 +597,83 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                       : const SizedBox(height: 60),
                 ),
                 
-                if (!showAuthMethods)
-                  const SizedBox(height: 60)
-                else
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 32),
-                    child: Text(
-                      isSignUp ? "How would you like to start?" : "Welcome back",
-                      style: TextStyle(
-                        fontFamily: 'Circular',
-                        fontSize: 16,
-                        color: textLight.withOpacity(0.8),
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 0.3,
+                // Smooth text transition with AnimatedSwitcher
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  transitionBuilder: (Widget child, Animation<double> animation) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0, 0.1),
+                          end: Offset.zero,
+                        ).animate(animation),
+                        child: child,
                       ),
-                    ),
-                  ),
+                    );
+                  },
+                  child: !showAuthMethods
+                    ? Padding(
+                        key: const ValueKey('main-caption'),
+                        padding: const EdgeInsets.only(bottom: 40),
+                        child: Column(
+                          children: [
+                            const SizedBox(height: 60),
+                            Text(
+                              "Unlimited matching potential,\nall at your fingertips.",
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontFamily: 'Circular',
+                                fontSize: 24,
+                                color: Color(0xFFFFE5F1), // ✅ Soft pastel pink
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.2,
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : Padding(
+                        key: ValueKey('auth-caption-${isSignUp}'),
+                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+                        child: Column(
+                          children: [
+                            // Big title
+                            Text(
+                              isSignUp 
+                                ? "Sign up to start\nmatching"
+                                : "Welcome\nback!",
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontFamily: 'Circular',
+                                fontSize: 48,
+                                color: Color(0xFFFFE5F1), // ✅ Soft pastel pink
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.5,
+                                height: 1.1,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            // Small caption
+                            Text(
+                              isSignUp 
+                                ? "Create an account in seconds."
+                                : "Log back in within seconds.",
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontFamily: 'Circular',
+                                fontSize: 18,
+                                color: Color(0xFFFFE5F1), // ✅ Soft pastel pink
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.2,
+                                height: 1.3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                ),
                 
                 Expanded(
                   child: RepaintBoundary(
@@ -655,7 +709,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           ),
         ),
       ],
-    );
+    ));
   }
 
   Widget _buildMainCards() {
@@ -760,16 +814,16 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       builder: (context, constraints) {
         final screenWidth = constraints.maxWidth;
         
-        // Calculate responsive values - MUCH TIGHTER spacing
-        const minEdgePadding = 24.0; // Same as main cards
-        const cardSpacing = 5.0; // Very tight spacing for compact look
+        // Calculate responsive values - TIGHTER spacing to prevent edge touching
+        const minEdgePadding = 32.0; // Increased from 24 to move cards away from edges
+        const cardSpacing = 8.0; // Increased from 5 to bring cards closer to each other
         
         // Calculate available width for 3 cards
         final availableWidth = screenWidth - (minEdgePadding * 2);
         
         // Calculate card width (3 cards + 2 gaps)
         final cardWidth = (availableWidth - (cardSpacing * 2)) / 3;
-        final responsiveCardWidth = cardWidth.clamp(118.0, 145.0);
+        final responsiveCardWidth = cardWidth.clamp(110.0, 140.0); // Slightly smaller max
         
         // Calculate horizontal offset
         final horizontalOffset = responsiveCardWidth + cardSpacing;
@@ -863,7 +917,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                         title: "",
                         subtitle: "One-tap access",
                         cardWidth: responsiveCardWidth,
-                        cardHeight: centerCardHeight,
+                        cardHeight: sideCardHeight, // ✅ Same height as other cards
                         gradientColors: const [Color(0xFFE8E8FF), Color(0xFFF0F0FF)],
                         onTap: isLoading 
                             ? null 
@@ -1210,6 +1264,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           ),
         ),
       ),
-    );
+    );  // Scaffold
   }
 }
