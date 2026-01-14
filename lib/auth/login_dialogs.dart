@@ -633,7 +633,10 @@ class LoginDialogsHelper {
               horizontal: 24,
               vertical: 24,
             ),
-            child: ClipRRect(
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              resizeToAvoidBottomInset: false, // ✅ Keyboard overlays, doesn't resize
+              body: ClipRRect(
               borderRadius: BorderRadius.circular(32),
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
@@ -963,6 +966,7 @@ class LoginDialogsHelper {
                 ),
               ),
             ),
+        ),  // Scaffold
           );
         },
       ),
@@ -1019,7 +1023,10 @@ class LoginDialogsHelper {
               horizontal: 24,
               vertical: 24,
             ),
-            child: ClipRRect(
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              resizeToAvoidBottomInset: false, // ✅ Keyboard overlays, doesn't resize
+              body: ClipRRect(
               borderRadius: BorderRadius.circular(32),
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
@@ -1466,6 +1473,7 @@ class LoginDialogsHelper {
                 ),
               ),
             ),
+        ),  // Scaffold
           );
         },
       ),
@@ -1508,7 +1516,10 @@ class LoginDialogsHelper {
               horizontal: 24,
               vertical: 24,
             ),
-            child: ClipRRect(
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              resizeToAvoidBottomInset: false, // ✅ Keyboard overlays, doesn't resize
+              body: ClipRRect(
               borderRadius: BorderRadius.circular(32),
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
@@ -1831,6 +1842,7 @@ class LoginDialogsHelper {
                 ),
               ),
             ),
+        ),  // Scaffold
           );
         },
       ),
@@ -1861,7 +1873,10 @@ class LoginDialogsHelper {
           return Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        child: ClipRRect(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          resizeToAvoidBottomInset: false, // ✅ Keyboard overlays, doesn't resize
+          body: ClipRRect(
           borderRadius: BorderRadius.circular(32),
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
@@ -2188,10 +2203,10 @@ class LoginDialogsHelper {
             ),
           ),
         ),
-      );
+      ));
         },
       ),
-    );
+    );  // Scaffold
   }
 
   // ============================================================================
@@ -2207,20 +2222,23 @@ class LoginDialogsHelper {
       builder: (BuildContext dialogContext) => Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(32),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 440),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(32),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.3),
-                  width: 1.5,
-                ),
-                boxShadow: [
-                  BoxShadow(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          resizeToAvoidBottomInset: false, // ✅ Keyboard overlays, doesn't resize
+          body: ClipRRect(
+            borderRadius: BorderRadius.circular(32),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 440),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(32),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.3),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
                     color: Colors.black.withOpacity(0.3),
                     blurRadius: 60,
                     offset: const Offset(0, 20),
@@ -2425,6 +2443,7 @@ class LoginDialogsHelper {
           ),
         ),
       ),
+  ),  // Scaffold
     );
   }
 
@@ -2658,7 +2677,10 @@ class LoginDialogsHelper {
           return Dialog(
             backgroundColor: Colors.transparent,
             insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-            child: ClipRRect(
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              resizeToAvoidBottomInset: false, // ✅ Keyboard overlays, doesn't resize
+              body: ClipRRect(
               borderRadius: BorderRadius.circular(32),
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
@@ -2946,6 +2968,7 @@ class LoginDialogsHelper {
                 ),
               ),
             ),
+        ),  // Scaffold
           );
         },
       ),
