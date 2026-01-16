@@ -1,139 +1,6 @@
 import 'package:flutter/material.dart';
-import 'dart:math' as math;
 import 'package:swipify/auth/login_page.dart';
 
-/// Waveform CustomPainter - Draws the waveform logo with line-by-line reveal
-/// The waveform is drawn from left to right using path animation
-class WaveformPainter extends CustomPainter {
-  final double progress; // 0.0 to 1.0 - controls how much is revealed
-  final double pulseIntensity; // 0.0 to 1.0 - controls glow/pulse effect
-  
-  WaveformPainter({
-    required this.progress,
-    required this.pulseIntensity,
-  });
-  
-  @override
-  void paint(Canvas canvas, Size size) {
-    // Gradient paint to match the actual logo (cyan to pink)
-    final gradientPaint = Paint()
-      ..shader = LinearGradient(
-        colors: [
-          Color(0xFF00D4FF), // Cyan
-          Color(0xFF9D7FFF), // Purple
-          Color(0xFFFF69E8), // Pink
-        ],
-        begin: Alignment.centerLeft,
-        end: Alignment.centerRight,
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.0
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.miter
-      ..strokeMiterLimit = 4;
-
-    
-    // Glow effect paint (subtle pulse)
-    final glowPaint = Paint()
-      ..shader = LinearGradient(
-        colors: [
-          Color(0xFF00D4FF).withOpacity(pulseIntensity * 0.6),
-          Color(0xFF9D7FFF).withOpacity(pulseIntensity * 0.6),
-          Color(0xFFFF69E8).withOpacity(pulseIntensity * 0.6),
-        ],
-        begin: Alignment.centerLeft,
-        end: Alignment.centerRight,
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 10.0
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, 8 + (pulseIntensity * 4));
-    
-    // Create the ACTUAL waveform path - 9 PEAKS, TIGHT AND COMPRESSED
-    final path = Path();
-    
-    // Your logo: 9 peaks in a compact/tight formation
-    // Pattern: small, medium, large, TALLEST, valley, TALLEST, large, medium, small
-    final wavePoints = [
-  // LEFT FLAT (short)
-  const Offset(0.00, 0.50),
-  const Offset(0.08, 0.50),
-
-  // small peak
-  const Offset(0.11, 0.44),
-  const Offset(0.14, 0.56),
-
-  // medium peak
-  const Offset(0.18, 0.36),
-  const Offset(0.22, 0.64),
-
-  // large peak
-  const Offset(0.27, 0.26),
-  const Offset(0.31, 0.74),
-
-  // tallest spike (left)
-  const Offset(0.36, 0.10),
-
-  // deepest valley (center)
-  const Offset(0.40, 0.92),
-
-  // tallest spike (right)
-  const Offset(0.44, 0.10),
-
-  // large peak
-  const Offset(0.49, 0.74),
-  const Offset(0.53, 0.26),
-
-  // medium peak
-  const Offset(0.58, 0.64),
-  const Offset(0.62, 0.36),
-
-  // small peak
-  const Offset(0.66, 0.56),
-  const Offset(0.69, 0.44),
-
-  // RIGHT FLAT (short)
-  const Offset(0.74, 0.50),
-  const Offset(1.00, 0.50),
-];
-
-    
-    // Scale to actual size
-    final scaledPoints = wavePoints.map((p) => Offset(
-      p.dx * size.width,
-      p.dy * size.height,
-    )).toList();
-    
-    // Build the path
-    path.moveTo(scaledPoints[0].dx, scaledPoints[0].dy);
-    for (int i = 1; i < scaledPoints.length; i++) {
-      path.lineTo(scaledPoints[i].dx, scaledPoints[i].dy);
-    }
-    
-    // Extract the visible portion based on progress (left to right reveal)
-    final pathMetrics = path.computeMetrics();
-    final pathMetric = pathMetrics.first;
-    final extractLength = pathMetric.length * progress;
-    final extractedPath = pathMetric.extractPath(0.0, extractLength);
-    
-    // Draw glow first (if pulsing)
-    if (pulseIntensity > 0.0) {
-      canvas.drawPath(extractedPath, glowPaint);
-    }
-    
-    // Draw main waveform with gradient
-    canvas.drawPath(extractedPath, gradientPaint);
-  }
-  
-  @override
-  bool shouldRepaint(WaveformPainter oldDelegate) {
-    return oldDelegate.progress != progress || 
-           oldDelegate.pulseIntensity != pulseIntensity;
-  }
-}
-
-/// Splash Screen with animated waveform and text
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -142,11 +9,12 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
-  late AnimationController _waveformController;
-  late Animation<double> _waveformProgress;
+  late AnimationController _revealController;
+  late Animation<double> _revealProgress;
   
   late AnimationController _pulseController;
-  late Animation<double> _pulseIntensity;
+  late Animation<double> _pulseScale;
+  late Animation<double> _pulseOpacity;
   
   late AnimationController _textController;
   late Animation<Offset> _textSlide;
@@ -173,46 +41,54 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
       curve: Curves.easeInOutSine,
     ));
     
-    // Waveform drawing animation (2.2 seconds)
-    _waveformController = AnimationController(
-      duration: const Duration(milliseconds: 2200),
+    // Logo reveal animation (2.8 seconds) - slower reveal
+    _revealController = AnimationController(
+      duration: const Duration(milliseconds: 2800),
       vsync: this,
     );
     
-    _waveformProgress = Tween<double>(
+    _revealProgress = Tween<double>(
       begin: 0.0,
       end: 1.0,
     ).animate(CurvedAnimation(
-      parent: _waveformController,
+      parent: _revealController,
       curve: Curves.easeInOut,
     ));
     
-    // Pulse animation (0.4 seconds) - triggers after waveform completes
+    // Pulse animation (0.4 seconds) - subtle scale + glow
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 400),
       vsync: this,
     );
     
-    _pulseIntensity = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
+    _pulseScale = Tween<double>(
+      begin: 1.0,
+      end: 1.08,
     ).animate(CurvedAnimation(
       parent: _pulseController,
       curve: Curves.easeInOut,
     ));
     
-    // Text animation (full word slides in)
+    _pulseOpacity = Tween<double>(
+      begin: 0.0,
+      end: 0.6,
+    ).animate(CurvedAnimation(
+      parent: _pulseController,
+      curve: Curves.easeInOut,
+    ));
+    
+    // Text animation (smoother, more polished slide)
     _textController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
+      duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
     
     _textSlide = Tween<Offset>(
-      begin: const Offset(1.5, 0), // Start off-screen right
+      begin: const Offset(0.8, 0), // Start closer (less distance to travel)
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _textController,
-      curve: Curves.easeOutCubic,
+      curve: Curves.easeOutQuint, // Smoother, more elegant curve
     ));
     
     _textOpacity = Tween<double>(
@@ -220,30 +96,26 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
       end: 1.0,
     ).animate(CurvedAnimation(
       parent: _textController,
-      curve: Curves.easeOut,
+      curve: const Interval(0.0, 0.6, curve: Curves.easeOut), // Fades in faster
     ));
     
-    // Animation sequence
+    // Start animation sequence
     _startAnimationSequence();
   }
   
   void _startAnimationSequence() async {
-    // 1. Draw waveform (2.2s)
-    await _waveformController.forward();
+    // Start text animation at 1800ms (so it slides smoothly as logo finishes)
+    Future.delayed(const Duration(milliseconds: 1800), () {
+      if (mounted) {
+        _textController.forward();
+      }
+    });
     
-    // 2. Pulse effect (0.4s)
-    if (mounted) {
-      await _pulseController.forward();
-      await _pulseController.reverse();
-    }
+    // 1. Reveal logo from left to right (2.8s)
+    await _revealController.forward();
     
-    // 3. Slide in text (starts at 1.8s, runs parallel)
-    if (mounted) {
-      _textController.forward();
-    }
-    
-    // 4. Navigate after total 3 seconds
-    Future.delayed(const Duration(milliseconds: 3000), () {
+    // 2. Navigate after 3.5 seconds total
+    Future.delayed(const Duration(milliseconds: 700), () {
       if (mounted) {
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
@@ -280,7 +152,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
   @override
   void dispose() {
-    _waveformController.dispose();
+    _revealController.dispose();
     _pulseController.dispose();
     _textController.dispose();
     _gradientShiftController.dispose();
@@ -290,188 +162,239 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: AnimatedBuilder(
-        animation: _gradientShiftController,
-        builder: (context, child) {
-          final shift = _gradientShift.value;
-          
-          // Y2K gradient colors
-          const bubblegumPink = Color(0xFFFF69B4);
-          const chromeSilver = Color(0xFFC8C8C8);
-          const digitalBlue = Color(0xFF007AFF);
-          const limeFlashGreen = Color(0xFF32CD32);
-          
-          Color getColorForStage(Color c1, Color c2, Color c3, Color c4) {
-            if (shift < 0.25) {
-              return Color.lerp(c1, c2, shift * 4)!;
-            } else if (shift < 0.5) {
-              return Color.lerp(c2, c3, (shift - 0.25) * 4)!;
-            } else if (shift < 0.75) {
-              return Color.lerp(c3, c4, (shift - 0.5) * 4)!;
-            } else {
-              return Color.lerp(c4, c1, (shift - 0.75) * 4)!;
+      body: SafeArea(
+        child: AnimatedBuilder(
+          animation: _gradientShiftController,
+          builder: (context, child) {
+            final shift = _gradientShift.value;
+            
+            // Y2K gradient colors
+            const bubblegumPink = Color(0xFFFF69B4);
+            const chromeSilver = Color(0xFFC8C8C8);
+            const digitalBlue = Color(0xFF007AFF);
+            const limeFlashGreen = Color(0xFF32CD32);
+            
+            Color getColorForStage(Color c1, Color c2, Color c3, Color c4) {
+              if (shift < 0.25) {
+                return Color.lerp(c1, c2, shift * 4)!;
+              } else if (shift < 0.5) {
+                return Color.lerp(c2, c3, (shift - 0.25) * 4)!;
+              } else if (shift < 0.75) {
+                return Color.lerp(c3, c4, (shift - 0.5) * 4)!;
+              } else {
+                return Color.lerp(c4, c1, (shift - 0.75) * 4)!;
+              }
             }
-          }
-          
-          final color1 = getColorForStage(
-            bubblegumPink.withOpacity(0.65),
-            digitalBlue.withOpacity(0.65),
-            chromeSilver.withOpacity(0.75),
-            limeFlashGreen.withOpacity(0.65),
-          );
-          
-          final color2 = getColorForStage(
-            digitalBlue.withOpacity(0.65),
-            chromeSilver.withOpacity(0.75),
-            limeFlashGreen.withOpacity(0.65),
-            bubblegumPink.withOpacity(0.65),
-          );
-          
-          final color3 = getColorForStage(
-            chromeSilver.withOpacity(0.75),
-            limeFlashGreen.withOpacity(0.65),
-            bubblegumPink.withOpacity(0.65),
-            digitalBlue.withOpacity(0.65),
-          );
-          
-          final color4 = getColorForStage(
-            limeFlashGreen.withOpacity(0.65),
-            bubblegumPink.withOpacity(0.65),
-            digitalBlue.withOpacity(0.65),
-            chromeSilver.withOpacity(0.75),
-          );
-          
-          return Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [color1, color2, color3],
-                stops: const [0.0, 0.5, 1.0],
-              ),
-            ),
-            child: Container(
+            
+            final color1 = getColorForStage(
+              bubblegumPink.withOpacity(0.65),
+              digitalBlue.withOpacity(0.65),
+              chromeSilver.withOpacity(0.75),
+              limeFlashGreen.withOpacity(0.65),
+            );
+            
+            final color2 = getColorForStage(
+              digitalBlue.withOpacity(0.65),
+              chromeSilver.withOpacity(0.75),
+              limeFlashGreen.withOpacity(0.65),
+              bubblegumPink.withOpacity(0.65),
+            );
+            
+            final color3 = getColorForStage(
+              chromeSilver.withOpacity(0.75),
+              limeFlashGreen.withOpacity(0.65),
+              bubblegumPink.withOpacity(0.65),
+              digitalBlue.withOpacity(0.65),
+            );
+            
+            final color4 = getColorForStage(
+              limeFlashGreen.withOpacity(0.65),
+              bubblegumPink.withOpacity(0.65),
+              digitalBlue.withOpacity(0.65),
+              chromeSilver.withOpacity(0.75),
+            );
+            
+            return Container(
               decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  center: Alignment.topRight,
-                  radius: 1.5,
-                  colors: [color4.withOpacity(0.5), Colors.transparent],
-                  stops: const [0.0, 0.7],
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [color1, color2, color3],
+                  stops: const [0.0, 0.5, 1.0],
                 ),
               ),
               child: Container(
                 decoration: BoxDecoration(
                   gradient: RadialGradient(
-                    center: Alignment.bottomLeft,
-                    radius: 1.8,
-                    colors: [color1.withOpacity(0.4), Colors.transparent],
-                    stops: const [0.0, 0.8],
+                    center: Alignment.topRight,
+                    radius: 1.5,
+                    colors: [color4.withOpacity(0.5), Colors.transparent],
+                    stops: const [0.0, 0.7],
                   ),
                 ),
-                child: child,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: Alignment.bottomLeft,
+                      radius: 1.8,
+                      colors: [color1.withOpacity(0.4), Colors.transparent],
+                      stops: const [0.0, 0.8],
+                    ),
+                  ),
+                  child: child,
+                ),
               ),
-            ),
-          );
-        },
-        child: Center(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final screenWidth = MediaQuery.of(context).size.width;
-              final screenHeight = MediaQuery.of(context).size.height;
-              final isLandscape = screenWidth > screenHeight;
-              
-              double logoSize;
-              double wavFontSize;
-              double spacing;
-              
-              if (isLandscape) {
-                logoSize = screenHeight * 0.16;
-                wavFontSize = screenHeight * 0.10;
-                spacing = screenHeight * 0.008;
-              } else {
-                if (screenWidth < 360) {
-                  logoSize = 70.0;
-                  wavFontSize = 42.0;
-                  spacing = 4.0;
-                } else if (screenWidth < 400) {
-                  logoSize = 85.0;
-                  wavFontSize = 51.0;
-                  spacing = 5.0;
-                } else if (screenWidth < 600) {
-                  logoSize = 100.0;
-                  wavFontSize = 60.0;
-                  spacing = 6.0;
-                } else {
-                  logoSize = 135.0;
-                  wavFontSize = 81.0;
-                  spacing = 8.0;
-                }
-              }
-              
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Animated waveform
-                  AnimatedBuilder(
-                    animation: Listenable.merge([_waveformController, _pulseController]),
-                    builder: (context, child) {
-                      return SizedBox(
-                        width: logoSize,
-                        height: logoSize,
-                        child: CustomPaint(
-                          painter: WaveformPainter(
-                            progress: _waveformProgress.value,
-                            pulseIntensity: _pulseIntensity.value,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  
-                  SizedBox(width: spacing),
-                  
-                  // Animated "Wav" text - full word slides in
-                  AnimatedBuilder(
-                    animation: _textController,
-                    builder: (context, child) {
-                      return SlideTransition(
-                        position: _textSlide,
-                        child: FadeTransition(
-                          opacity: _textOpacity,
-                          child: Transform.translate(
-                            offset: const Offset(-4, 0),
-                            child: ShaderMask(
-                              shaderCallback: (bounds) => const LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  Color(0xFFFFB3E6), // soft pink
-                                  Color(0xFFB3D9FF), // soft blue
-                                  Color(0xFFD9B3FF), // soft purple
-                                ],
-                              ).createShader(bounds),
-                              child: Text(
-                                'Wav',
-                                style: TextStyle(
-                                  fontFamily: 'Circular',
-                                  fontSize: wavFontSize,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                  letterSpacing: -2,
-                                  height: 1.0,
-                                ),
-                              ),
+            );
+          },
+          child: Center(
+            child: OrientationBuilder(
+              builder: (context, orientation) {
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    final screenWidth = constraints.maxWidth;
+                    final screenHeight = constraints.maxHeight;
+                    final isLandscape = orientation == Orientation.landscape;
+                    
+                    // Responsive sizing with better landscape handling
+                    double logoSize;
+                    double wavFontSize;
+                    double spacing;
+                    
+                    if (isLandscape) {
+                      // Landscape mode - scale based on height (limited vertical space)
+                      final minDimension = screenHeight;
+                      logoSize = (minDimension * 0.20).clamp(50.0, 100.0);
+                      wavFontSize = (minDimension * 0.12).clamp(30.0, 60.0);
+                      spacing = (minDimension * 0.015).clamp(6.0, 12.0);
+                    } else {
+                      // Portrait mode - scale based on width
+                      if (screenWidth < 320) {
+                        // Very small phones
+                        logoSize = 60.0;
+                        wavFontSize = 30.0;
+                        spacing = 4.0;
+                      } else if (screenWidth < 360) {
+                        // Small phones
+                        logoSize = 70.0;
+                        wavFontSize = 35.0;
+                        spacing = 5.0;
+                      } else if (screenWidth < 400) {
+                        // Medium phones
+                        logoSize = 85.0;
+                        wavFontSize = 42.0;
+                        spacing = 6.0;
+                      } else if (screenWidth < 450) {
+                        // Large phones
+                        logoSize = 100.0;
+                        wavFontSize = 50.0;
+                        spacing = 8.0;
+                      } else if (screenWidth < 600) {
+                        // Phablets
+                        logoSize = 115.0;
+                        wavFontSize = 58.0;
+                        spacing = 10.0;
+                      } else if (screenWidth < 800) {
+                        // Small tablets
+                        logoSize = 135.0;
+                        wavFontSize = 67.0;
+                        spacing = 12.0;
+                      } else {
+                        // Large tablets
+                        logoSize = 160.0;
+                        wavFontSize = 80.0;
+                        spacing = 15.0;
+                      }
+                    }
+                    
+                    // Ensure content fits within available space
+                    final totalWidth = logoSize + spacing + (wavFontSize * 2.5);
+                    final availableWidth = screenWidth * 0.9; // 90% of screen width
+                    
+                    if (totalWidth > availableWidth) {
+                      final scaleFactor = availableWidth / totalWidth;
+                      logoSize *= scaleFactor;
+                      wavFontSize *= scaleFactor;
+                      spacing *= scaleFactor;
+                    }
+                    
+                    return Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isLandscape ? 40.0 : 20.0,
+                        vertical: isLandscape ? 20.0 : 40.0,
+                      ),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown, // Scales down if content too large
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Animated logo - reveals from left to right
+                            AnimatedBuilder(
+                              animation: _revealController,
+                              builder: (context, child) {
+                                return ClipRect(
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    widthFactor: _revealProgress.value, // Reveals left to right
+                                    child: Image.asset(
+                                      'assets/images/filogo.png',
+                                      width: logoSize,
+                                      height: logoSize,
+                                      fit: BoxFit.contain,
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
-                          ),
+                            
+                            SizedBox(width: spacing),
+                            
+                            // Animated "Wav" text - full word slides in
+                            AnimatedBuilder(
+                              animation: _textController,
+                              builder: (context, child) {
+                                return SlideTransition(
+                                  position: _textSlide,
+                                  child: FadeTransition(
+                                    opacity: _textOpacity,
+                                    child: Transform.translate(
+                                      offset: const Offset(-4, 0),
+                                      child: ShaderMask(
+                                        shaderCallback: (bounds) => const LinearGradient(
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                          colors: [
+                                            Color(0xFFFFB3E6), // soft pink
+                                            Color(0xFFB3D9FF), // soft blue
+                                            Color(0xFFD9B3FF), // soft purple
+                                          ],
+                                        ).createShader(bounds),
+                                        child: Text(
+                                          'Wav',
+                                          style: TextStyle(
+                                            fontFamily: 'Circular',
+                                            fontSize: wavFontSize,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.white,
+                                            letterSpacing: -2,
+                                            height: 1.0,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
                         ),
-                      );
-                    },
-                  ),
-                ],
-              );
-            },
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ),
       ),

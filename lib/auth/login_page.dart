@@ -558,33 +558,27 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                           child: Row(
                             children: [
-                              GestureDetector(
-                                onTap: _goBackToMainCards,
-                                child: Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      colors: [cardHotPink, cardCyberPink],
+                              Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: _goBackToMainCards,
+                                  borderRadius: BorderRadius.circular(24),
+                                  splashColor: Colors.white.withOpacity(0.3),
+                                  highlightColor: Colors.white.withOpacity(0.1),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(12),
+                                    child: const Icon(
+                                      Icons.arrow_back_rounded,
+                                      color: Colors.white,
+                                      size: 28,
+                                      shadows: [
+                                        Shadow(
+                                          color: Colors.black26,
+                                          blurRadius: 8,
+                                          offset: Offset(0, 2),
+                                        ),
+                                      ],
                                     ),
-                                    borderRadius: BorderRadius.circular(12),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.2),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 4),
-                                        spreadRadius: -2,
-                                      ),
-                                      BoxShadow(
-                                        color: cardHotPink.withOpacity(0.5),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: const Icon(
-                                    Icons.arrow_back_rounded,
-                                    color: Colors.white,
-                                    size: 24,
                                   ),
                                 ),
                               ),
@@ -597,82 +591,128 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                       : const SizedBox(height: 60),
                 ),
                 
-                // Smooth text transition with AnimatedSwitcher
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  transitionBuilder: (Widget child, Animation<double> animation) {
-                    return FadeTransition(
-                      opacity: animation,
-                      child: SlideTransition(
-                        position: Tween<Offset>(
-                          begin: const Offset(0, 0.1),
-                          end: Offset.zero,
-                        ).animate(animation),
-                        child: child,
+                // Captions synced with card animations - smooth crossfade
+                AnimatedBuilder(
+                  animation: _authMethodsController,
+                  builder: (context, child) {
+                    // Smooth crossfade with easing curves
+                    final progress = _authMethodsController.value;
+                    
+                    // Main caption fades out with easeIn curve
+                    final mainOpacity = Curves.easeInCubic.transform(1.0 - progress).clamp(0.0, 1.0);
+                    
+                    // Auth caption fades in with easeOut curve  
+                    final authOpacity = Curves.easeOutCubic.transform(progress).clamp(0.0, 1.0);
+                    
+                    return SizedBox(
+                      width: double.infinity,
+                      child: Stack(
+                        alignment: Alignment.topCenter,
+                        children: [
+                          // Main caption
+                          if (mainOpacity > 0.01)
+                            Opacity(
+                              opacity: mainOpacity,
+                              child: Padding(
+                                padding: const EdgeInsets.only(bottom: 40),
+                                child: Column(
+                                  children: [
+                                    const SizedBox(height: 60),
+                                    ShaderMask(
+                                      shaderCallback: (bounds) => const LinearGradient(
+                                        colors: [
+                                          Color(0xFFFFD4E9),
+                                          Color(0xFFFFB3D9),
+                                          Color(0xFFFFE5F1),
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ).createShader(bounds),
+                                      child: const Text(
+                                        "Unlimited matching potential,\nall at your fingertips.",
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontFamily: 'Circular',
+                                          fontSize: 32,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: -0.3,
+                                          height: 1.3,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          
+                          // Auth caption
+                          if (authOpacity > 0.01)
+                            Opacity(
+                              opacity: authOpacity,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    ShaderMask(
+                                      shaderCallback: (bounds) => const LinearGradient(
+                                        colors: [
+                                          Color(0xFFFFD4E9),
+                                          Color(0xFFFFB3D9),
+                                          Color(0xFFFFE5F1),
+                                        ],
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                      ).createShader(bounds),
+                                      child: Text(
+                                        isSignUp 
+                                          ? "Sign up to start\nmatching"
+                                          : "Welcome\nback!",
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontFamily: 'Circular',
+                                          fontSize: 48,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: -0.5,
+                                          height: 1.1,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    ShaderMask(
+                                      shaderCallback: (bounds) => const LinearGradient(
+                                        colors: [
+                                          Color(0xFFFFE5F1),
+                                          Color(0xFFFFD4E9),
+                                        ],
+                                        begin: Alignment.centerLeft,
+                                        end: Alignment.centerRight,
+                                      ).createShader(bounds),
+                                      child: Text(
+                                        isSignUp 
+                                          ? "Create an account in seconds."
+                                          : "Log back in within seconds.",
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontFamily: 'Circular',
+                                          fontSize: 18,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: 0.2,
+                                          height: 1.3,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     );
                   },
-                  child: !showAuthMethods
-                    ? Padding(
-                        key: const ValueKey('main-caption'),
-                        padding: const EdgeInsets.only(bottom: 40),
-                        child: Column(
-                          children: [
-                            const SizedBox(height: 60),
-                            Text(
-                              "Unlimited matching potential,\nall at your fingertips.",
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontFamily: 'Circular',
-                                fontSize: 24,
-                                color: Color(0xFFFFE5F1), // ✅ Soft pastel pink
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.2,
-                                height: 1.4,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : Padding(
-                        key: ValueKey('auth-caption-${isSignUp}'),
-                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
-                        child: Column(
-                          children: [
-                            // Big title
-                            Text(
-                              isSignUp 
-                                ? "Sign up to start\nmatching"
-                                : "Welcome\nback!",
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontFamily: 'Circular',
-                                fontSize: 48,
-                                color: Color(0xFFFFE5F1), // ✅ Soft pastel pink
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -0.5,
-                                height: 1.1,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            // Small caption
-                            Text(
-                              isSignUp 
-                                ? "Create an account in seconds."
-                                : "Log back in within seconds.",
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontFamily: 'Circular',
-                                fontSize: 18,
-                                color: Color(0xFFFFE5F1), // ✅ Soft pastel pink
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.2,
-                                height: 1.3,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                 ),
                 
                 Expanded(
@@ -1264,6 +1304,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           ),
         ),
       ),
-    );  // Scaffold
+    );
+
   }
 }

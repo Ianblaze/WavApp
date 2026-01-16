@@ -1,5 +1,6 @@
 // home_page.dart
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -48,6 +49,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _maybeShowProfileTutorial();
     });
@@ -225,21 +227,20 @@ class _HomePageState extends State<HomePage> {
   // 🌈 BACKGROUND GRADIENT + MAX GLOW BLOBS
   // ---------------------------------------------------------
   Widget _buildBackground() {
-  return Container(
-    decoration: const BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          bgTop,     // soft pearl pink
-          bgMid,     // light lilac
-          bgBottom,  // pastel baby blue
-        ],
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            bgTop,     // soft pearl pink
+            bgMid,     // light lilac
+            bgBottom,  // pastel baby blue
+          ],
+        ),
       ),
-    ),
-  );
-}
-
+    );
+  }
 
   // ---------------------------------------------------------
   // 🔝 TOP BAR
@@ -336,7 +337,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ---------------------------------------------------------
-  // ⬇️ BOTTOM NAVIGATION (PNG ICONS PRESERVED)
+  // ⬇️ BOTTOM NAVIGATION (PNG ICONS)
   // ---------------------------------------------------------
   Widget _buildBottomNav() {
     return Container(
@@ -354,47 +355,41 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ---------------------------------------------------------
-  // 🔘 Y2K NAV ITEM WITH BIG BUBBLEGUM RIPPLE
+  // 🔘 Y2K NAV ITEM
   // ---------------------------------------------------------
   Widget _navItemPNG(String assetPath, String label, int index) {
     final isActive = selectedTab == index;
 
-    return Material(
-      color: Colors.transparent,
-      child: InkResponse(
-        onTap: () => setState(() => selectedTab = index),
-        radius: 150, // huge ripple
-        splashColor: y2kPink.withOpacity(0.45),
-        highlightColor: y2kBlue.withOpacity(0.4),
-        containedInkWell: false,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: AnimatedScale(
-            scale: isActive ? 1.0 : 0.90,
-            duration: const Duration(milliseconds: 200),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Opacity(
-                  opacity: isActive ? 1.0 : 0.55,
-                  child: Image.asset(
-                    assetPath,
-                    width: 34,
-                    height: 34,
-                    fit: BoxFit.contain,
-                  ),
+    return GestureDetector(
+      onTap: () => setState(() => selectedTab = index),
+      child: Container(
+        color: Colors.transparent,
+        padding: const EdgeInsets.all(12),
+        child: AnimatedScale(
+          scale: isActive ? 1.0 : 0.90,
+          duration: const Duration(milliseconds: 200),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Opacity(
+                opacity: isActive ? 1.0 : 0.55,
+                child: Image.asset(
+                  assetPath,
+                  width: 34,
+                  height: 34,
+                  fit: BoxFit.contain,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: isActive ? y2kPink : y2kPurple,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isActive ? y2kPink : y2kPurple,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

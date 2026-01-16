@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../pages/setup_firestore.dart';
 import 'profile_setup_dialog.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -125,53 +124,6 @@ class _ProfilePageState extends State<ProfilePage> {
               else
                 Column(
                     children: matches.map((m) => _matchTile(m)).toList()),
-
-              const SizedBox(height: 40),
-
-              // ---------------- DEBUG INITIALIZER BUTTON ----------------
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.redAccent, width: 1),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    const Text(
-                      "⚠ FIRESTORE INITIALIZATION",
-                      style: TextStyle(
-                          color: Colors.redAccent,
-                          fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.redAccent,
-                      ),
-                      onPressed: () async {
-                        await FirestoreSetupService().initialize();
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content:
-                                    Text("🔥 Firestore Initialized")),
-                          );
-                        }
-                      },
-                      child: const Text("Run Setup"),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      "Delete this button after running once.",
-                      style:
-                          TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
 
               const SizedBox(height: 60),
             ],

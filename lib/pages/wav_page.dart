@@ -263,17 +263,30 @@ class _WavPageState extends State<WavPage> {
       return const Center(child: CircularProgressIndicator(color: Colors.white));
     }
 
-    return LayoutBuilder(builder: (context, constraints) {
-      return SizedBox(
-        height: constraints.maxHeight,
-        child: Center(
-          child: Column(
+    // Get screen dimensions for responsive sizing
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
+    // Calculate responsive padding - more padding on mobile
+    final horizontalPadding = screenWidth * 0.04; // Reduced to 4% to allow more space for cards
+    final topPadding = screenHeight * 0.03; // Slightly reduced
+    
+    // Calculate card dimensions to ensure proper aspect ratio
+    // Base card size is now 180x250, maintaining the aspect ratio
+    final maxCardWidth = 180.0; // Fixed width to match card_stack
+    final cardHeight = maxCardWidth * 1.39; // Match the 180:250 aspect ratio
+    final cardWidth = maxCardWidth.clamp(0.0, screenWidth * 0.5); // Max 50% of screen width
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+        child: Column(
             children: [
-              const SizedBox(height: 36),
+              SizedBox(height: topPadding),
 
               // ---------- DAILY LIKES DISPLAY ----------
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 0),
+                padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -281,42 +294,166 @@ class _WavPageState extends State<WavPage> {
                       'Your daily likes: ',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 20,
+                        fontSize: 18,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    // Premium odometer widget
                     _buildOdometerCounter(_likesShown),
                   ],
                 ),
               ),
 
-              // Restore button (testing only)
+              // Restore button (testing only) - smaller on mobile
               TextButton.icon(
                 onPressed: _restoreLikesForTest,
-                icon: const Icon(Icons.restore, color: Colors.white70, size: 16),
-                label: const Text('Restore (test)', style: TextStyle(color: Colors.white70)),
+                icon: const Icon(Icons.restore, color: Colors.white70, size: 14),
+                label: const Text(
+                  'Restore (test)',
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
               ),
 
-              const SizedBox(height: 12),
+              SizedBox(height: screenHeight * 0.02),
 
-              // ---------- Card stack ----------
+              // ---------- Card stack with constrained size ----------
               Expanded(
                 child: Center(
-                  child: CardStack(
-                    key: _stackKey,
-                    songs: songs,
-                    canLike: _likesLeft > 0,
-                    onSwipeThreshold: (isLiking, isDisliking) {
-                      // Trigger button hover states based on swipe threshold
-                      setState(() {
-                        _likeHovered = isLiking;
-                        _dislikeHovered = isDisliking;
-                      });
-                    },
-                    onLike: (song) async {
-                      if (_likesLeft <= 0) {
+                  child: SizedBox(
+                    width: screenWidth * 0.92, // Use most of screen width for card spread
+                    height: cardHeight,
+                    child: CardStack(
+                      key: _stackKey,
+                      songs: songs,
+                      canLike: _likesLeft > 0,
+                      onSwipeThreshold: (isLiking, isDisliking) {
+                        setState(() {
+                          _likeHovered = isLiking;
+                          _dislikeHovered = isDisliking;
+                        });
+                      },
+                      onLike: (song) async {
+                        if (_likesLeft <= 0) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text('No likes left — try again tomorrow'),
+                                backgroundColor: Colors.red.shade700,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                          return;
+                        }
+
+                        // Show snackbar immediately for instant feedback
                         if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Row(
+                                children: [
+                                  const Icon(Icons.favorite, color: Colors.white, size: 20),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Added "${song['title']}" to likes',
+                                      style: const TextStyle(fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              backgroundColor: Colors.green.shade600,
+                              behavior: SnackBarBehavior.floating,
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        }
+
+                        final consumed = await _consumeLikeAndPersist();
+                        if (!consumed) return;
+
+                        await _recordSwipe(liked: true, song: song);
+                        await _processAfterLike(song);
+                      },
+                      onDislike: (song) async {
+                        // Show snackbar immediately for instant feedback
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Row(
+                                children: [
+                                  const Icon(Icons.close, color: Colors.white, size: 20),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Passed on "${song['title']}"',
+                                    style: const TextStyle(fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              ),
+                              backgroundColor: Colors.grey.shade700,
+                              behavior: SnackBarBehavior.floating,
+                              duration: const Duration(seconds: 1, milliseconds: 500),
+                            ),
+                          );
+                        }
+                        
+                        await _recordSwipe(liked: false, song: song);
+                      },
+                    ),
+                  ),
+                ),
+              ),
+
+              SizedBox(height: screenHeight * 0.025),
+
+              // ---------- Action buttons row ----------
+              Padding(
+                padding: EdgeInsets.only(bottom: screenHeight * 0.04),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Dislike button
+                    _buildActionButton(
+                      assetPath: 'assets/images/dislike.png',
+                      isHovered: _dislikeHovered,
+                      isPressed: _dislikePressed,
+                      isEnabled: true,
+                      onHoverChange: (hovering) {
+                        setState(() => _dislikeHovered = hovering);
+                      },
+                      onPressChange: (pressing) {
+                        setState(() => _dislikePressed = pressing);
+                      },
+                      onTap: () {
+                        final s = _stackKey.currentState;
+                        try {
+                          (s as dynamic).triggerDislike();
+                        } catch (e) {
+                          debugPrint('triggerDislike failed: $e');
+                        }
+                      },
+                      size: screenWidth * 0.15, // Slightly smaller button
+                    ),
+
+                    SizedBox(width: screenWidth * 0.12), // Responsive spacing
+
+                    // Like button
+                    _buildActionButton(
+                      assetPath: 'assets/images/like.png',
+                      isHovered: _likeHovered,
+                      isPressed: _likePressed,
+                      isEnabled: _likesLeft > 0,
+                      onHoverChange: (hovering) {
+                        if (_likesLeft > 0) {
+                          setState(() => _likeHovered = hovering);
+                        }
+                      },
+                      onPressChange: (pressing) {
+                        if (_likesLeft > 0) {
+                          setState(() => _likePressed = pressing);
+                        }
+                      },
+                      onTap: () async {
+                        if (_likesLeft <= 0) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: const Text('No likes left — try again tomorrow'),
@@ -324,132 +461,20 @@ class _WavPageState extends State<WavPage> {
                               behavior: SnackBarBehavior.floating,
                             ),
                           );
+                          return;
                         }
-                        return;
-                      }
-
-                      final consumed = await _consumeLikeAndPersist();
-                      if (!consumed) return;
-
-                      await _recordSwipe(liked: true, song: song);
-                      await _processAfterLike(song);
-                    },
-                    onDislike: (song) async {
-                      await _recordSwipe(liked: false, song: song);
-                    },
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
-              // ---------- Action buttons row ----------
-              Padding(
-                padding: const EdgeInsets.only(bottom: 32.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Dislike (always enabled)
-                    MouseRegion(
-                      onEnter: (_) => setState(() => _dislikeHovered = true),
-                      onExit: (_) => setState(() => _dislikeHovered = false),
-                      child: GestureDetector(
-                        onTapDown: (_) => setState(() => _dislikePressed = true),
-                        onTapUp: (_) => setState(() => _dislikePressed = false),
-                        onTapCancel: () => setState(() => _dislikePressed = false),
-                        onTap: () {
-                          final s = _stackKey.currentState;
-                          try {
-                            (s as dynamic).triggerDislike();
-                          } catch (e) {
-                            debugPrint('triggerDislike failed: $e');
-                          }
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          curve: Curves.easeOut,
-                          transform: Matrix4.identity()
-                            ..translate(
-                              0.0,
-                              _dislikePressed ? 4.0 : (_dislikeHovered ? -6.0 : 0.0),
-                              0.0,
-                            )
-                            ..scale(_dislikePressed ? 0.95 : (_dislikeHovered ? 1.08 : 1.0)),
-                          child: AnimatedOpacity(
-                            duration: const Duration(milliseconds: 150),
-                            opacity: _dislikePressed ? 0.7 : 1.0,
-                            child: Image.asset(
-                              'assets/images/dislike.png',
-                              width: 70,
-                              height: 70,
-                              fit: BoxFit.contain,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(width: 64),
-
-                    // Like (disabled when no likes left)
-                    Opacity(
-                      opacity: _likesLeft > 0 ? 1.0 : 0.3,
-                      child: MouseRegion(
-                        onEnter: (_) {
-                          if (_likesLeft > 0) setState(() => _likeHovered = true);
-                        },
-                        onExit: (_) => setState(() => _likeHovered = false),
-                        child: GestureDetector(
-                          onTapDown: (_) {
-                            if (_likesLeft > 0) setState(() => _likePressed = true);
-                          },
-                          onTapUp: (_) => setState(() => _likePressed = false),
-                          onTapCancel: () => setState(() => _likePressed = false),
-                          onTap: () async {
-                            if (_likesLeft <= 0) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: const Text('No likes left — try again tomorrow'),
-                                  backgroundColor: Colors.red.shade700,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                              return;
-                            }
-                            // Decrement counter BEFORE animation starts
-                            setState(() {
-                              _likesShown = _likesLeft - 1;
-                            });
-                            final s = _stackKey.currentState;
-                            try {
-                              (s as dynamic).triggerLike();
-                            } catch (e) {
-                              debugPrint('triggerLike failed: $e');
-                            }
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 150),
-                            curve: Curves.easeOut,
-                            transform: Matrix4.identity()
-                              ..translate(
-                                0.0,
-                                _likePressed ? 4.0 : (_likeHovered ? -6.0 : 0.0),
-                                0.0,
-                              )
-                              ..scale(_likePressed ? 0.95 : (_likeHovered ? 1.08 : 1.0)),
-                            child: AnimatedOpacity(
-                              duration: const Duration(milliseconds: 150),
-                              opacity: _likePressed ? 0.7 : 1.0,
-                              child: Image.asset(
-                                'assets/images/like.png',
-                                width: 70,
-                                height: 70,
-                                fit: BoxFit.contain,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
+                        // Decrement counter BEFORE animation starts
+                        setState(() {
+                          _likesShown = _likesLeft - 1;
+                        });
+                        final s = _stackKey.currentState;
+                        try {
+                          (s as dynamic).triggerLike();
+                        } catch (e) {
+                          debugPrint('triggerLike failed: $e');
+                        }
+                      },
+                      size: screenWidth * 0.15, // Slightly smaller button
                     ),
                   ],
                 ),
@@ -458,7 +483,53 @@ class _WavPageState extends State<WavPage> {
           ),
         ),
       );
-    });
+  }
+
+  // Helper method to build action buttons with consistent styling
+  Widget _buildActionButton({
+    required String assetPath,
+    required bool isHovered,
+    required bool isPressed,
+    required bool isEnabled,
+    required Function(bool) onHoverChange,
+    required Function(bool) onPressChange,
+    required VoidCallback onTap,
+    required double size,
+  }) {
+    return Opacity(
+      opacity: isEnabled ? 1.0 : 0.3,
+      child: MouseRegion(
+        onEnter: (_) => onHoverChange(true),
+        onExit: (_) => onHoverChange(false),
+        child: GestureDetector(
+          onTapDown: (_) => onPressChange(true),
+          onTapUp: (_) => onPressChange(false),
+          onTapCancel: () => onPressChange(false),
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOut,
+            transform: Matrix4.identity()
+              ..translate(
+                0.0,
+                isPressed ? 4.0 : (isHovered ? -6.0 : 0.0),
+                0.0,
+              )
+              ..scale(isPressed ? 0.95 : (isHovered ? 1.08 : 1.0)),
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 150),
+              opacity: isPressed ? 0.7 : 1.0,
+              child: Image.asset(
+                assetPath,
+                width: size,
+                height: size,
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override

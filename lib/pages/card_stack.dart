@@ -163,17 +163,17 @@ class _CardStackState extends State<CardStack> with TickerProviderStateMixin {
     required bool isBlurred,
   }) {
     Widget content = Container(
-      width: 260,
-      height: 360,
+      width: 180,  // Reduced from 220 - much smaller for mobile
+      height: 250, // Reduced from 310 - much smaller for mobile
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.35),
-            blurRadius: 24,
-            spreadRadius: 4,
-            offset: const Offset(0, 12),
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 20,
+            spreadRadius: 3,
+            offset: const Offset(0, 10),
           )
         ],
       ),
@@ -209,23 +209,23 @@ class _CardStackState extends State<CardStack> with TickerProviderStateMixin {
               left: 0,
               right: 0,
               child: Padding(
-                padding: const EdgeInsets.all(18),
+                padding: const EdgeInsets.all(14),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(song['title'] ?? '',
                         style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 22,
+                            fontSize: 18,
                             fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     Text(song['artist'] ?? '',
                         style: const TextStyle(
-                            color: Color(0xFFB3B3B3), fontSize: 14)),
-                    const SizedBox(height: 8),
+                            color: Color(0xFFB3B3B3), fontSize: 13)),
+                    const SizedBox(height: 6),
                     Text('${song['genre']} • ${song['mood']}',
                         style: const TextStyle(
-                            color: Color(0xFF888888), fontSize: 12)),
+                            color: Color(0xFF888888), fontSize: 11)),
                   ],
                 ),
               ),
@@ -308,9 +308,11 @@ class _CardStackState extends State<CardStack> with TickerProviderStateMixin {
 
       final song = _getLoopedSong(displayIndex + i);
 
-      double horizontal = effective * 100;
-      double scale = 0.92 - (effective.abs() * 0.08);
-      double rotation = effective * 0.07;
+      double horizontal = effective * 70; // Reduced spacing for smaller cards
+      // More gradual scaling for better visual separation
+      // Front: 1.0, Next: 0.88, Next-next: 0.76
+      double scale = 1.0 - (effective.abs() * 0.12);
+      double rotation = effective * 0.08; // Slightly more tilt
       bool blurred = effective.abs() > 0.1;
 
       if (i == 0) {
@@ -343,7 +345,7 @@ class _CardStackState extends State<CardStack> with TickerProviderStateMixin {
     return AnimatedBuilder(
       animation: _rotationAnimation,
       builder: (_, __) => SizedBox(
-        height: 380,
+        height: 270, // Reduced to match new smaller card height
         width: double.infinity,
         child: Stack(
           alignment: Alignment.center,
