@@ -539,11 +539,23 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontFamily: 'Circular',
-                              fontSize: 34,
-                              color: Color(0xFF1A0D26),
+                              fontSize: 40,
+                              color: Colors.white,
                               fontWeight: FontWeight.w900,
-                              height: 1.1,
-                              letterSpacing: -0.5,
+                              height: 1.05,
+                              letterSpacing: -1.0,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black45,
+                                  blurRadius: 16,
+                                  offset: Offset(0, 4),
+                                ),
+                                Shadow(
+                                  color: Colors.black26,
+                                  blurRadius: 32,
+                                  offset: Offset(0, 8),
+                                ),
+                              ],
                             ),
                           ),
                           const SizedBox(height: 48),
@@ -570,7 +582,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                   "get started",
                                   style: TextStyle(
                                     fontFamily: 'Circular', fontSize: 18,
-                                    fontWeight: FontWeight.w700,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.5,
                                   ),
                                 ),
                               ),
@@ -585,8 +598,12 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                 "already have an account? ",
                                 style: TextStyle(
                                   fontFamily: 'Circular', fontSize: 15,
-                                  color: Color(0xFF8A7EA5),
+                                  color: Colors.white70,
                                   fontWeight: FontWeight.w500,
+                                  letterSpacing: 0.2,
+                                  shadows: [
+                                    Shadow(color: Colors.black54, blurRadius: 4),
+                                  ],
                                 ),
                               ),
                               GestureDetector(
@@ -603,8 +620,14 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                   "sign in",
                                   style: TextStyle(
                                     fontFamily: 'Circular', fontSize: 15,
-                                    color: Color(0xFFFF6FE8),
-                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.2,
+                                    decoration: TextDecoration.underline,
+                                    decorationColor: Colors.white,
+                                    shadows: [
+                                      Shadow(color: Colors.black54, blurRadius: 4),
+                                    ],
                                   ),
                                 ),
                               ),
