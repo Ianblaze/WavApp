@@ -46,6 +46,7 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   bool isLoading = false;
+  bool showLanding = true;
   
   int _matchCount = 47;
   Timer? _matchTimer;
@@ -204,8 +205,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       parent: _gradientShiftController,
       curve: Curves.easeInOutSine,
     ));
-    
-    _entranceController.forward();
     
     // Tick match count every 4 seconds for social proof
     _matchTimer = Timer.periodic(const Duration(seconds: 4), (_) {
@@ -514,47 +513,55 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         Positioned(
           top: 0, left: 0, right: 0,
           height: MediaQuery.of(context).size.height * 0.38,
-          child: const FloatingOrbs(),
+          child: AnimatedOpacity(
+            opacity: showLanding ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 600),
+            child: const FloatingOrbs(),
+          ),
         ),
         
         // Layer 2: Live match counter
         Positioned(
           top: MediaQuery.of(context).size.height * 0.30,
           left: 0, right: 0,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 400),
-            transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
-            child: Container(
-              key: ValueKey(_matchCount),
-              alignment: Alignment.center,
+          child: AnimatedOpacity(
+            opacity: showLanding ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 600),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 400),
+              transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE1F5EE),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFF5DCAA5), width: 0.5),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 7, height: 7,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF5DCAA5),
-                        shape: BoxShape.circle,
+                key: ValueKey(_matchCount),
+                alignment: Alignment.center,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE1F5EE),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFF5DCAA5), width: 0.5),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 7, height: 7,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF5DCAA5),
+                          shape: BoxShape.circle,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '$_matchCount matched in the last hour',
-                      style: const TextStyle(
-                        fontFamily: 'Circular',
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF085041),
+                      const SizedBox(width: 6),
+                      Text(
+                        '$_matchCount matched in the last hour',
+                        style: const TextStyle(
+                          fontFamily: 'Circular',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF085041),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -750,6 +757,47 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                             child: FadeTransition(
                               opacity: _authMethodsOpacity,
                               child: _buildAuthMethodCards(),
+                            ),
+                          ),
+                        ),
+                        
+                        // "Get Started" Button
+                        Positioned(
+                          bottom: 20, left: 0, right: 0,
+                          child: AnimatedOpacity(
+                            opacity: showLanding ? 1.0 : 0.0,
+                            duration: const Duration(milliseconds: 600),
+                            child: IgnorePointer(
+                              ignoring: !showLanding,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 40),
+                                child: SizedBox(
+                                  width: double.infinity,
+                                  height: 56,
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFFFB3D9),
+                                      foregroundColor: const Color(0xFF4B1528),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                                      elevation: 8,
+                                      shadowColor: const Color(0xFFFFB3D9).withOpacity(0.5),
+                                    ),
+                                    onPressed: () {
+                                      setState(() => showLanding = false);
+                                      Future.delayed(const Duration(milliseconds: 300), () {
+                                        if (mounted) _entranceController.forward();
+                                      });
+                                    },
+                                    child: const Text(
+                                      "Get Started",
+                                      style: TextStyle(
+                                        fontFamily: 'Circular', fontSize: 18,
+                                        fontWeight: FontWeight.w800, letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ),
