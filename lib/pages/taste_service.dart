@@ -1,6 +1,7 @@
 // taste_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 class TasteService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -22,7 +23,7 @@ class TasteService {
       await _recalculateProfile(uid);
 
     } catch (e) {
-      print("TasteService error: $e");
+      debugPrint("TasteService error: $e");
     }
   }
 
@@ -58,6 +59,21 @@ class TasteService {
     List<String> moods = [];
     List<String> keys = [];
     List<int> bpms = [];
+
+    // Pull onboarding seeds into the calculation
+    final userDoc = await _db.collection('users').doc(uid).get();
+    final onboardingGenres =
+        List<String>.from(userDoc.data()?['genres'] ?? []);
+    final onboardingArtists =
+        List<String>.from(userDoc.data()?['topArtists'] ?? []);
+
+    // Treat each onboarding pick as 3 swipe-equivalent votes
+    for (final g in onboardingGenres) {
+      genres.add(g); genres.add(g); genres.add(g);
+    }
+    for (final a in onboardingArtists) {
+      artists.add(a); artists.add(a); artists.add(a);
+    }
 
     for (var doc in snap.docs) {
       final d = doc.data();
