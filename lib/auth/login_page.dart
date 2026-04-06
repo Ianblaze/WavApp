@@ -509,304 +509,257 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
             ),
           ),
         ),
-        // Layer 1: Floating orbs (top ~35% of screen)
-        Positioned(
-          top: 0, left: 0, right: 0,
-          height: MediaQuery.of(context).size.height * 0.38,
-          child: AnimatedOpacity(
-            opacity: showLanding ? 1.0 : 0.0,
-            duration: const Duration(milliseconds: 600),
-            child: const FloatingOrbs(),
-          ),
-        ),
-        
-        // Layer 2: Live match counter
-        Positioned(
-          top: MediaQuery.of(context).size.height * 0.30,
-          left: 0, right: 0,
-          child: AnimatedOpacity(
-            opacity: showLanding ? 1.0 : 0.0,
-            duration: const Duration(milliseconds: 600),
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 400),
-              transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
-              child: Container(
-                key: ValueKey(_matchCount),
-                alignment: Alignment.center,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE1F5EE),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFF5DCAA5), width: 0.5),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 7, height: 7,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF5DCAA5),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '$_matchCount matched in the last hour',
-                        style: const TextStyle(
-                          fontFamily: 'Circular',
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF085041),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
         Scaffold(
           backgroundColor: Colors.transparent,
           body: SafeArea(
-            child: Column(
+            child: Stack(
               children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  height: showAuthMethods ? 80 : 60,
-                  child: showAuthMethods
-                      ? Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                          child: Row(
-                            children: [
-                              Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  onTap: _goBackToMainCards,
-                                  borderRadius: BorderRadius.circular(24),
-                                  splashColor: Colors.white.withOpacity(0.3),
-                                  highlightColor: Colors.white.withOpacity(0.1),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(12),
-                                    child: const Icon(
-                                      Icons.arrow_back_rounded,
-                                      color: Colors.white,
-                                      size: 28,
-                                      shadows: [
-                                        Shadow(
-                                          color: Colors.black26,
-                                          blurRadius: 8,
-                                          offset: Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
+                // -------------------------------------------------------------
+                // LANDING VIEW (Centered Orbs, Title, Button, Sign-in link)
+                // -------------------------------------------------------------
+                AnimatedOpacity(
+                  opacity: showLanding ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 600),
+                  child: IgnorePointer(
+                    ignoring: !showLanding,
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // 1. Packaged Orbs
+                          const SizedBox(
+                            width: 250,
+                            height: 120,
+                            child: FloatingOrbs(),
+                          ),
+                          const SizedBox(height: 32),
+                          // 2. Bold Title
+                          const Text(
+                            "Find your music\nsoulmate",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontFamily: 'Circular',
+                              fontSize: 34,
+                              color: Color(0xFF1A0D26),
+                              fontWeight: FontWeight.w900,
+                              height: 1.1,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 48),
+                          // 3. Get Started Button
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 40),
+                            child: SizedBox(
+                              width: double.infinity,
+                              height: 56,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFFFB3D9),
+                                  foregroundColor: const Color(0xFF4B1528),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                                  elevation: 0,
+                                ),
+                                onPressed: () {
+                                  setState(() => showLanding = false);
+                                  Future.delayed(const Duration(milliseconds: 300), () {
+                                    if (mounted) _entranceController.forward();
+                                  });
+                                },
+                                child: const Text(
+                                  "get started",
+                                  style: TextStyle(
+                                    fontFamily: 'Circular', fontSize: 18,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
                               ),
-                              const Spacer(),
-                              const Spacer(),
-                              const SizedBox(width: 40),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          // 4. Sign in link
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text(
+                                "already have an account? ",
+                                style: TextStyle(
+                                  fontFamily: 'Circular', fontSize: 15,
+                                  color: Color(0xFF8A7EA5),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    showLanding = false;
+                                    isSignUp = false;
+                                  });
+                                  Future.delayed(const Duration(milliseconds: 300), () {
+                                    if (mounted) _entranceController.forward();
+                                  });
+                                },
+                                child: const Text(
+                                  "sign in",
+                                  style: TextStyle(
+                                    fontFamily: 'Circular', fontSize: 15,
+                                    color: Color(0xFFFF6FE8),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
-                        )
-                      : const SizedBox(height: 60),
-                ),
-                
-                // Captions synced with card animations - smooth crossfade
-                AnimatedBuilder(
-                  animation: _authMethodsController,
-                  builder: (context, child) {
-                    // Smooth crossfade with easing curves
-                    final progress = _authMethodsController.value;
-                    
-                    // Main caption fades out with easeIn curve
-                    final mainOpacity = Curves.easeInCubic.transform(1.0 - progress).clamp(0.0, 1.0);
-                    
-                    // Auth caption fades in with easeOut curve  
-                    final authOpacity = Curves.easeOutCubic.transform(progress).clamp(0.0, 1.0);
-                    
-                    return SizedBox(
-                      width: double.infinity,
-                      child: Stack(
-                        alignment: Alignment.topCenter,
-                        children: [
-                          // Main caption
-                          if (mainOpacity > 0.01)
-                            Opacity(
-                              opacity: mainOpacity,
-                              child: Padding(
-                                padding: const EdgeInsets.only(bottom: 40),
-                                child: Column(
-                                  children: [
-                                    const SizedBox(height: 60),
-                                    ShaderMask(
-                                      shaderCallback: (bounds) => const LinearGradient(
-                                        colors: [
-                                          Color(0xFFFFD4E9),
-                                          Color(0xFFFFB3D9),
-                                          Color(0xFFFFE5F1),
-                                        ],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ).createShader(bounds),
-                                      child: const Text(
-                                        "Unlimited matching potential,\nall at your fingertips.",
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          fontFamily: 'Circular',
-                                          fontSize: 32,
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w900,
-                                          letterSpacing: -0.3,
-                                          height: 1.3,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          
-                          // Auth caption
-                          if (authOpacity > 0.01)
-                            Opacity(
-                              opacity: authOpacity,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    ShaderMask(
-                                      shaderCallback: (bounds) => const LinearGradient(
-                                        colors: [
-                                          Color(0xFFFFD4E9),
-                                          Color(0xFFFFB3D9),
-                                          Color(0xFFFFE5F1),
-                                        ],
-                                        begin: Alignment.topCenter,
-                                        end: Alignment.bottomCenter,
-                                      ).createShader(bounds),
-                                      child: Text(
-                                        isSignUp 
-                                          ? "Sign up to start\nmatching"
-                                          : "Welcome\nback!",
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          fontFamily: 'Circular',
-                                          fontSize: 48,
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w900,
-                                          letterSpacing: -0.5,
-                                          height: 1.1,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    ShaderMask(
-                                      shaderCallback: (bounds) => const LinearGradient(
-                                        colors: [
-                                          Color(0xFFFFE5F1),
-                                          Color(0xFFFFD4E9),
-                                        ],
-                                        begin: Alignment.centerLeft,
-                                        end: Alignment.centerRight,
-                                      ).createShader(bounds),
-                                      child: Text(
-                                        isSignUp 
-                                          ? "Create an account in seconds."
-                                          : "Log back in within seconds.",
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          fontFamily: 'Circular',
-                                          fontSize: 18,
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w600,
-                                          letterSpacing: 0.2,
-                                          height: 1.3,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
                         ],
                       ),
-                    );
-                  },
+                    ),
+                  ),
                 ),
-                
-                Expanded(
-                  child: RepaintBoundary(
-                    child: Stack(
+
+                // -------------------------------------------------------------
+                // AUTH CARDS VIEW (Sign-up & Log-in 3D Cards)
+                // -------------------------------------------------------------
+                AnimatedOpacity(
+                  opacity: showLanding ? 0.0 : 1.0,
+                  duration: const Duration(milliseconds: 600),
+                  child: IgnorePointer(
+                    ignoring: showLanding,
+                    child: Column(
                       children: [
-                        RepaintBoundary(
-                          child: SlideTransition(
-                            position: _mainCardsSlideOut,
-                            child: FadeTransition(
-                              opacity: _mainCardsOpacityOut,
-                              child: _buildMainCards(),
-                            ),
-                          ),
-                        ),
-                        
-                        RepaintBoundary(
-                          child: SlideTransition(
-                            position: _authMethodsSlide,
-                            child: FadeTransition(
-                              opacity: _authMethodsOpacity,
-                              child: _buildAuthMethodCards(),
-                            ),
-                          ),
-                        ),
-                        
-                        // "Get Started" Button
-                        Positioned(
-                          bottom: 20, left: 0, right: 0,
-                          child: AnimatedOpacity(
-                            opacity: showLanding ? 1.0 : 0.0,
-                            duration: const Duration(milliseconds: 600),
-                            child: IgnorePointer(
-                              ignoring: !showLanding,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 40),
-                                child: SizedBox(
-                                  width: double.infinity,
-                                  height: 56,
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFFFFB3D9),
-                                      foregroundColor: const Color(0xFF4B1528),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                                      elevation: 8,
-                                      shadowColor: const Color(0xFFFFB3D9).withOpacity(0.5),
-                                    ),
-                                    onPressed: () {
-                                      setState(() => showLanding = false);
-                                      Future.delayed(const Duration(milliseconds: 300), () {
-                                        if (mounted) _entranceController.forward();
-                                      });
-                                    },
-                                    child: const Text(
-                                      "Get Started",
-                                      style: TextStyle(
-                                        fontFamily: 'Circular', fontSize: 18,
-                                        fontWeight: FontWeight.w800, letterSpacing: 0.5,
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          height: showAuthMethods ? 80 : 60,
+                          child: showAuthMethods
+                              ? Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                                  child: Row(
+                                    children: [
+                                      Material(
+                                        color: Colors.transparent,
+                                        child: InkWell(
+                                          onTap: _goBackToMainCards,
+                                          borderRadius: BorderRadius.circular(24),
+                                          splashColor: Colors.white.withOpacity(0.3),
+                                          highlightColor: Colors.white.withOpacity(0.1),
+                                          child: Container(
+                                            padding: const EdgeInsets.all(12),
+                                            child: const Icon(
+                                              Icons.arrow_back_rounded,
+                                              color: Colors.white,
+                                              size: 28,
+                                              shadows: [
+                                                Shadow(
+                                                  color: Colors.black26,
+                                                  blurRadius: 8,
+                                                  offset: Offset(0, 2),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
                                       ),
+                                      const Spacer(),
+                                      const Spacer(),
+                                      const SizedBox(width: 40),
+                                    ],
+                                  ),
+                                )
+                              : const SizedBox(height: 60),
+                        ),
+                        
+                        // Auth captions
+                        AnimatedBuilder(
+                          animation: _authMethodsController,
+                          builder: (context, child) {
+                            final progress = _authMethodsController.value;
+                            final authOpacity = Curves.easeOutCubic.transform(progress).clamp(0.0, 1.0);
+                            
+                            return SizedBox(
+                              width: double.infinity,
+                              child: Stack(
+                                alignment: Alignment.topCenter,
+                                children: [
+                                  // Auth caption
+                                  if (authOpacity > 0.01)
+                                    Opacity(
+                                      opacity: authOpacity,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            ShaderMask(
+                                              shaderCallback: (bounds) => const LinearGradient(
+                                                colors: [Color(0xFFFFD4E9), Color(0xFFFFB3D9), Color(0xFFFFE5F1)],
+                                                begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                                              ).createShader(bounds),
+                                              child: Text(
+                                                isSignUp ? "Sign up to start\nmatching" : "Welcome\nback!",
+                                                textAlign: TextAlign.center,
+                                                style: const TextStyle(
+                                                  fontFamily: 'Circular', fontSize: 48,
+                                                  color: Colors.white, fontWeight: FontWeight.w900,
+                                                  letterSpacing: -0.5, height: 1.1,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 12),
+                                            ShaderMask(
+                                              shaderCallback: (bounds) => const LinearGradient(
+                                                colors: [Color(0xFFFFE5F1), Color(0xFFFFD4E9)],
+                                                begin: Alignment.centerLeft, end: Alignment.centerRight,
+                                              ).createShader(bounds),
+                                              child: Text(
+                                                isSignUp ? "Create an account in seconds." : "Log back in within seconds.",
+                                                textAlign: TextAlign.center,
+                                                style: const TextStyle(
+                                                  fontFamily: 'Circular', fontSize: 18,
+                                                  color: Colors.white, fontWeight: FontWeight.w600,
+                                                  letterSpacing: 0.2, height: 1.3,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                        
+                        Expanded(
+                          child: RepaintBoundary(
+                            child: Stack(
+                              children: [
+                                RepaintBoundary(
+                                  child: SlideTransition(
+                                    position: _mainCardsSlideOut,
+                                    child: FadeTransition(
+                                      opacity: _mainCardsOpacityOut,
+                                      child: _buildMainCards(),
                                     ),
                                   ),
                                 ),
-                              ),
+                                RepaintBoundary(
+                                  child: SlideTransition(
+                                    position: _authMethodsSlide,
+                                    child: FadeTransition(
+                                      opacity: _authMethodsOpacity,
+                                      child: _buildAuthMethodCards(),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
+                        const SizedBox(height: 40),
                       ],
                     ),
                   ),
                 ),
-                
-                const SizedBox(height: 40),
               ],
             ),
           ),

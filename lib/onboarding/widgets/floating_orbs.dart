@@ -66,6 +66,21 @@ class _FloatingOrbsState extends State<FloatingOrbs>
                 decoration: BoxDecoration(
                   color: Color(orb[0] as int),
                   shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Color(orb[0] as int).withOpacity(0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    )
+                  ],
+                ),
+                child: Center(
+                  child: Icon(
+                    Icons.person_rounded,
+                    color: Colors.white.withOpacity(0.9),
+                    size: d * 0.55,
+                  ),
                 ),
               ),
             ),
