@@ -41,6 +41,8 @@ dependencies:
   audioplayers: ^5.2.0
   vibration: ^3.1.5
   shared_preferences: ^2.2.2
+  country_code_picker: ^3.0.0
+  flutter_dotenv: ^5.1.0
 
   
 
@@ -48,6 +50,7 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   video_player: ^2.10.1
+  screenshot: 2.3.0
 
 dev_dependencies:
   flutter_test:
@@ -91,6 +94,7 @@ flutter:
     - assets/y2kk.svg
     - assets/images/y22k.png
     - assets/images/filogo.png
+    - .env
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see
