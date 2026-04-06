@@ -1,49 +1,25 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
+import 'package:provider/provider.dart';
+import '../providers/user_profile_provider.dart';
+import '../providers/auth_provider.dart';
+import '../auth/utils/auth_exception.dart';
 import 'profile_setup_dialog.dart';
 
-class ProfilePage extends StatefulWidget {
+class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
   @override
-  State<ProfilePage> createState() => _ProfilePageState();
-}
-
-class _ProfilePageState extends State<ProfilePage> {
-  final uid = FirebaseAuth.instance.currentUser?.uid;
-
-  @override
   Widget build(BuildContext context) {
-    if (uid == null) {
-      return const Center(
-        child: Text("Not signed in", style: TextStyle(color: Colors.white)),
-      );
-    }
+    return Consumer<UserProfileProvider>(
+      builder: (context, profileProvider, _) {
+        final profile = profileProvider.profile;
 
-    final docRef = FirebaseFirestore.instance.collection('users').doc(uid);
-
-    return StreamBuilder<DocumentSnapshot>(
-      stream: docRef.snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return const Center(
-            child: Text("Error", style: TextStyle(color: Colors.white)),
-          );
-        }
-        if (!snapshot.hasData) {
+        if (profile == null) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final data =
-            snapshot.data!.data() as Map<String, dynamic>? ?? {};
-        final username = data['username'] as String? ?? 'No name';
-        final photoUrl = data['photoUrl'] as String? ?? '';
-        final liked =
-            (data['likedSongs'] as List<dynamic>?)?.cast<String>() ?? [];
-        final matches =
-            (data['recentMatches'] as List<dynamic>?)?.cast<String>() ?? [];
+        final username = profile.username.isNotEmpty ? profile.username : 'No name';
+        final photoUrl = profile.photoUrl;
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -78,14 +54,14 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          "Recent matches: ${matches.length}",
+                          profile.email,
                           style: const TextStyle(color: Colors.white70),
                         ),
                       ],
                     ),
                   ),
                   IconButton(
-                    onPressed: () => _openEditDialog(),
+                    onPressed: () => _openEditDialog(context),
                     icon: const Icon(Icons.edit, color: Colors.white),
                   ),
                 ],
@@ -93,37 +69,44 @@ class _ProfilePageState extends State<ProfilePage> {
 
               const SizedBox(height: 24),
 
-              // ---------------- LIKED SONGS ----------------
-              const Text("Liked history",
+              // ---------------- TASTE PROFILE ----------------
+              const Text("Listen profile",
                   style: TextStyle(
                       color: Colors.white,
                       fontSize: 16,
                       fontWeight: FontWeight.w700)),
               const SizedBox(height: 10),
 
-              if (liked.isEmpty)
-                const Text("You haven't liked any songs yet.",
-                    style: TextStyle(color: Colors.white70))
-              else
-                Column(
-                    children: liked.map((s) => _songTile(s)).toList()),
-
-              const SizedBox(height: 24),
-
-              // ---------------- RECENT MATCHES ----------------
-              const Text("Recent Matches",
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700)),
               const SizedBox(height: 10),
-
-              if (matches.isEmpty)
-                const Text("No matches yet — start swiping!",
+              
+              if (profile.tasteProfile.isEmpty)
+                const Text("No listen data yet — start swiping!",
                     style: TextStyle(color: Colors.white70))
               else
                 Column(
-                    children: matches.map((m) => _matchTile(m)).toList()),
+                  children: profile.tasteProfile.entries
+                      .where((e) => e.key != 'updatedAt')
+                      .map((e) => _tasteTile(e.key, e.value.toString()))
+                      .toList(),
+                ),
+
+              const SizedBox(height: 48),
+
+              // ---------------- DESTRUCTIVE ACTIONS ----------------
+              Center(
+                child: TextButton.icon(
+                  onPressed: () => _showDeleteAccountDialog(context),
+                  icon: const Icon(Icons.delete_forever_rounded, color: Colors.redAccent),
+                  label: const Text(
+                    "Delete Account",
+                    style: TextStyle(
+                      color: Colors.redAccent,
+                      fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ),
 
               const SizedBox(height: 60),
             ],
@@ -133,7 +116,11 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _songTile(String title) {
+  Widget _tasteTile(String key, String value) {
+    final label = key
+        .replaceAllMapped(
+            RegExp(r'([a-z])([A-Z])'), (m) => '${m[1]} ${m[2]}')
+        .replaceFirst(key[0], key[0].toUpperCase());
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 6),
       padding: const EdgeInsets.all(12),
@@ -147,38 +134,146 @@ class _ProfilePageState extends State<ProfilePage> {
               width: 48,
               height: 48,
               color: const Color(0xFF1E1E1E),
-              child:
-                  const Icon(Icons.music_note, color: Colors.white)),
+              child: const Icon(Icons.music_note, color: Colors.white)),
           const SizedBox(width: 12),
           Expanded(
-              child: Text(title,
-                  style: const TextStyle(color: Colors.white))),
-          IconButton(
-              onPressed: () {},
-              icon:
-                  const Icon(Icons.more_vert, color: Colors.white70)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style: const TextStyle(
+                        color: Colors.white70, fontSize: 12)),
+                const SizedBox(height: 2),
+                Text(value,
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _matchTile(String name) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: const CircleAvatar(
-          backgroundColor: Color(0xFF1E1E1E),
-          child: Icon(Icons.person, color: Colors.white)),
-      title: Text(name, style: const TextStyle(color: Colors.white)),
-      subtitle: const Text("Matched 2 days ago",
-          style: TextStyle(color: Colors.white54)),
-      trailing:
-          IconButton(onPressed: () {}, icon: const Icon(Icons.chat, color: Colors.white)),
-    );
-  }
-
-  Future<void> _openEditDialog() async {
+  Future<void> _openEditDialog(BuildContext context) async {
     await showDialog(
         context: context,
         builder: (_) => const ProfileSetupDialog());
+  }
+
+  void _showDeleteAccountDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => const _DeleteAccountDialog(),
+    );
+  }
+}
+
+class _DeleteAccountDialog extends StatefulWidget {
+  const _DeleteAccountDialog();
+
+  @override
+  State<_DeleteAccountDialog> createState() => _DeleteAccountDialogState();
+}
+
+class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
+  final _passwordCtrl = TextEditingController();
+  bool _loading = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _passwordCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.read<AuthProvider>();
+    final isEmailUser = auth.currentUser?.providerData.any((p) => p.providerId == 'password') ?? false;
+
+    return AlertDialog(
+      surfaceTintColor: Colors.transparent,
+      backgroundColor: const Color(0xFF121212),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: const Text("Delete Account?", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "This action is irreversible. All your matches, chat history, and taste profile data will be permanently deleted.",
+            style: TextStyle(color: Colors.white70, fontSize: 14),
+          ),
+          if (isEmailUser) ...[
+            const SizedBox(height: 20),
+            const Text(
+              "Please enter your password to confirm:",
+              style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _passwordCtrl,
+              obscureText: true,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFF1E1E1E),
+                hintText: "Password",
+                hintStyle: const TextStyle(color: Colors.white30),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              ),
+            ),
+          ],
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            Text(_error!, style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: _loading ? null : () => Navigator.pop(context),
+          child: const Text("Cancel", style: TextStyle(color: Colors.white70)),
+        ),
+        ElevatedButton(
+          onPressed: _loading ? null : _handleDelete,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.redAccent,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          child: _loading 
+            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+            : const Text("Delete permanently"),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _handleDelete() async {
+    final auth = context.read<AuthProvider>();
+    final isEmailUser = auth.currentUser?.providerData.any((p) => p.providerId == 'password') ?? false;
+
+    setState(() { _loading = true; _error = null; });
+
+    try {
+      if (isEmailUser) {
+        final pwd = _passwordCtrl.text.trim();
+        if (pwd.isEmpty) {
+          setState(() { _loading = false; _error = "Password is required"; });
+          return;
+        }
+        await auth.reauthenticateWithPassword(pwd);
+      }
+
+      await auth.deleteAccount();
+      if (mounted) Navigator.pop(context);
+      
+    } on AuthException catch (e) {
+      if (mounted) setState(() { _loading = false; _error = e.message; });
+    } catch (e) {
+      if (mounted) setState(() { _loading = false; _error = "An unexpected error occurred"; });
+    }
   }
 }

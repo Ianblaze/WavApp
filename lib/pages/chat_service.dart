@@ -1,6 +1,7 @@
 // chat_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../models/message.dart';
 
 class ChatService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -33,7 +34,7 @@ class ChatService {
   }
 
   /// Send a message (adds to messages subcollection and updates chat doc)
-  Future<void> sendMessage(String chatId, String text) async {
+  Future<void> sendMessage(String chatId, String text, {Message? replyTo}) async {
     final me = FirebaseAuth.instance.currentUser?.uid;
     if (me == null) throw Exception('Not signed in');
     final chatRef = _db.collection('chats').doc(chatId);
@@ -41,12 +42,18 @@ class ChatService {
 
     final batch = _db.batch();
 
-    batch.set(msgRef, {
+    final data = <String, dynamic>{
       'senderId': me,
       'text': text,
       'timestamp': FieldValue.serverTimestamp(),
-      'readBy': [me], // mark as read for sender
-    });
+      'status': 'sent',
+      'readBy': [me],
+    };
+    if (replyTo != null) {
+      data['replyTo'] = replyTo.text;
+      data['replyToSender'] = replyTo.senderId;
+    }
+    batch.set(msgRef, data);
 
     batch.update(chatRef, {
       'lastMessage': text,
@@ -79,5 +86,15 @@ class ChatService {
   /// Stream chat doc (for lastMessage / meta)
   Stream<DocumentSnapshot<Map<String, dynamic>>> chatDocStream(String chatId) {
     return _db.collection('chats').doc(chatId).snapshots();
+  }
+
+  /// Get unread messages from other user
+  Future<List<String>> unreadMessages(String chatId, String otherUserId) async {
+    final snap = await _db
+        .collection('chats').doc(chatId).collection('messages')
+        .where('senderId', isEqualTo: otherUserId)
+        .where('status', isNotEqualTo: 'read')
+        .get();
+    return snap.docs.map((d) => d.id).toList();
   }
 }

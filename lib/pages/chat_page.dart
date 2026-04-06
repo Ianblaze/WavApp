@@ -1,6 +1,8 @@
 // chat_page.dart
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import '../providers/chat_provider.dart';
+import '../models/message.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 // ----------------------
@@ -37,105 +39,29 @@ class _ChatPageState extends State<ChatPage> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
-  bool _sending = false;
-  Map<String, dynamic>? _replyingTo;
-
   @override
   void initState() {
     super.initState();
-    _markMessagesAsRead();
-  }
-
-  Stream<QuerySnapshot<Map<String, dynamic>>> _chatStream() {
-    return FirebaseFirestore.instance
-        .collection("chats")
-        .doc(widget.chatId)
-        .collection("messages")
-        .orderBy("timestamp", descending: true)
-        .snapshots();
-  }
-
-  // Mark messages as read when user opens chat
-  Future<void> _markMessagesAsRead() async {
-    final messages = await FirebaseFirestore.instance
-        .collection("chats")
-        .doc(widget.chatId)
-        .collection("messages")
-        .where("senderId", isEqualTo: widget.otherUserId)
-        .where("status", isNotEqualTo: "read")
-        .get();
-
-    for (var doc in messages.docs) {
-      doc.reference.update({"status": "read"});
-    }
-  }
-
-  // ------------------------
-  // SEND MESSAGE
-  // ------------------------
-  Future<void> _sendMessage() async {
-    if (_sending) return;
-    final text = _messageController.text.trim();
-    if (text.isEmpty) return;
-
-    _sending = true;
-
-    // Capture reply data before clearing (don't use setState yet)
-    Map<String, dynamic>? replyData;
-    if (_replyingTo != null) {
-      replyData = {
-        "replyTo": _replyingTo!["text"],
-        "replyToSender": _replyingTo!["senderId"],
-      };
-      _replyingTo = null; // Clear without setState
-    }
-
-    _messageController.clear();
-
-    try {
-      final messageData = <String, dynamic>{
-        "senderId": FirebaseAuth.instance.currentUser!.uid,
-        "text": text,
-        "timestamp": Timestamp.now(),
-        "status": "sent",
-      };
-
-      // Add reply info if it exists
-      if (replyData != null) {
-        messageData.addAll(replyData);
-      }
-
-      await FirebaseFirestore.instance
-          .collection("chats")
-          .doc(widget.chatId)
-          .collection("messages")
-          .add(messageData);
-    } catch (e) {
-      debugPrint("send message error: $e");
-    }
-
-    _sending = false;
-    
-    // Update UI only once at the end if reply bar was showing
-    if (replyData != null && mounted) {
-      setState(() {});
-    }
-  }
-
-  // ------------------------
-  // REPLY TO MESSAGE
-  // ------------------------
-  void _replyToMessage(Map<String, dynamic> msg) {
-    setState(() {
-      _replyingTo = msg;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final chat = context.read<ChatProvider>();
+      chat.openChat(widget.chatId);
+      chat.markMessagesRead(widget.otherUserId);
     });
   }
 
-  // ------------------------
-  // CANCEL REPLY
-  // ------------------------
-  void _cancelReply() {
-    setState(() => _replyingTo = null);
+  @override
+  void dispose() {
+    context.read<ChatProvider>().closeChat();
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _sendMessage() {
+    final text = _messageController.text.trim();
+    if (text.isEmpty) return;
+    _messageController.clear();
+    context.read<ChatProvider>().sendMessage(text);
   }
 
   @override
@@ -154,12 +80,16 @@ class _ChatPageState extends State<ChatPage> {
         Scaffold(
           backgroundColor: Colors.transparent,
           appBar: _buildAppBar(),
-          body: Column(
-            children: [
-              Expanded(child: _buildMessageList()),
-              if (_replyingTo != null) _buildReplyPreview(),
-              _buildMessageInput(),
-            ],
+          body: Consumer<ChatProvider>(
+            builder: (context, chat, _) {
+              return Column(
+                children: [
+                  Expanded(child: _buildMessageList(chat)),
+                  if (chat.replyingTo != null) _buildReplyPreview(chat),
+                  _buildMessageInput(),
+                ],
+              );
+            },
           ),
         )
       ],
@@ -207,33 +137,30 @@ class _ChatPageState extends State<ChatPage> {
   // ---------------------
   // MESSAGE LIST
   // ---------------------
-  Widget _buildMessageList() {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _chatStream(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: y2kPink));
-        }
+  Widget _buildMessageList(ChatProvider chat) {
+    final messages = chat.messages;
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
 
-        final messages = snapshot.data?.docs ?? [];
+    if (messages.isEmpty) {
+      return const Center(
+        child: CircularProgressIndicator(color: y2kPink),
+      );
+    }
 
-        return ListView.builder(
-          controller: _scrollController,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          itemCount: messages.length,
-          reverse: true,
-          addAutomaticKeepAlives: true,
-          physics: const BouncingScrollPhysics(),
-          itemBuilder: (context, index) {
-            final doc = messages[index];
-            final msg = doc.data();
-            final msgId = doc.id;
-            final isMe =
-                msg["senderId"] == FirebaseAuth.instance.currentUser!.uid;
+    // Messages from provider stream are ordered ascending; reverse for UI
+    final reversed = messages.reversed.toList();
 
-            return _buildSwipeableMessage(msg, msgId, isMe);
-          },
-        );
+    return ListView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      itemCount: reversed.length,
+      reverse: true,
+      addAutomaticKeepAlives: true,
+      physics: const BouncingScrollPhysics(),
+      itemBuilder: (context, index) {
+        final msg = reversed[index];
+        final isMe = msg.senderId == currentUid;
+        return _buildSwipeableMessage(msg, isMe, chat);
       },
     );
   }
@@ -241,12 +168,11 @@ class _ChatPageState extends State<ChatPage> {
   // ---------------------
   // SWIPEABLE MESSAGE
   // ---------------------
-  Widget _buildSwipeableMessage(
-      Map<String, dynamic> msg, String msgId, bool isMe) {
+  Widget _buildSwipeableMessage(Message msg, bool isMe, ChatProvider chat) {
     return GestureDetector(
-      onDoubleTap: () => _replyToMessage(msg),
+      onDoubleTap: () => chat.setReply(msg),
       child: Align(
-        key: ValueKey(msgId),
+        key: ValueKey(msg.id),
         alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: 4),
@@ -275,7 +201,7 @@ class _ChatPageState extends State<ChatPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               // Reply preview if this message is a reply
-              if (msg["replyTo"] != null) ...[
+              if (msg.replyToText != null) ...[
                 Container(
                   padding: const EdgeInsets.all(6),
                   margin: const EdgeInsets.only(bottom: 6),
@@ -292,7 +218,7 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                   ),
                   child: Text(
-                    msg["replyTo"],
+                    msg.replyToText!,
                     style: TextStyle(
                       color:
                           isMe ? Colors.white70 : textDark.withOpacity(0.7),
@@ -307,7 +233,7 @@ class _ChatPageState extends State<ChatPage> {
 
               // Message text
               Text(
-                msg["text"] ?? "",
+                msg.text,
                 style: TextStyle(
                   color: isMe ? Colors.white : textDark,
                   fontSize: 15,
@@ -324,7 +250,7 @@ class _ChatPageState extends State<ChatPage> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Text(
-                    _formatTime(msg["timestamp"]),
+                    _formatTime(msg.timestamp),
                     style: TextStyle(
                       color: isMe ? Colors.white70 : mutedText,
                       fontSize: 10,
@@ -332,7 +258,7 @@ class _ChatPageState extends State<ChatPage> {
                   ),
                   if (isMe) ...[
                     const SizedBox(width: 3),
-                    _buildReadReceipt(msg["status"] ?? "sent"),
+                    _buildReadReceipt(msg.status),
                   ],
                 ],
               ),
@@ -369,18 +295,18 @@ class _ChatPageState extends State<ChatPage> {
   // ---------------------
   // FORMAT TIME
   // ---------------------
-  String _formatTime(Timestamp? timestamp) {
+  String _formatTime(DateTime? timestamp) {
     if (timestamp == null) return "";
-    final date = timestamp.toDate();
-    return "${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}";
+    return "${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}";
   }
 
   // ---------------------
   // REPLY PREVIEW BAR
   // ---------------------
-  Widget _buildReplyPreview() {
-    final isMyMessage =
-        _replyingTo!["senderId"] == FirebaseAuth.instance.currentUser!.uid;
+  Widget _buildReplyPreview(ChatProvider chat) {
+    final replyingTo = chat.replyingTo!;
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    final isMyMessage = replyingTo.senderId == currentUid;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
@@ -416,7 +342,7 @@ class _ChatPageState extends State<ChatPage> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  _replyingTo!["text"],
+                  replyingTo.text,
                   style: const TextStyle(color: textDark, fontSize: 13),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -425,7 +351,7 @@ class _ChatPageState extends State<ChatPage> {
             ),
           ),
           IconButton(
-            onPressed: _cancelReply,
+            onPressed: () => chat.cancelReply(),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
             icon: const Icon(Icons.close, color: mutedText, size: 20),
@@ -466,9 +392,7 @@ class _ChatPageState extends State<ChatPage> {
                 maxLines: null,
                 minLines: 1,
                 textCapitalization: TextCapitalization.sentences,
-                onSubmitted: (_) {
-                  _sendMessage();
-                },
+                onSubmitted: (_) => _sendMessage(),
                 decoration: const InputDecoration(
                   border: InputBorder.none,
                   hintText: "Message...",

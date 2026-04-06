@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:swipify/auth/auth_wrapper.dart';
+import 'package:swipify/providers/auth_provider.dart';
+import 'package:swipify/pages/home_page.dart';
 import 'package:swipify/auth/login_page.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -117,9 +121,16 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     // 2. Navigate after 3.5 seconds total
     Future.delayed(const Duration(milliseconds: 700), () {
       if (mounted) {
+        final auth = context.read<AuthProvider>();
+        Widget destination;
+        if (auth.status == AuthStatus.authenticated) {
+          destination = const HomePage();
+        } else {
+          destination = const AuthWrapper();
+        }
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const LoginPage(),
+            pageBuilder: (context, animation, secondaryAnimation) => destination,
             transitionDuration: const Duration(milliseconds: 1000),
             reverseTransitionDuration: const Duration(milliseconds: 1000),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {

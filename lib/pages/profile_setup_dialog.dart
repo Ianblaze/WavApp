@@ -1,11 +1,15 @@
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+
+import '../providers/auth_provider.dart';
+import '../providers/user_profile_provider.dart';
+import '../auth/utils/auth_exception.dart';
 
 class ProfileSetupDialog extends StatefulWidget {
   const ProfileSetupDialog({super.key});
@@ -21,6 +25,18 @@ class _ProfileSetupDialogState extends State<ProfileSetupDialog> {
   bool _loading = false;
 
   final ImagePicker _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-fill with current username
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final profile = context.read<UserProfileProvider>().profile;
+      if (profile != null) {
+        _usernameCtrl.text = profile.username;
+      }
+    });
+  }
 
   Future<void> pickImage() async {
     final img = await _picker.pickImage(source: ImageSource.gallery);
@@ -62,9 +78,6 @@ class _ProfileSetupDialogState extends State<ProfileSetupDialog> {
   }
 
   Future<void> saveProfile() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
     final username = _usernameCtrl.text.trim();
 
     if (username.isEmpty) {
@@ -91,15 +104,30 @@ class _ProfileSetupDialogState extends State<ProfileSetupDialog> {
       return;
     }
 
-    await FirebaseFirestore.instance.collection("users").doc(user.uid).set({
-      "username": username,
-      "photoUrl": photoUrl ?? "",
-      "likedSongs": [],
-      "recentMatches": [],
-      "createdAt": FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    try {
+      final auth = context.read<AuthProvider>();
+      
+      // Use atomic updateUsername which also handles reservation
+      await auth.updateUsername(username, extraUpdates: {
+        if (photoUrl != null) "photoUrl": photoUrl,
+      });
 
-    if (mounted) Navigator.pop(context);
+      if (mounted) Navigator.pop(context);
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message), backgroundColor: Colors.red),
+        );
+        setState(() => _loading = false);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("An error occurred"), backgroundColor: Colors.red),
+        );
+        setState(() => _loading = false);
+      }
+    }
   }
 
   @override

@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:swipify/auth/login_page.dart';
-import 'package:swipify/pages/home_page.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import '../providers/user_profile_provider.dart';
+import 'login_page.dart';
+import '../pages/home_page.dart';
+import 'screens/reauth_password_screen.dart';
+import '../onboarding/onboarding_flow.dart';
 import 'dart:ui' show ImageFilter;
 
 // Y2K colors from login_page.dart
@@ -19,33 +23,36 @@ class AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
-      builder: (context, snapshot) {
-        // Loading state
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(
-              child: CircularProgressIndicator(),
-            ),
-          );
+    return Consumer<AuthProvider>(
+      builder: (context, auth, _) {
+        switch (auth.status) {
+          case AuthStatus.loading:
+            return const Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(),
+              ),
+            );
+          case AuthStatus.unauthenticated:
+            Future.microtask(() {
+              context.read<UserProfileProvider>().stopListening();
+            });
+            return const LoginPage();
+          case AuthStatus.emailUnverified:
+            return EmailVerificationRequiredScreen(user: auth.currentUser!);
+          case AuthStatus.onboarding:
+            Future.microtask(() {
+              context.read<UserProfileProvider>().startListening(auth.currentUid!);
+            });
+            return const OnboardingFlow();
+          case AuthStatus.passwordUpgradeRequired:
+            return ReauthPasswordScreen(user: auth.currentUser!);
+          case AuthStatus.authenticated:
+            Future.microtask(() {
+              context.read<UserProfileProvider>()
+                  .startListening(auth.currentUid!);
+            });
+            return const HomePage();
         }
-
-        // Get current user
-        final user = snapshot.data;
-
-        // No user logged in - show login page
-        if (user == null) {
-          return const LoginPage();
-        }
-
-        // User logged in but email not verified - show verification required screen
-        if (!user.emailVerified) {
-          return EmailVerificationRequiredScreen(user: user);
-        }
-
-        // User logged in and email verified - show home page
-        return const HomePage();
       },
     );
   }
@@ -53,7 +60,7 @@ class AuthWrapper extends StatelessWidget {
 
 /// Screen shown to users who haven't verified their email yet
 class EmailVerificationRequiredScreen extends StatefulWidget {
-  final User user;
+  final dynamic user;
 
   const EmailVerificationRequiredScreen({
     super.key,
@@ -101,14 +108,10 @@ class _EmailVerificationRequiredScreenState
     setState(() => _isChecking = true);
 
     try {
-      // Reload user data from Firebase
-      await widget.user.reload();
+      await context.read<AuthProvider>().forceTokenRefresh();
       
-      // Get fresh user data
-      final currentUser = FirebaseAuth.instance.currentUser;
-
-      if (currentUser != null && currentUser.emailVerified) {
-        // Email is now verified! 
+      final auth = context.read<AuthProvider>();
+      if (auth.status == AuthStatus.authenticated) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -129,7 +132,6 @@ class _EmailVerificationRequiredScreenState
             ),
           );
         }
-        // The StreamBuilder will automatically navigate to HomePage
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -153,7 +155,7 @@ class _EmailVerificationRequiredScreenState
         }
       }
     } catch (e) {
-      print('Error checking verification: $e');
+      debugPrint('Error checking verification: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -185,8 +187,8 @@ class _EmailVerificationRequiredScreenState
     setState(() => _isResending = true);
 
     try {
-      await widget.user.sendEmailVerification();
-      print('✅ Verification email resent to: ${widget.user.email}');
+      await context.read<AuthProvider>().sendVerificationEmail();
+      debugPrint('✅ Verification email resent');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -209,7 +211,7 @@ class _EmailVerificationRequiredScreenState
         );
       }
     } catch (e) {
-      print('❌ Error resending verification email: $e');
+      debugPrint('❌ Error resending verification email: $e');
       
       if (mounted) {
         String errorMessage = 'Failed to send email';
@@ -245,11 +247,14 @@ class _EmailVerificationRequiredScreenState
   }
 
   Future<void> _signOut() async {
-    await FirebaseAuth.instance.signOut();
+    await context.read<AuthProvider>().signOut();
   }
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.read<AuthProvider>();
+    final userEmail = auth.currentUser?.email ?? '';
+    
     return Scaffold(
       body: Stack(
         children: [
@@ -336,7 +341,7 @@ class _EmailVerificationRequiredScreenState
 
                           // Email address
                           Text(
-                            widget.user.email ?? '',
+                            userEmail,
                             style: const TextStyle(
                               fontFamily: 'Circular',
                               fontSize: 18,

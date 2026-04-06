@@ -1,7 +1,9 @@
 // match_page.dart
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import '../providers/match_provider.dart';
+import '../providers/chat_provider.dart';
+import '../models/match.dart';
 import '../pages/chat_page.dart';
 
 // ---------------------------------------------------------
@@ -27,15 +29,13 @@ class MatchPage extends StatefulWidget {
 }
 
 class _MatchPageState extends State<MatchPage> {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
-
-  Stream<QuerySnapshot<Map<String, dynamic>>> _matchesStream() {
-    return _db
-        .collection('users')
-        .doc(widget.uid)
-        .collection('matches')
-        .orderBy('timestamp', descending: true)
-        .snapshots();
+  @override
+  void initState() {
+    super.initState();
+    // Start the match list stream
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<MatchProvider>().startMatchStream();
+    });
   }
 
   @override
@@ -68,24 +68,24 @@ class _MatchPageState extends State<MatchPage> {
               ),
             ),
           ),
-          body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: _matchesStream(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
+          body: Consumer<MatchProvider>(
+            builder: (context, matchProvider, _) {
+              if (matchProvider.isLoading) {
                 return const Center(
                   child: CircularProgressIndicator(color: y2kPink),
                 );
               }
 
-              if (snapshot.hasError) {
+              if (matchProvider.error != null) {
                 return const Center(
-                  child: Text("Error loading matches", style: TextStyle(color: textDark)),
+                  child: Text("Error loading matches",
+                      style: TextStyle(color: textDark)),
                 );
               }
 
-              final docs = snapshot.data?.docs ?? [];
+              final allMatches = matchProvider.matches;
 
-              if (docs.isEmpty) {
+              if (allMatches.isEmpty) {
                 return const Center(
                   child: Text(
                     "No matches yet 👀\nSwipe more songs!",
@@ -95,20 +95,20 @@ class _MatchPageState extends State<MatchPage> {
                 );
               }
 
-              final List<Map<String, dynamic>> allMatches =
-                  docs.map((d) => {...d.data(), 'docId': d.id}).toList();
-
               final incoming =
-                  allMatches.where((m) => m['status'] == 'incoming').toList();
-              final outgoing =
-                  allMatches.where((m) => m['status'] == 'pending' || m['status'] == 'outgoing').toList();
+                  allMatches.where((m) => m.status == 'incoming').toList();
+              final outgoing = allMatches
+                  .where((m) =>
+                      m.status == 'pending' || m.status == 'outgoing')
+                  .toList();
               final connected =
-                  allMatches.where((m) => m['status'] == 'connected').toList();
+                  allMatches.where((m) => m.status == 'connected').toList();
               final abandoned =
-                  allMatches.where((m) => m['status'] == 'abandoned').toList();
+                  allMatches.where((m) => m.status == 'abandoned').toList();
 
               return ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 10),
                 children: [
                   if (incoming.isNotEmpty) _sectionTitle("Incoming Requests"),
                   for (var m in incoming) MatchCard(matchData: m),
@@ -150,178 +150,111 @@ class _MatchPageState extends State<MatchPage> {
 // 🔥 Match Card + Chat Button
 // ---------------------------------------------------------
 class MatchCard extends StatelessWidget {
-  final Map<String, dynamic> matchData;
+  final Match matchData;
 
-  MatchCard({super.key, required this.matchData});
-
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
-
-  // Ensures both users share the same chatId
-  String _generateChatId(String uid1, String uid2) {
-    final sorted = [uid1, uid2]..sort();
-    return "${sorted[0]}_${sorted[1]}";
-  }
-
-  Future<Map<String, String>> _resolveProfile(
-      String userId, Map<String, dynamic> docFields) async {
-    final usernameFromDoc =
-        docFields['username'] ?? docFields['displayName'];
-    final photoFromDoc =
-        docFields['photoUrl'] ?? docFields['avatar'];
-
-    if (usernameFromDoc != null || photoFromDoc != null) {
-      return {
-        'username': usernameFromDoc ?? 'Unknown',
-        'photoUrl': photoFromDoc ?? '',
-      };
-    }
-
-    try {
-      final snap = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .get();
-      final data = snap.data() ?? {};
-      return {
-        'username': data['username'] ?? data['displayName'] ?? 'Unknown',
-        'photoUrl': data['photoUrl'] ?? '',
-      };
-    } catch (_) {
-      return {'username': 'Unknown', 'photoUrl': ''};
-    }
-  }
+  const MatchCard({super.key, required this.matchData});
 
   @override
   Widget build(BuildContext context) {
-    final otherUserId = matchData['userId'];
-    final status = matchData['status'];
-    final assignedRole = matchData['assignedRole'] ?? '';
+    final username = matchData.username;
+    final photoUrl = matchData.photoUrl;
+    final status = matchData.status;
 
-    return FutureBuilder<Map<String, String>>(
-      future: _resolveProfile(otherUserId, matchData),
-      builder: (context, snap) {
-        if (!snap.hasData) return const SizedBox.shrink();
-
-        final profile = snap.data!;
-        final username = profile['username']!;
-        final photoUrl = profile['photoUrl']!;
-
-        return Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF0E7FF),
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: y2kPurple.withOpacity(0.25),
-                blurRadius: 18,
-                offset: const Offset(0, 6),
-              ),
-            ],
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0E7FF),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: y2kPurple.withOpacity(0.25),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
           ),
-          child: Stack(
+        ],
+      ),
+      child: Stack(
+        children: [
+          // CARD CONTENT
+          Row(
             children: [
-              // CARD CONTENT
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 32,
-                    backgroundImage: photoUrl.isNotEmpty
-                        ? NetworkImage(photoUrl)
-                        : const AssetImage("assets/images/default_pfp.png")
-                            as ImageProvider,
-                  ),
-                  const SizedBox(width: 18),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          username,
-                          style: const TextStyle(
-                            color: textDark,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        if (status == "connected")
-                          const Text(
-                            "Connected ✔",
-                            style: TextStyle(
-                              color: Colors.green,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
+              CircleAvatar(
+                radius: 32,
+                backgroundImage: photoUrl.isNotEmpty
+                    ? NetworkImage(photoUrl)
+                    : const AssetImage("assets/images/default_pfp.png")
+                        as ImageProvider,
               ),
-
-              // CHAT BUTTON
-              Positioned(
-                right: 6,
-                bottom: 6,
-                child: GestureDetector(
-                  onTapDown: (_) {},
-                  onTapUp: (_) {},
-                  onTap: () async {
-                    final currentUser = FirebaseAuth.instance.currentUser!;
-                    final currentUserId = currentUser.uid;
-
-                    // Generate chatId if missing
-                    String chatId = matchData["chatId"] ?? "";
-
-                    if (chatId.trim().isEmpty) {
-                      chatId = _generateChatId(currentUserId, otherUserId);
-
-                      // Save chatId to both users' match documents
-                      await FirebaseFirestore.instance
-                          .collection("users")
-                          .doc(currentUserId)
-                          .collection("matches")
-                          .doc(matchData["docId"])
-                          .update({"chatId": chatId});
-
-                      await FirebaseFirestore.instance
-                          .collection("users")
-                          .doc(otherUserId)
-                          .collection("matches")
-                          .doc(currentUserId)
-                          .update({"chatId": chatId});
-                    }
-
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ChatPage(
-                          chatId: chatId,
-                          otherUserId: otherUserId,
-                          otherUsername: username,
-                          otherPhotoUrl: photoUrl,
-                        ),
-                      ),
-                    );
-                  },
-                  child: SizedBox(
-                    width: 72,
-                    height: 72,
-                    child: Center(
-                      child: Image.asset(
-                        "assets/images/chat.png",
-                        width: 80,
-                        height: 80,
+              const SizedBox(width: 18),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      username,
+                      style: const TextStyle(
+                        color: textDark,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 6),
+                    if (status == "connected")
+                      const Text(
+                        "Connected ✔",
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ],
           ),
-        );
-      },
+
+          // CHAT BUTTON
+          Positioned(
+            right: 6,
+            bottom: 6,
+            child: GestureDetector(
+              onTap: () async {
+                final chatProvider = context.read<ChatProvider>();
+                final chatId = await chatProvider.createOrGetChat(
+                  currentUserId: matchData.userId, // will be resolved inside ChatService
+                  otherUserId: matchData.userId,
+                );
+
+                if (context.mounted) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ChatPage(
+                        chatId: chatId,
+                        otherUserId: matchData.userId,
+                        otherUsername: username,
+                        otherPhotoUrl: photoUrl,
+                      ),
+                    ),
+                  );
+                }
+              },
+              child: SizedBox(
+                width: 72,
+                height: 72,
+                child: Center(
+                  child: Image.asset(
+                    "assets/images/chat.png",
+                    width: 80,
+                    height: 80,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

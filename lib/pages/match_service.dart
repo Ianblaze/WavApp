@@ -2,6 +2,7 @@
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 class MatchService {
   final _db = FirebaseFirestore.instance;
@@ -122,7 +123,7 @@ class MatchService {
 
       if (otherProfile.isEmpty) continue;
 
-      final sim = _computeSimilarity(meProfile, otherProfile);
+      final sim = computeSimilarity(meProfile, otherProfile);
 
       // Only strong matches
       if (sim < 60.0) continue;
@@ -130,7 +131,7 @@ class MatchService {
       try {
         await _handleCompatibility(me, otherId);
       } catch (e) {
-        print("⚠️ match error with $otherId → $e");
+        debugPrint("⚠️ match error with $otherId → $e");
       }
     }
   }
@@ -145,9 +146,13 @@ class MatchService {
     final mySnap = await myRef.get();
     final otherSnap = await otherRef.get();
 
-    // 1 — They already sent us a request → Auto connect
+    // ✅ FIXED: Remove auto-accept - let the notification service handle it
+    // 1 — They already sent us a request → Skip (notification will show)
     if (mySnap.exists && mySnap.data()?['status'] == 'incoming') {
-      await acceptIncomingRequest(otherId);
+      // ❌ OLD CODE (removed the auto-accept):
+      // await acceptIncomingRequest(otherId);
+      
+      // ✅ NEW CODE: Just skip - the MatchNotificationService will show popup
       return;
     }
 
@@ -172,7 +177,7 @@ class MatchService {
   // ============================================================
   // 🔥 SIMILARITY CALCULATION
   // ============================================================
-  double _computeSimilarity(Map<String, dynamic> a, Map<String, dynamic> b) {
+  static double computeSimilarity(Map<String, dynamic> a, Map<String, dynamic> b) {
     int matches = 0;
     final keys = ['topArtist', 'topGenre', 'topMood', 'bpmRange', 'key'];
 

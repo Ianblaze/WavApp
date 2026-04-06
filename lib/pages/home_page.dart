@@ -2,17 +2,23 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:flutter/material.dart';
 
 import 'wav_page.dart';
+import 'home_tab.dart';
 import 'profile_page.dart';
 import 'profile_setup_dialog.dart';
 import 'match_page.dart';
 
+import '../providers/user_profile_provider.dart';
+import 'package:provider/provider.dart';
 import '../pages/match_dock_popup.dart';
 import '../pages/match_service.dart';
-import '../auth/login_page.dart';
+import '../providers/auth_provider.dart';
+
+// ✅ ADD THIS IMPORT
+import '../services/match_notification_service.dart';
 
 // ---------------------------------------------------------
 // 🎨 LIGHT Y2K BUBBLEGUM POP PALETTE
@@ -41,10 +47,14 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int selectedTab = 0;
   final GlobalKey _profileKey = GlobalKey();
+  // Mood tint driven by WavPage
+  final ValueNotifier<Color> _moodTintNotifier =
+      ValueNotifier<Color>(const Color(0xFFB69CFF));
   OverlayEntry? _tutorialOverlay;
   bool _tutorialShown = false;
 
-  StreamSubscription? _matchListener;
+  // ❌ REMOVE THIS OLD LISTENER - we're using the service now
+  // StreamSubscription? _matchListener;
 
   @override
   void initState() {
@@ -52,85 +62,32 @@ class _HomePageState extends State<HomePage> {
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _maybeShowProfileTutorial();
+      
+      // ✅ START LISTENING TO USER PROFILE
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? "";
+      if (uid.isNotEmpty) {
+        context.read<UserProfileProvider>().startListening(uid);
+      }
+      
+      // ✅ INITIALIZE THE GLOBAL NOTIFICATION SERVICE
+      MatchNotificationService().initialize(context);
     });
-    _startMatchListener();
+    
+    // ❌ REMOVE THIS OLD LISTENER CALL
+    // _startMatchListener();
   }
 
   @override
   void dispose() {
-    _matchListener?.cancel();
+    _moodTintNotifier.dispose();
+    // ❌ REMOVE THIS
+    // _matchListener?.cancel();
+    
+    // ✅ ADD THIS - Cleanup the service
+    MatchNotificationService().dispose();
+    
     _tutorialOverlay?.remove();
     super.dispose();
-  }
-
-  // ---------------------------------------------------------
-  // 🔥 MATCH LISTENER
-  // ---------------------------------------------------------
-  void _startMatchListener() {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-
-    _matchListener = FirebaseFirestore.instance
-        .collection("users")
-        .doc(uid)
-        .collection("matches")
-        .where("status", isEqualTo: "incoming")
-        .orderBy("timestamp", descending: true)
-        .snapshots()
-        .listen((snapshot) async {
-      if (snapshot.docChanges.isEmpty) return;
-
-      for (var change in snapshot.docChanges) {
-        if (change.type == DocumentChangeType.added) {
-          final data = change.doc.data();
-          if (data == null) continue;
-
-          final otherId = data["userId"];
-          final score = data["compatibilityScore"] ?? 80;
-
-          final userDoc = await FirebaseFirestore.instance
-              .collection("users")
-              .doc(otherId)
-              .get();
-
-          final username = userDoc["username"] ?? "Someone";
-          final photoUrl = userDoc["photoUrl"] ?? "";
-
-          _showMatchPopup(
-            otherId,
-            username,
-            photoUrl,
-            score.toString(),
-          );
-        }
-      }
-    });
-  }
-
-  // ---------------------------------------------------------
-  // ❤️ MATCH POPUP
-  // ---------------------------------------------------------
-  void _showMatchPopup(
-      String otherId, String username, String photoUrl, String similarity) {
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (_) {
-        return MatchDockPopup(
-          username: username,
-          photoUrl: photoUrl,
-          similarity: similarity,
-          onConnect: () async {
-            await MatchService().acceptIncomingRequest(otherId);
-          },
-          onAbandon: (reason) async {
-            await MatchService()
-                .declineIncomingRequest(otherId, reason ?? "No reason");
-          },
-          onDismiss: () => Navigator.of(context).pop(),
-        );
-      },
-    );
   }
 
   // ---------------------------------------------------------
@@ -204,22 +161,64 @@ class _HomePageState extends State<HomePage> {
   // ---------------------------------------------------------
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        _buildBackground(),   // 🌈 Y2K GRADIENT + GLOW BLOBS
-        Scaffold(
-          backgroundColor: Colors.transparent,
-          body: SafeArea(
-            child: Column(
-              children: [
-                _buildTopBar(),
-                Expanded(child: _buildTabContent()),
-                _buildBottomNav(),
-              ],
+    return ValueListenableBuilder<Color>(
+      valueListenable: _moodTintNotifier,
+      builder: (_, moodTint, __) => Stack(
+        children: [
+          _buildBackground(),   // 🌈 Y2K GRADIENT + GLOW BLOBS
+          // Full-screen mood tint — covers status bar, nav bar, everything
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.easeInOut,
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment.center,
+                radius: 1.2,
+                colors: [
+                  moodTint.withOpacity(0.35),
+                  moodTint.withOpacity(0.12),
+                  Colors.transparent,
+                ],
+                stops: const [0.0, 0.55, 1.0],
+              ),
             ),
           ),
-        ),
-      ],
+          Scaffold(
+            backgroundColor: Colors.transparent,
+            body: SafeArea(
+              child: Column(
+                children: [
+                  _buildTopBar(),
+                  Expanded(
+                    child: IndexedStack(
+                      index: selectedTab,
+                      children: [
+                        HomeTab(
+                          key: const ValueKey(0),
+                          onGoToWav:     () => setState(() => selectedTab = 1),
+                          onGoToMatches: () => setState(() => selectedTab = 2),
+                          moodTint: _moodTintNotifier.value,
+                        ),
+                        WavPage(
+                          key: const ValueKey(1),
+                          isActive: selectedTab == 1,
+                          onMoodChanged: (c) => _moodTintNotifier.value = c,
+                        ),
+                        MatchPage(
+                          key: const ValueKey(2), 
+                          uid: FirebaseAuth.instance.currentUser?.uid ?? ""
+                        ),
+                        const ProfilePage(key: ValueKey(3)),
+                      ],
+                    ),
+                  ),
+                  _buildBottomNav(),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -254,12 +253,8 @@ class _HomePageState extends State<HomePage> {
           // LOGOUT
           GestureDetector(
             onTap: () async {
-              await FirebaseAuth.instance.signOut();
-              if (!mounted) return;
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const LoginPage()),
-              );
+              await context.read<AuthProvider>().signOut();
+              // No manual navigation — AuthWrapper handles it
             },
             child: Container(
               width: 40,
@@ -295,46 +290,6 @@ class _HomePageState extends State<HomePage> {
   // ---------------------------------------------------------
   // 📑 TABS
   // ---------------------------------------------------------
-  Widget _buildTabContent() {
-    switch (selectedTab) {
-      case 0:
-        return _placeholder("Home", Icons.home_rounded);
-      case 1:
-        return const WavPage();
-      case 2:
-        final uid = FirebaseAuth.instance.currentUser?.uid ?? "";
-        return MatchPage(uid: uid);
-      case 3:
-        return const ProfilePage();
-      default:
-        return _placeholder("Home", Icons.home_rounded);
-    }
-  }
-
-  Widget _placeholder(String name, IconData icon) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: y2kPink, size: 80),
-          const SizedBox(height: 24),
-          Text(
-            name,
-            style: const TextStyle(
-              color: y2kPurple,
-              fontSize: 32,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Coming soon...',
-            style: TextStyle(color: mutedText, fontSize: 16),
-          ),
-        ],
-      ),
-    );
-  }
 
   // ---------------------------------------------------------
   // ⬇️ BOTTOM NAVIGATION (PNG ICONS)
@@ -430,8 +385,7 @@ class TooltipBubble extends StatelessWidget {
               const Text(
                 "Set up your profile",
                 style: TextStyle(
-                  color: textDark,
-                  fontWeight: FontWeight.w700),
+                    color: textDark, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 6),
               const Text(
@@ -463,7 +417,6 @@ class TooltipBubble extends StatelessWidget {
             ],
           ),
         ),
-
         CustomPaint(
           painter: _ArrowPainter(),
           child: const SizedBox(width: 20, height: 12),
