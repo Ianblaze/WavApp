@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:swipify/pages/home_page.dart';
-import '../auth/auth_service.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import 'utils/auth_error_messages.dart';
+import 'utils/auth_exception.dart';
+import 'screens/email_signup_screen.dart';
+import 'screens/email_login_screen.dart';
+import 'screens/phone_auth_screen.dart';
 import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
-import 'login_dialogs.dart'; // Import the dialogs helper
+import 'dart:async';
+import '../onboarding/widgets/floating_orbs.dart';
 
 // ----------------------
 // Y2K COLORS (STRONGER PASTELS)
@@ -40,9 +45,10 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
-  final AuthService authService = AuthService();
-  final PhoneAuthService phoneAuthService = PhoneAuthService();
   bool isLoading = false;
+  
+  int _matchCount = 47;
+  Timer? _matchTimer;
   
   // Track which card is being hovered/pressed
   int? _activeCardIndex;
@@ -201,8 +207,17 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     
     _entranceController.forward();
     
-    // Check for auto-login (Remember Me)
-    _checkAutoLogin();
+    // Tick match count every 4 seconds for social proof
+    _matchTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (mounted) {
+        setState(() {
+          _matchCount = 35 + (DateTime.now().millisecondsSinceEpoch % 40).toInt();
+        });
+      }
+    });
+    
+    // Session persistence is handled by Firebase Auth natively.
+    // AuthWrapper observes idTokenChanges() and routes accordingly.
   }
 
   @override
@@ -212,6 +227,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     _authMethodsController.dispose();
     _backgroundAnimationController.dispose();
     _gradientShiftController.dispose();
+    _matchTimer?.cancel();
     super.dispose();
   }
 
@@ -241,58 +257,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     });
   }
 
-  void _navigateToHome() {
-    print('🏠 _navigateToHome called!');
-    print('📍 Context: $context');
-    print('🔄 Navigating to HomePage...');
-    
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const HomePage()),
-      (route) => false,
-    );
-    
-    print('✅ Navigation initiated!');
-  }
 
-  // Auto-login check (Remember Me functionality)
-  Future<void> _checkAutoLogin() async {
-    print('🔄 Checking for auto-login...');
-    
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final rememberMe = prefs.getBool('remember_me') ?? false;
-      
-      if (!rememberMe) {
-        print('❌ Remember me not enabled');
-        return;
-      }
-      
-      final user = FirebaseAuth.instance.currentUser;
-      
-      if (user != null) {
-        // User is already logged in
-        await user.reload();
-        final currentUser = FirebaseAuth.instance.currentUser;
-        
-        if (currentUser != null && currentUser.emailVerified) {
-          // User is verified, auto-login!
-          print('✅ Auto-login successful for: ${currentUser.email}');
-          
-          if (mounted) {
-            _navigateToHome();
-          }
-        } else if (currentUser != null && !currentUser.emailVerified) {
-          // User exists but not verified
-          print('⚠️  User not verified, cannot auto-login');
-        }
-      } else {
-        print('❌ No user logged in');
-      }
-    } catch (e) {
-      print('❌ Auto-login check failed: $e');
-    }
-  }
 
   // Password validation method
   void _validatePassword(String password) {
@@ -541,6 +506,56 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                   Colors.black.withOpacity(0.15),
                 ],
                 stops: const [0.0, 1.0],
+              ),
+            ),
+          ),
+        ),
+        // Layer 1: Floating orbs (top ~35% of screen)
+        Positioned(
+          top: 0, left: 0, right: 0,
+          height: MediaQuery.of(context).size.height * 0.38,
+          child: const FloatingOrbs(),
+        ),
+        
+        // Layer 2: Live match counter
+        Positioned(
+          top: MediaQuery.of(context).size.height * 0.30,
+          left: 0, right: 0,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 400),
+            transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
+            child: Container(
+              key: ValueKey(_matchCount),
+              alignment: Alignment.center,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE1F5EE),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFF5DCAA5), width: 0.5),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 7, height: 7,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF5DCAA5),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '$_matchCount matched in the last hour',
+                      style: const TextStyle(
+                        fontFamily: 'Circular',
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF085041),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -906,34 +921,14 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                           cardWidth: responsiveCardWidth,
                           cardHeight: sideCardHeight,
                           gradientColors: const [Color(0xFFFFB3C1), Color(0xFFFFCCDA)],
-                          onTap: () => isSignUp 
-                              ? LoginDialogsHelper.showEmailSignUpDialog(
-                                  context: context,
-                                  floatingController: _floatingController,
-                                  floatingAnimation: _floatingAnimation,
-                                  authService: authService,
-                                  onLoadingChanged: (loading) => setState(() => isLoading = loading),
-                                  onNavigateHome: _navigateToHome,
-                                  hasMinLength: _hasMinLength,
-                                  hasUppercase: _hasUppercase,
-                                  hasNumber: _hasNumber,
-                                  hasSpecialChar: _hasSpecialChar,
-                                  isValidEmail: _isValidEmail,
-                                  onValidatePassword: _validatePassword,
-                                  onValidateEmail: _validateEmail,
-                                  onResetValidation: _resetValidation,
-                                )
-                              : LoginDialogsHelper.showEmailLoginDialog(
-                                  context: context,
-                                  floatingController: _floatingController,
-                                  floatingAnimation: _floatingAnimation,
-                                  authService: authService,
-                                  onLoadingChanged: (loading) => setState(() => isLoading = loading),
-                                  onNavigateHome: _navigateToHome,
-                                  isValidEmail: _isValidEmail,
-                                  onValidateEmail: _validateEmail,
-                                  onResetValidation: _resetValidation,
-                                ),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => isSignUp
+                                  ? const EmailSignUpScreen()
+                                  : const EmailLoginScreen(),
+                            ),
+                          ),
                           isCenter: false,
                         ),
                       ),
@@ -961,12 +956,40 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                         gradientColors: const [Color(0xFFE8E8FF), Color(0xFFF0F0FF)],
                         onTap: isLoading 
                             ? null 
-                            : () => LoginDialogsHelper.handleGoogleSignIn(
-                                context: context,
-                                authService: authService,
-                                onLoadingChanged: (loading) => setState(() => isLoading = loading),
-                                onNavigateHome: _navigateToHome,
-                              ),
+                            : () async {
+                                setState(() => isLoading = true);
+                                try {
+                                  await context.read<AuthProvider>().signInWithGoogle();
+                                } on AuthException catch (e) {
+                                  if (mounted) {
+                                    if (e.code == AuthErrorCode.accountExistsWithDifferentCredential) {
+                                      // COLLISION: Strategy 2 - Link via EmailLogin
+                                      Navigator.push(context, MaterialPageRoute(
+                                        builder: (_) => const EmailLoginScreen(showLinkingBanner: true),
+                                      ));
+                                    } else {
+                                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                        content: Text(e.message,
+                                            style: const TextStyle(fontFamily: 'Circular', color: Colors.white, fontWeight: FontWeight.w600)),
+                                        backgroundColor: Colors.red,
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        margin: const EdgeInsets.all(16),
+                                      ));
+                                    }
+                                  }
+                                } catch (e) {
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                                      content: Text('Sign-in failed', style: TextStyle(fontFamily: 'Circular', color: Colors.white)),
+                                      backgroundColor: Colors.orange,
+                                      behavior: SnackBarBehavior.floating,
+                                    ));
+                                  }
+                                } finally {
+                                  if (mounted) setState(() => isLoading = false);
+                                }
+                              },
                         showLoading: isLoading,
                         isCenter: true,
                       ),
@@ -986,12 +1009,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                           cardWidth: responsiveCardWidth,
                           cardHeight: sideCardHeight,
                           gradientColors: const [Color(0xFFB3D9FF), Color(0xFFCCE6FF)],
-                          onTap: () => LoginDialogsHelper.showPhoneSignInDialog(
-                            context: context,
-                            floatingController: _floatingController,
-                            floatingAnimation: _floatingAnimation,
-                            phoneAuthService: phoneAuthService,
-                            onNavigateHome: _navigateToHome,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const PhoneAuthScreen()),
                           ),
                           isCenter: false,
                         ),
