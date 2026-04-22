@@ -97,7 +97,7 @@ flutter:
     - assets/images/avatar1.jpg
     - assets/images/avatar2.jpg
     - assets/images/avatar3.jpg
-    - .env
+    - assets/.env
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see
