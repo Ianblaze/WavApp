@@ -130,7 +130,7 @@ class AuthProvider extends ChangeNotifier {
         .doc(uid)
         .update({'passwordStrengthVerified': true});
     // Re-evaluate auth state
-    if (_currentUser != null) await _onAuthStateChanged(_currentUser);
+    if (_currentUser != null) _onAuthStateChanged(_currentUser);
   }
 
   // ── Google ───────────────────────────────────────────────────────
@@ -181,7 +181,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void> forceTokenRefresh() async {
     await _currentUser?.reload();
     final refreshed = _firebaseAuth.currentUser;
-    if (refreshed != null) await _onAuthStateChanged(refreshed);
+    if (refreshed != null) _onAuthStateChanged(refreshed);
   }
 
   // ── Password Management ──────────────────────────────────────────

@@ -144,10 +144,20 @@ class AuthService {
       // can be reused and the user can try again cleanly
       try { await user.delete(); } catch (_) {}
 
+      if (kDebugMode) debugPrint('signUpWithEmailAtomic error: $e');
+      
       if (e is AuthException) rethrow;
+
+      String finalMsg = 'Account creation failed.';
+      if (e is FirebaseException && e.message != null) {
+        finalMsg = '$finalMsg ${e.message}';
+      } else if (e is Exception) {
+        finalMsg = '$finalMsg $e';
+      }
+
       throw AuthException(
         code: AuthErrorCode.unknown,
-        message: 'Account creation failed. Please try again.',
+        message: finalMsg,
         original: e,
       );
     }

@@ -6,7 +6,6 @@ import 'login_page.dart';
 import '../pages/home_page.dart';
 import 'screens/reauth_password_screen.dart';
 import '../onboarding/onboarding_flow.dart';
-import 'dart:ui' show ImageFilter;
 
 // Y2K colors from login_page.dart
 const cardHotPink = Color(0xFFFFB3D9);
@@ -73,36 +72,9 @@ class EmailVerificationRequiredScreen extends StatefulWidget {
 }
 
 class _EmailVerificationRequiredScreenState
-    extends State<EmailVerificationRequiredScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _floatingController;
-  late Animation<double> _floatingAnimation;
+    extends State<EmailVerificationRequiredScreen> {
   bool _isResending = false;
   bool _isChecking = false;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _floatingController = AnimationController(
-      duration: const Duration(milliseconds: 3000),
-      vsync: this,
-    )..repeat(reverse: true);
-
-    _floatingAnimation = Tween<double>(
-      begin: -4.0,
-      end: 4.0,
-    ).animate(CurvedAnimation(
-      parent: _floatingController,
-      curve: Curves.easeInOut,
-    ));
-  }
-
-  @override
-  void dispose() {
-    _floatingController.dispose();
-    super.dispose();
-  }
 
   Future<void> _checkEmailVerification() async {
     setState(() => _isChecking = true);
@@ -115,19 +87,11 @@ class _EmailVerificationRequiredScreenState
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text(
-                '✓ Email verified successfully!',
-                style: TextStyle(
-                  fontFamily: 'Circular',
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              content: const Text('✓ Email verified successfully!',
+                  style: TextStyle(fontFamily: 'Circular', color: Colors.white, fontWeight: FontWeight.w600)),
               backgroundColor: Colors.green,
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               margin: const EdgeInsets.all(16),
             ),
           );
@@ -136,19 +100,11 @@ class _EmailVerificationRequiredScreenState
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text(
-                'Email not verified yet. Please check your inbox.',
-                style: TextStyle(
-                  fontFamily: 'Circular',
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              content: const Text('Email not verified yet. Please check your inbox.',
+                  style: TextStyle(fontFamily: 'Circular', color: Colors.white, fontWeight: FontWeight.w600)),
               backgroundColor: Colors.orange,
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               margin: const EdgeInsets.all(16),
             ),
           );
@@ -159,27 +115,17 @@ class _EmailVerificationRequiredScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text(
-              'Error checking verification status',
-              style: TextStyle(
-                fontFamily: 'Circular',
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            content: const Text('Error checking verification status',
+                style: TextStyle(fontFamily: 'Circular', color: Colors.white, fontWeight: FontWeight.w600)),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             margin: const EdgeInsets.all(16),
           ),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isChecking = false);
-      }
+      if (mounted) setState(() => _isChecking = false);
     }
   }
 
@@ -193,56 +139,35 @@ class _EmailVerificationRequiredScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text(
-              'Verification email sent! Check your inbox.',
-              style: TextStyle(
-                fontFamily: 'Circular',
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            content: const Text('Verification email sent! Check your inbox.',
+                style: TextStyle(fontFamily: 'Circular', color: Colors.white, fontWeight: FontWeight.w600)),
             backgroundColor: accentGlow,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             margin: const EdgeInsets.all(16),
           ),
         );
       }
     } catch (e) {
       debugPrint('❌ Error resending verification email: $e');
-      
       if (mounted) {
         String errorMessage = 'Failed to send email';
-        
         if (e.toString().contains('too-many-requests')) {
           errorMessage = 'Too many requests. Please wait a few minutes.';
         }
-        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              errorMessage,
-              style: const TextStyle(
-                fontFamily: 'Circular',
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            content: Text(errorMessage,
+                style: const TextStyle(fontFamily: 'Circular', color: Colors.white, fontWeight: FontWeight.w600)),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             margin: const EdgeInsets.all(16),
           ),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isResending = false);
-      }
+      if (mounted) setState(() => _isResending = false);
     }
   }
 
@@ -255,286 +180,267 @@ class _EmailVerificationRequiredScreenState
     final auth = context.read<AuthProvider>();
     final userEmail = auth.currentUser?.email ?? '';
     
+    final w = MediaQuery.of(context).size.width;
+    final h = MediaQuery.of(context).size.height;
+    final hPad = w * 0.08;
+    final headerFont = (w * 0.1).clamp(28.0, 42.0);
+    final subFont = (w * 0.04).clamp(14.0, 17.0);
+    final btnHeight = (h * 0.065).clamp(48.0, 56.0);
+
     return Scaffold(
+      backgroundColor: const Color(0xFFFCF4F9),
       body: Stack(
         children: [
-          // Animated gradient background
-          AnimatedBuilder(
-            animation: _floatingController,
-            builder: (context, child) {
-              final offset = _floatingAnimation.value / 50;
-              return Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment(offset, -1.0 + offset),
-                    end: Alignment(-offset, 1.0 - offset),
-                    colors: [
-                      accentGlow.withOpacity(0.85),
-                      cardHotPink.withOpacity(0.75),
-                      cardNeonPurple.withOpacity(0.7),
-                      cardLavenderPop.withOpacity(0.65),
-                      cardElectricBlue.withOpacity(0.6),
-                      cardDigitalBlue.withOpacity(0.7),
+          // ── Subtle Background Orbs ──────────────────────────────────────────
+          _SimpleFloatingOrbs(),
+          
+          SafeArea(
+            child: Column(
+              children: [
+                // ── Header Actions ──────────────────────────────────────────────
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: w * 0.04, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: _signOut,
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.black45,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        ),
+                        child: const Text('Sign out', 
+                          style: TextStyle(fontFamily: 'Circular', fontSize: 13, fontWeight: FontWeight.w700),
+                        ),
+                      ),
                     ],
                   ),
                 ),
-              );
-            },
-          ),
-          
-          // Content
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(32),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(32),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                    child: Container(
-                      constraints: const BoxConstraints(maxWidth: 500),
-                      padding: const EdgeInsets.all(40),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(32),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.3),
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Icon
-                          Container(
-                            width: 100,
-                            height: 100,
+
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.symmetric(horizontal: hPad),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(height: h * 0.02),
+                        
+                        // ── Premium Illustration ──────────────────────────────────────
+                        Center(
+                          child: Container(
+                            height: h * 0.22,
+                            width: w * 0.7,
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.4),
-                                width: 2,
-                              ),
+                              borderRadius: BorderRadius.circular(24),
                             ),
-                            child: const Icon(
-                              Icons.mark_email_unread_rounded,
-                              size: 50,
-                              color: Colors.white,
+                            child: Image.file(
+                              // Path to the generated illustration
+                              java.io.File(r'C:\Users\ian\.gemini\antigravity\brain\b062f04f-0dc2-40e0-b676-6d3de0399b7c\email_verification_illustration_1776761403695.png'),
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) => 
+                                Icon(Icons.mark_email_unread_rounded, size: 80, color: cardHotPink.withOpacity(0.5)),
                             ),
                           ),
-                          const SizedBox(height: 32),
+                        ),
+                        
+                        SizedBox(height: h * 0.04),
 
-                          // Title
-                          const Text(
-                            'Verify Your Email',
+                        Text(
+                          "Check your\ninbox.",
+                          style: TextStyle(
+                            fontFamily: 'Circular',
+                            fontSize: headerFont,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.black87,
+                            height: 1.05,
+                            letterSpacing: -1.2,
+                          ),
+                        ),
+                        
+                        SizedBox(height: h * 0.015),
+                        
+                        RichText(
+                          text: TextSpan(
                             style: TextStyle(
                               fontFamily: 'Circular',
-                              fontSize: 32,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              height: 1.2,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Email address
-                          Text(
-                            userEmail,
-                            style: const TextStyle(
-                              fontFamily: 'Circular',
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 24),
-
-                          // Description
-                          Text(
-                            'We sent a verification link to your email address. Please click the link to verify your account.',
-                            style: TextStyle(
-                              fontFamily: 'Circular',
-                              fontSize: 15,
+                              fontSize: subFont,
                               fontWeight: FontWeight.w500,
-                              color: Colors.white.withOpacity(0.9),
+                              color: Colors.black54,
                               height: 1.5,
                             ),
-                            textAlign: TextAlign.center,
+                            children: [
+                              const TextSpan(text: "We sent a verification link to "),
+                              TextSpan(
+                                text: userEmail,
+                                style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w700),
+                              ),
+                              const TextSpan(text: ". Please click the link to verify your account."),
+                            ],
                           ),
-                          const SizedBox(height: 32),
+                        ),
+                        
+                        SizedBox(height: h * 0.05),
 
-                          // Info boxes
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.3),
-                                width: 1,
-                              ),
-                            ),
-                            child: Column(
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.info_outline_rounded,
-                                      color: Colors.white.withOpacity(0.9),
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Text(
-                                        'Check your spam folder if you don\'t see the email',
-                                        style: TextStyle(
-                                          fontFamily: 'Circular',
-                                          color: Colors.white.withOpacity(0.9),
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          height: 1.4,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.schedule_rounded,
-                                      color: Colors.white.withOpacity(0.9),
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Text(
-                                        'Emails can take a few minutes to arrive',
-                                        style: TextStyle(
-                                          fontFamily: 'Circular',
-                                          color: Colors.white.withOpacity(0.9),
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          height: 1.4,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
+                        // ── Glassmorphism Info Card ──────────────────────────────────
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.6),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(color: Colors.white.withOpacity(0.8), width: 1.5),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.03),
+                                blurRadius: 20,
+                                offset: const Offset(0, 10),
+                              )
+                            ],
                           ),
-                          const SizedBox(height: 32),
+                          child: Column(
+                            children: [
+                              _buildStepRow(Icons.spam_rounded, "Spam folder", "Check your spam if the email hasn't arrived."),
+                              const Divider(height: 32, thickness: 1, color: Colors.black12),
+                              _buildStepRow(Icons.timer_rounded, "Be patient", "It can take up to 2 minutes for the link to arrive."),
+                            ],
+                          ),
+                        ),
 
-                          // Check if verified button
-                          SizedBox(
-                            width: double.infinity,
-                            height: 56,
-                            child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: cardHotPink,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                elevation: 8,
-                                shadowColor: Colors.black.withOpacity(0.3),
-                              ),
-                              onPressed: _isChecking ? null : _checkEmailVerification,
-                              icon: _isChecking
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: cardHotPink,
-                                      ),
-                                    )
-                                  : const Icon(Icons.refresh_rounded),
-                              label: Text(
-                                _isChecking
-                                    ? 'Checking...'
-                                    : 'I\'ve verified my email',
-                                style: const TextStyle(
-                                  fontFamily: 'Circular',
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.2,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
+                        SizedBox(height: h * 0.03),
 
-                          // Resend email button
-                          SizedBox(
-                            width: double.infinity,
-                            height: 56,
-                            child: OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                side: BorderSide(
-                                  color: Colors.white.withOpacity(0.5),
-                                  width: 2,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                              ),
-                              onPressed: _isResending ? null : _resendVerificationEmail,
-                              icon: _isResending
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Icon(Icons.email_outlined),
-                              label: Text(
-                                _isResending
-                                    ? 'Sending...'
-                                    : 'Resend verification email',
-                                style: const TextStyle(
-                                  fontFamily: 'Circular',
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.2,
-                                ),
-                              ),
+                        Center(
+                          child: TextButton(
+                            onPressed: _isResending ? null : _resendVerificationEmail,
+                            style: TextButton.styleFrom(
+                              foregroundColor: cardHotPink,
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                             ),
+                            child: _isResending
+                                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: cardHotPink))
+                                : const Text('Resend verification email', 
+                                    style: TextStyle(fontFamily: 'Circular', fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
                           ),
-                          const SizedBox(height: 16),
-
-                          // Sign out button
-                          TextButton(
-                            onPressed: _signOut,
-                            child: Text(
-                              'Sign out',
-                              style: TextStyle(
-                                fontFamily: 'Circular',
-                                color: Colors.white.withOpacity(0.9),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                decoration: TextDecoration.underline,
-                                decorationColor: Colors.white.withOpacity(0.9),
-                              ),
-                            ),
-                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                
+                // ── Primary Action Button ──────────────────────────────────────
+                Padding(
+                  padding: EdgeInsets.fromLTRB(hPad, 16, hPad, MediaQuery.of(context).padding.bottom + 16),
+                  child: Hero(
+                    tag: 'verify_btn',
+                    child: Container(
+                      width: double.infinity,
+                      height: btnHeight,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(btnHeight / 2),
+                        gradient: const LinearGradient(colors: [cardHotPink, cardNeonPurple]),
+                        boxShadow: [
+                          BoxShadow(
+                            color: cardHotPink.withOpacity(0.35),
+                            blurRadius: 15,
+                            offset: const Offset(0, 6),
+                          )
                         ],
+                      ),
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(btnHeight / 2)),
+                        ),
+                        onPressed: _isChecking ? null : _checkEmailVerification,
+                        child: _isChecking
+                            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                            : const Text('I\'ve verified my email', 
+                                style: TextStyle(fontFamily: 'Circular', fontSize: 16, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.5)),
                       ),
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildStepRow(IconData icon, String title, String subtitle) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: cardNeonPurple.withOpacity(0.12),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, size: 18, color: cardNeonPurple),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(fontFamily: 'Circular', fontSize: 14, fontWeight: FontWeight.w800, color: Colors.black87)),
+              const SizedBox(height: 2),
+              Text(subtitle, style: const TextStyle(fontFamily: 'Circular', fontSize: 12, color: Colors.black54, height: 1.4)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SimpleFloatingOrbs extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final w = MediaQuery.of(context).size.width;
+    final h = MediaQuery.of(context).size.height;
+    return Stack(
+      children: [
+        Positioned(
+          top: -h * 0.1,
+          left: -w * 0.2,
+          child: _Orb(color: cardHotPink.withOpacity(0.08), size: w * 0.8),
+        ),
+        Positioned(
+          bottom: -h * 0.15,
+          right: -w * 0.25,
+          child: _Orb(color: cardNeonPurple.withOpacity(0.08), size: w * 0.9),
+        ),
+      ],
+    );
+  }
+}
+
+class _Orb extends StatelessWidget {
+  final Color color;
+  final double size;
+  const _Orb({required this.color, required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        // Using a blur to create a soft orb feel
+      ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            colors: [color, color.withOpacity(0)],
+          ),
+        ),
+      ),
+    );
+  }
+}
 }

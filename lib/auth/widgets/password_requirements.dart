@@ -35,17 +35,19 @@ class _Requirement extends StatelessWidget {
         children: [
           Icon(
             met ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-            color: met ? Colors.greenAccent : Colors.white54,
+            color: met ? const Color(0xFF4ADE80) : Colors.black26,
             size: 16,
           ),
           const SizedBox(width: 8),
-          Text(
-            label,
-            style: TextStyle(
-              fontFamily: 'Circular',
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: met ? Colors.greenAccent : Colors.white54,
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'Circular',
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: met ? const Color(0xFF22C55E) : Colors.black38,
+              ),
             ),
           ),
         ],

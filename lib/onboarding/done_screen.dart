@@ -8,6 +8,7 @@ import 'dart:math';
 import '../providers/auth_provider.dart';
 import '../providers/user_profile_provider.dart';
 import 'onboarding_controller.dart';
+import 'widgets/split_screen_shell.dart';
 
 class DoneScreen extends StatefulWidget {
   const DoneScreen({super.key});
@@ -90,38 +91,24 @@ class _DoneScreenState extends State<DoneScreen>
         'you';
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFFFD4FF), Color(0xFFEDD4FF), Color(0xFFD4E4FF)],
-          ),
-        ),
-        child: Stack(
-          children: [
-            // Confetti layer
-            _ConfettiLayer(controller: _confettiCtrl, colors: _confettiColors),
-
-            SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 8),
-                    const Text("you're all set!",
-                        style: TextStyle(fontFamily: 'Circular', fontSize: 28,
-                            fontWeight: FontWeight.w800, color: Color(0xFF1A0D26),
-                            letterSpacing: -.4)),
-                    const SizedBox(height: 4),
-                    const Text('your wav card is ready to share',
-                        style: TextStyle(fontFamily: 'Circular', fontSize: 14,
-                            color: Color(0xFF8A7EA5))),
-                    const SizedBox(height: 24),
-
-                    // Shareable card wrapped in Screenshot widget
-                    Screenshot(
-                      controller: _screenshotCtrl,
+      body: Stack(
+        children: [
+          _ConfettiLayer(controller: _confettiCtrl, colors: _confettiColors),
+          SplitScreenShell(
+            topGradient: const [
+              Color(0xFFFFD4FF),
+              Color(0xFFEDD4FF),
+              Color(0xFFD4E4FF)
+            ],
+            illustration: Center(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 10, bottom: 10),
+                child: FittedBox(
+                  fit: BoxFit.contain,
+                  child: Screenshot(
+                    controller: _screenshotCtrl,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 300),
                       child: _WavProfileCard(
                         username: username,
                         genres: ctrl.genres,
@@ -129,60 +116,66 @@ class _DoneScreenState extends State<DoneScreen>
                         photoUrl: ctrl.photoUrl,
                       ),
                     ),
-
-                    const SizedBox(height: 16),
-
-                    // Share button
-                    SizedBox(
-                      width: double.infinity, height: 50,
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF1A0D26),
-                          side: const BorderSide(
-                              color: Color(0xFFFF99CC), width: 1.5),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(25)),
-                        ),
-                        onPressed: _saving ? null : _saveCard,
-                        icon: _saving
-                            ? const SizedBox(width: 16, height: 16,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Color(0xFFFF99CC)))
-                            : const Icon(Icons.ios_share_rounded, size: 18),
-                        label: Text(
-                          _saved ? 'saved to photos!' : 'share my wav card',
-                          style: const TextStyle(fontFamily: 'Circular',
-                              fontSize: 14, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Start matching CTA
-                    SizedBox(
-                      width: double.infinity, height: 52,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFFB3D9),
-                          foregroundColor: const Color(0xFF4B1528),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(26)),
-                          elevation: 0,
-                        ),
-                        onPressed: _writeComplete ? _goHome : null,
-                        child: const Text('start matching →',
-                            style: TextStyle(fontFamily: 'Circular',
-                                fontSize: 15, fontWeight: FontWeight.w700)),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
+                  ),
                 ),
               ),
             ),
-          ],
-        ),
+            title: "You're all set!",
+            subtitle: 'Your wav card is ready. Share it or start matching.',
+            cta: Column(
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF1A0D26),
+                      side: const BorderSide(
+                          color: Color(0xFFFF99CC), width: 1.5),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(25)),
+                    ),
+                    onPressed: _saving ? null : _saveCard,
+                    icon: _saving
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Color(0xFFFF99CC)))
+                        : const Icon(Icons.ios_share_rounded, size: 18),
+                    label: Text(
+                      _saved ? 'saved to photos!' : 'share my wav card',
+                      style: const TextStyle(
+                          fontFamily: 'Circular',
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFFB3D9),
+                      foregroundColor: const Color(0xFF4B1528),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(28)),
+                      elevation: 0,
+                    ),
+                    onPressed: _writeComplete ? _goHome : null,
+                    child: const Text('start matching →',
+                        style: TextStyle(
+                            fontFamily: 'Circular',
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -1,4 +1,4 @@
-// match_page.dart
+// lib/pages/match_page.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/match_provider.dart';
@@ -6,18 +6,19 @@ import '../providers/chat_provider.dart';
 import '../models/match.dart';
 import '../pages/chat_page.dart';
 
-// ---------------------------------------------------------
-// 🎨 Y2K LIGHT THEME COLORS
-// ---------------------------------------------------------
-const bgTop = Color(0xFFFFE6FF);
-const bgMid = Color(0xFFF3E5FF);
-const bgBottom = Color(0xFFE1E9FF);
+// ─── Y2K Palette ────────────────────────────────────────────────────────────
+const _bgTop       = Color(0xFFFCF4F9);
+const _bgBottom    = Color(0xFFF0EAFF);
+const _hotPink     = Color(0xFFFFB3D9);
+const _neonPurple  = Color(0xFFD9B3FF);
+const _electricBlue = Color(0xFFB3D9FF);
+const _accentPink  = Color(0xFFFF6FE8);
+const _textPrimary = Color(0xFF1A0D26);
+const _textMuted   = Color(0xFF8A7EA5);
+const _dividerClr  = Color(0xFFE8DDF5);
 
-const y2kPink = Color(0xFFFF6FE8);
-const y2kBlue = Color(0xFF7BA7FF);
-const y2kPurple = Color(0xFFB69CFF);
-const mutedText = Color(0xFF8A7EA5);
-const textDark = Color(0xFF3A2A45);
+// Fallback gradient ring colors when no photo
+const _ringColors = [_hotPink, _neonPurple, _electricBlue];
 
 class MatchPage extends StatefulWidget {
   final String uid;
@@ -32,228 +33,351 @@ class _MatchPageState extends State<MatchPage> {
   @override
   void initState() {
     super.initState();
-    // Start the match list stream
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<MatchProvider>().startMatchStream();
     });
   }
 
+  void _openChat(Match match) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatPage(
+          chatId: match.chatId ?? '',
+          otherUserId: match.userId,
+          otherUsername: match.username,
+          otherPhotoUrl: match.photoUrl,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        // Background
-        Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [bgTop, bgMid, bgBottom],
-            ),
-          ),
-        ),
+    final w = MediaQuery.of(context).size.width;
+    final h = MediaQuery.of(context).size.height;
+    final hPad = w * 0.06;
+    final headerFont = (w * 0.082).clamp(24.0, 34.0);
+    final sectionFont = (w * 0.032).clamp(11.0, 13.0);
+    final carouselH = (h * 0.14).clamp(100.0, 120.0);
 
-        Scaffold(
-          backgroundColor: Colors.transparent,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            centerTitle: true,
-            title: const Text(
-              "Your Matches",
-              style: TextStyle(
-                color: y2kPurple,
-                fontWeight: FontWeight.w700,
-                fontSize: 22,
-              ),
-            ),
-          ),
-          body: Consumer<MatchProvider>(
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [_bgTop, _bgBottom],
+        ),
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
+          child: Consumer<MatchProvider>(
             builder: (context, matchProvider, _) {
               if (matchProvider.isLoading) {
-                return const Center(
-                  child: CircularProgressIndicator(color: y2kPink),
-                );
+                return const Center(child: CircularProgressIndicator(color: _hotPink));
               }
 
               if (matchProvider.error != null) {
-                return const Center(
-                  child: Text("Error loading matches",
-                      style: TextStyle(color: textDark)),
-                );
-              }
-
-              final allMatches = matchProvider.matches;
-
-              if (allMatches.isEmpty) {
-                return const Center(
-                  child: Text(
-                    "No matches yet 👀\nSwipe more songs!",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: mutedText, fontSize: 16),
+                return Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.cloud_off_rounded, size: 48, color: _textMuted.withOpacity(0.5)),
+                      const SizedBox(height: 16),
+                      Text("Couldn't load matches",
+                          style: TextStyle(fontFamily: 'Circular', color: _textMuted, fontSize: sectionFont + 3)),
+                    ],
                   ),
                 );
               }
 
-              final incoming =
-                  allMatches.where((m) => m.status == 'incoming').toList();
-              final outgoing = allMatches
-                  .where((m) =>
-                      m.status == 'pending' || m.status == 'outgoing')
+              final allMatches = matchProvider.matches;
+              final newMatches = allMatches
+                  .where((m) => m.status == 'incoming' || m.status == 'pending' || m.status == 'outgoing')
                   .toList();
-              final connected =
-                  allMatches.where((m) => m.status == 'connected').toList();
-              final abandoned =
-                  allMatches.where((m) => m.status == 'abandoned').toList();
+              final connectedMatches = allMatches
+                  .where((m) => m.status == 'connected')
+                  .toList();
 
-              return ListView(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 10),
-                children: [
-                  if (incoming.isNotEmpty) _sectionTitle("Incoming Requests"),
-                  for (var m in incoming) MatchCard(matchData: m),
+              final newCount = newMatches.length;
 
-                  if (outgoing.isNotEmpty) _sectionTitle("Pending (Outgoing)"),
-                  for (var m in outgoing) MatchCard(matchData: m),
+              return CustomScrollView(
+                slivers: [
+                  // ── Header ──────────────────────────────────────────────
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Matches',
+                            style: TextStyle(
+                              fontFamily: 'Circular',
+                              fontSize: headerFont,
+                              fontWeight: FontWeight.w900,
+                              color: _textPrimary,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          if (newCount > 0)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: _dividerClr),
+                                boxShadow: [
+                                  BoxShadow(color: _neonPurple.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2)),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(width: 8, height: 8, decoration: const BoxDecoration(color: _accentPink, shape: BoxShape.circle)),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '$newCount new',
+                                    style: const TextStyle(fontFamily: 'Circular', fontSize: 13, fontWeight: FontWeight.w700, color: _textPrimary),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
 
-                  if (connected.isNotEmpty) _sectionTitle("Recent Matches"),
-                  for (var m in connected) MatchCard(matchData: m),
+                  // ── NEW MATCHES section ─────────────────────────────────
+                  if (newMatches.isNotEmpty) ...[
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(hPad, h * 0.03, hPad, 12),
+                        child: Text(
+                          'NEW MATCHES',
+                          style: TextStyle(
+                            fontFamily: 'Circular',
+                            fontSize: sectionFont,
+                            fontWeight: FontWeight.w800,
+                            color: _textMuted,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: SizedBox(
+                        height: carouselH,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          padding: EdgeInsets.symmetric(horizontal: hPad - 4),
+                          itemCount: newMatches.length,
+                          itemBuilder: (ctx, i) => _NewMatchBubble(
+                            matchData: newMatches[i],
+                            ringColor: _ringColors[i % _ringColors.length],
+                            onTap: () => _openChat(newMatches[i]),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
 
-                  if (abandoned.isNotEmpty)
-                    _sectionTitle("Abandoned", color: y2kPink),
-                  for (var m in abandoned) MatchCard(matchData: m),
+                  // ── Divider ─────────────────────────────────────────────
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 8),
+                      child: Divider(color: _dividerClr, thickness: 1),
+                    ),
+                  ),
+
+                  // ── MESSAGES section header ─────────────────────────────
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(hPad, 8, hPad, 12),
+                      child: Text(
+                        'MESSAGES',
+                        style: TextStyle(
+                          fontFamily: 'Circular',
+                          fontSize: sectionFont,
+                          fontWeight: FontWeight.w800,
+                          color: _textMuted,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // ── MESSAGES list ───────────────────────────────────────
+                  if (connectedMatches.isEmpty && newMatches.isEmpty)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.music_note_rounded, size: 56, color: _neonPurple.withOpacity(0.4)),
+                            const SizedBox(height: 16),
+                            const Text(
+                              "No matches yet 👀\nSwipe more songs!",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontFamily: 'Circular', color: _textMuted, fontSize: 17, fontWeight: FontWeight.w500, height: 1.4),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else if (connectedMatches.isEmpty)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 32),
+                        child: Center(
+                          child: Text(
+                            'No conversations yet.\nAccept a match to start chatting!',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontFamily: 'Circular', color: _textMuted.withOpacity(0.8), fontSize: 15, height: 1.5),
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (ctx, i) => _MessageTile(
+                          match: connectedMatches[i],
+                          onTap: () => _openChat(connectedMatches[i]),
+                        ),
+                        childCount: connectedMatches.length,
+                      ),
+                    ),
+                  
+                  SliverToBoxAdapter(child: SizedBox(height: MediaQuery.of(context).padding.bottom + 20)),
                 ],
               );
             },
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _sectionTitle(String title, {Color color = y2kPurple}) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 14, bottom: 8),
-      child: Text(
-        title,
-        style: TextStyle(
-          color: color,
-          fontSize: 18,
-          fontWeight: FontWeight.w700,
         ),
       ),
     );
   }
 }
 
-// ---------------------------------------------------------
-// 🔥 Match Card + Chat Button
-// ---------------------------------------------------------
-class MatchCard extends StatelessWidget {
+class _NewMatchBubble extends StatelessWidget {
   final Match matchData;
+  final Color ringColor;
+  final VoidCallback onTap;
 
-  const MatchCard({super.key, required this.matchData});
+  const _NewMatchBubble({required this.matchData, required this.ringColor, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final username = matchData.username;
-    final photoUrl = matchData.photoUrl;
-    final status = matchData.status;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0E7FF),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: y2kPurple.withOpacity(0.25),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          // CARD CONTENT
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 32,
-                backgroundImage: photoUrl.isNotEmpty
-                    ? NetworkImage(photoUrl)
-                    : const AssetImage("assets/images/default_pfp.png")
-                        as ImageProvider,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 80,
+        margin: const EdgeInsets.only(right: 16),
+        child: Column(
+          children: [
+            Container(
+              width: 68, height: 68,
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [ringColor, ringColor.withOpacity(0.3)],
+                ),
               ),
-              const SizedBox(width: 18),
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                  image: matchData.photoUrl.isNotEmpty
+                      ? DecorationImage(image: NetworkImage(matchData.photoUrl), fit: BoxFit.cover)
+                      : null,
+                ),
+                child: matchData.photoUrl.isEmpty
+                    ? Icon(Icons.person_rounded, color: ringColor.withOpacity(0.5), size: 32)
+                    : null,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              matchData.username,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontFamily: 'Circular', fontSize: 12, fontWeight: FontWeight.w600, color: _textPrimary),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MessageTile extends StatelessWidget {
+  final Match match;
+  final VoidCallback onTap;
+
+  const _MessageTile({required this.match, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 60, height: 60,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _dividerClr,
+                  image: match.photoUrl.isNotEmpty
+                      ? DecorationImage(image: NetworkImage(match.photoUrl), fit: BoxFit.cover)
+                      : null,
+                ),
+                child: match.photoUrl.isEmpty
+                    ? const Icon(Icons.person_rounded, color: Colors.white, size: 28)
+                    : null,
+              ),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      username,
-                      style: const TextStyle(
-                        color: textDark,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      match.username,
+                      style: const TextStyle(fontFamily: 'Circular', fontSize: 16, fontWeight: FontWeight.w800, color: _textPrimary),
                     ),
-                    const SizedBox(height: 6),
-                    if (status == "connected")
-                      const Text(
-                        "Connected ✔",
-                        style: TextStyle(
-                          color: Colors.green,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                    const SizedBox(height: 4),
+                    Text(
+                      "Shared taste in Pop, Indie...",
+                      style: TextStyle(fontFamily: 'Circular', fontSize: 13, color: _textMuted.withOpacity(0.8), fontWeight: FontWeight.w500),
+                    ),
                   ],
                 ),
               ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const Text("12:45 PM", style: TextStyle(fontFamily: 'Circular', fontSize: 11, color: _textMuted, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  Container(
+                    width: 18, height: 18,
+                    decoration: const BoxDecoration(color: _hotPink, shape: BoxShape.circle),
+                    alignment: Alignment.center,
+                    child: const Text("1", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900)),
+                  ),
+                ],
+              ),
             ],
           ),
-
-          // CHAT BUTTON
-          Positioned(
-            right: 6,
-            bottom: 6,
-            child: GestureDetector(
-              onTap: () async {
-                final chatProvider = context.read<ChatProvider>();
-                final chatId = await chatProvider.createOrGetChat(
-                  currentUserId: matchData.userId, // will be resolved inside ChatService
-                  otherUserId: matchData.userId,
-                );
-
-                if (context.mounted) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ChatPage(
-                        chatId: chatId,
-                        otherUserId: matchData.userId,
-                        otherUsername: username,
-                        otherPhotoUrl: photoUrl,
-                      ),
-                    ),
-                  );
-                }
-              },
-              child: SizedBox(
-                width: 72,
-                height: 72,
-                child: Center(
-                  child: Image.asset(
-                    "assets/images/chat.png",
-                    width: 80,
-                    height: 80,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

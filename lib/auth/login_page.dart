@@ -11,7 +11,7 @@ import 'screens/phone_auth_screen.dart';
 import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 import 'dart:async';
-import '../onboarding/widgets/floating_orbs.dart';
+import 'widgets/animated_waveform.dart';
 
 // ----------------------
 // Y2K COLORS (STRONGER PASTELS)
@@ -46,7 +46,7 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   bool isLoading = false;
-  bool showLanding = true;
+  bool showLanding = false;
   
   int _matchCount = 47;
   Timer? _matchTimer;
@@ -72,8 +72,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   late AnimationController _entranceController;
   late AnimationController _floatingController;
   late AnimationController _authMethodsController;
-  late AnimationController _backgroundAnimationController;
+  late AnimationController _backgroundAnimationController; // Kept for minimal gradient shifts if needed
   late AnimationController _gradientShiftController;
+  late AnimationController _shimmerController;
   
   // Entrance animations
   late Animation<Offset> _slideAnimation1;
@@ -123,6 +124,12 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     
     _gradientShiftController = AnimationController(
       duration: const Duration(milliseconds: 25000),
+      vsync: this,
+    )..repeat();
+    
+    // 5.5s total: 3.5s animation + 2s delay
+    _shimmerController = AnimationController(
+      duration: const Duration(milliseconds: 5500),
       vsync: this,
     )..repeat();
     
@@ -206,8 +213,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       curve: Curves.easeInOutSine,
     ));
     
-    // Tick match count every 4 seconds for social proof
-    _matchTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+    // Tick match count every 3.8 seconds for social proof (per design)
+    _matchTimer = Timer.periodic(const Duration(milliseconds: 3800), (_) {
       if (mounted) {
         setState(() {
           _matchCount = 35 + (DateTime.now().millisecondsSinceEpoch % 40).toInt();
@@ -217,6 +224,13 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     
     // Session persistence is handled by Firebase Auth natively.
     // AuthWrapper observes idTokenChanges() and routes accordingly.
+
+    // Automate entrance if showing cards immediately
+    if (!showLanding) {
+      Future.delayed(const Duration(milliseconds: 600), () {
+        if (mounted) _entranceController.forward();
+      });
+    }
   }
 
   @override
@@ -226,6 +240,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     _authMethodsController.dispose();
     _backgroundAnimationController.dispose();
     _gradientShiftController.dispose();
+    _shimmerController.dispose();
     _matchTimer?.cancel();
     super.dispose();
   }
@@ -291,504 +306,169 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: false, // ✅ CRITICAL: Prevents keyboard from resizing UI
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
-          // Animated mesh gradient background with color shifting
-          AnimatedBuilder(
-            animation: _gradientShiftController,
-            builder: (context, child) {
-              final shift = _gradientShift.value;
-            
-            const bubblegumPink = Color(0xFFFF69B4);
-            const chromeSilver = Color(0xFFC8C8C8);
-            const digitalBlue = Color(0xFF007AFF);
-            const limeFlashGreen = Color(0xFF32CD32);
-            
-            Color getColorForStage(Color c1, Color c2, Color c3, Color c4) {
-              if (shift < 0.25) {
-                return Color.lerp(c1, c2, shift * 4)!;
-              } else if (shift < 0.5) {
-                return Color.lerp(c2, c3, (shift - 0.25) * 4)!;
-              } else if (shift < 0.75) {
-                return Color.lerp(c3, c4, (shift - 0.5) * 4)!;
-              } else {
-                return Color.lerp(c4, c1, (shift - 0.75) * 4)!;
-              }
-            }
-            
-            final color1 = getColorForStage(
-              bubblegumPink.withOpacity(0.85),
-              digitalBlue.withOpacity(0.85),
-              chromeSilver.withOpacity(0.95),
-              limeFlashGreen.withOpacity(0.85),
-            );
-            
-            final color2 = getColorForStage(
-              digitalBlue.withOpacity(0.85),
-              chromeSilver.withOpacity(0.95),
-              limeFlashGreen.withOpacity(0.85),
-              bubblegumPink.withOpacity(0.85),
-            );
-            
-            final color3 = getColorForStage(
-              chromeSilver.withOpacity(0.95),
-              limeFlashGreen.withOpacity(0.85),
-              bubblegumPink.withOpacity(0.85),
-              digitalBlue.withOpacity(0.85),
-            );
-            
-            final color4 = getColorForStage(
-              limeFlashGreen.withOpacity(0.85),
-              bubblegumPink.withOpacity(0.85),
-              digitalBlue.withOpacity(0.85),
-              chromeSilver.withOpacity(0.95),
-            );
-            
-            return Container(
-              decoration: BoxDecoration(
+          // ── Minimal Pastel Background (Per Design) ──
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
                   colors: [
-                    color1,
-                    color2,
-                    color3,
+                    Color(0xFFFDE8FF), // Soft pastel pale pink at top
+                    Color(0xFFE5DEFF), // Very soft lavender in middle
+                    Color(0xFFD6EBFF), // Soft icy blue at bottom
                   ],
-                  stops: const [0.0, 0.5, 1.0],
+                  stops: [0.0, 0.6, 1.0],
                 ),
-              ),
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: Alignment.topRight,
-                    radius: 1.5,
-                    colors: [
-                      color4.withOpacity(0.7),
-                      Colors.transparent,
-                    ],
-                    stops: const [0.0, 0.7],
-                  ),
-                ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      center: Alignment.bottomLeft,
-                      radius: 1.8,
-                      colors: [
-                        color1.withOpacity(0.6),
-                        Colors.transparent,
-                      ],
-                      stops: const [0.0, 0.8],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-        // Animated Y2K pattern overlay
-        Positioned.fill(
-          child: ClipRect(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 1.5, sigmaY: 1.5),
-              child: AnimatedBuilder(
-                animation: _backgroundAnimationController,
-                builder: (context, child) {
-                  final screenHeight = MediaQuery.of(context).size.height;
-                  final screenWidth = MediaQuery.of(context).size.width;
-                  
-                  final offset = _backgroundOffset.value;
-                  final columnWidth = screenWidth / 7;
-                  
-                  return Stack(
-                    children: [
-                      // Odd columns - scrolling DOWN
-                      for (int col in [0, 2, 4, 6]) ...[
-                        Positioned(
-                          left: col * columnWidth,
-                          top: (offset % screenHeight) - screenHeight,
-                          child: ClipRect(
-                            child: SizedBox(
-                              height: screenHeight,
-                              width: columnWidth,
-                              child: Opacity(
-                                opacity: 0.35,
-                                child: Image.asset(
-                                  'assets/images/y22k.png',
-                                  repeat: ImageRepeat.repeat,
-                                  fit: BoxFit.none,
-                                  alignment: Alignment(-1 + (col * 2 / 6), 0),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          left: col * columnWidth,
-                          top: offset % screenHeight,
-                          child: ClipRect(
-                            child: SizedBox(
-                              height: screenHeight,
-                              width: columnWidth,
-                              child: Opacity(
-                                opacity: 0.35,
-                                child: Image.asset(
-                                  'assets/images/y22k.png',
-                                  repeat: ImageRepeat.repeat,
-                                  fit: BoxFit.none,
-                                  alignment: Alignment(-1 + (col * 2 / 6), 0),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                      
-                      // Even columns - scrolling UP
-                      for (int col in [1, 3, 5]) ...[
-                        Positioned(
-                          left: col * columnWidth,
-                          top: screenHeight - (offset % screenHeight),
-                          child: ClipRect(
-                            child: SizedBox(
-                              height: screenHeight,
-                              width: columnWidth,
-                              child: Opacity(
-                                opacity: 0.35,
-                                child: Image.asset(
-                                  'assets/images/y22k.png',
-                                  repeat: ImageRepeat.repeat,
-                                  fit: BoxFit.none,
-                                  alignment: Alignment(-1 + (col * 2 / 6), 0),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          left: col * columnWidth,
-                          top: -(offset % screenHeight),
-                          child: ClipRect(
-                            child: SizedBox(
-                              height: screenHeight,
-                              width: columnWidth,
-                              child: Opacity(
-                                opacity: 0.35,
-                                child: Image.asset(
-                                  'assets/images/y22k.png',
-                                  repeat: ImageRepeat.repeat,
-                                  fit: BoxFit.none,
-                                  alignment: Alignment(-1 + (col * 2 / 6), 0),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  );
-                },
               ),
             ),
           ),
-        ),
-        // Vignette effect overlay
-        Positioned.fill(
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment.center,
-                radius: 1.2,
-                colors: [
-                  Colors.transparent,
-                  Colors.black.withOpacity(0.15),
-                ],
-                stops: const [0.0, 1.0],
-              ),
-            ),
-          ),
-        ),
-        Scaffold(
-          backgroundColor: Colors.transparent,
-          body: SafeArea(
-            child: Stack(
+
+          // ── Main Content Area ──
+          SafeArea(
+            child: Column(
               children: [
-                // -------------------------------------------------------------
-                // LANDING VIEW (Centered Orbs, Title, Button, Sign-in link)
-                // -------------------------------------------------------------
-                AnimatedOpacity(
-                  opacity: showLanding ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 600),
-                  child: IgnorePointer(
-                    ignoring: !showLanding,
-                    child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // 1. Packaged Orbs
-                          const SizedBox(
-                            width: 250,
-                            height: 120,
-                            child: FloatingOrbs(),
-                          ),
-                          const SizedBox(height: 32),
-                          // 2. Bold Title
-                          const Text(
-                            "Find your music\nsoulmate",
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontFamily: 'Circular',
-                              fontSize: 40,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w900,
-                              height: 1.05,
-                              letterSpacing: -1.0,
-                              shadows: [
-                                Shadow(
-                                  color: Colors.black45,
-                                  blurRadius: 16,
-                                  offset: Offset(0, 4),
-                                ),
-                                Shadow(
-                                  color: Colors.black26,
-                                  blurRadius: 32,
-                                  offset: Offset(0, 8),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 48),
-                          // 3. Get Started Button
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 40),
-                            child: SizedBox(
-                              width: double.infinity,
-                              height: 56,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFFFB3D9),
-                                  foregroundColor: const Color(0xFF4B1528),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                                  elevation: 0,
-                                ),
-                                onPressed: () {
-                                  setState(() => showLanding = false);
-                                  Future.delayed(const Duration(milliseconds: 300), () {
-                                    if (mounted) _entranceController.forward();
-                                  });
-                                },
-                                child: const Text(
-                                  "get started",
-                                  style: TextStyle(
-                                    fontFamily: 'Circular', fontSize: 18,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          // 4. Sign in link
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                // Header (Back navigation or spacing)
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  height: showAuthMethods ? 80 : 60,
+                  child: showAuthMethods
+                      ? Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                          child: Row(
                             children: [
-                              const Text(
-                                "already have an account? ",
-                                style: TextStyle(
-                                  fontFamily: 'Circular', fontSize: 15,
-                                  color: Colors.white70,
-                                  fontWeight: FontWeight.w500,
-                                  letterSpacing: 0.2,
-                                  shadows: [
-                                    Shadow(color: Colors.black54, blurRadius: 4),
-                                  ],
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    showLanding = false;
-                                    isSignUp = false;
-                                  });
-                                  Future.delayed(const Duration(milliseconds: 300), () {
-                                    if (mounted) _entranceController.forward();
-                                  });
-                                },
-                                child: const Text(
-                                  "sign in",
-                                  style: TextStyle(
-                                    fontFamily: 'Circular', fontSize: 15,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.2,
-                                    decoration: TextDecoration.underline,
-                                    decorationColor: Colors.white,
-                                    shadows: [
-                                      Shadow(color: Colors.black54, blurRadius: 4),
-                                    ],
+                              Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: _goBackToMainCards,
+                                  borderRadius: BorderRadius.circular(24),
+                                  splashColor: Colors.white.withOpacity(0.3),
+                                  highlightColor: Colors.white.withOpacity(0.1),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(12),
+                                    child: const Icon(
+                                      Icons.arrow_back_rounded,
+                                      color: Colors.white,
+                                      size: 28,
+                                    ),
                                   ),
                                 ),
                               ),
+                              const Spacer(),
+                              const Spacer(),
+                              const SizedBox(width: 40),
                             ],
                           ),
-                        ],
-                      ),
-                    ),
-                  ),
+                        )
+                      : const SizedBox(height: 60),
                 ),
+                
+                // Spacing to push content down near center (like hinge/tinder layouts)
+                const Spacer(flex: 2),
 
-                // -------------------------------------------------------------
-                // AUTH CARDS VIEW (Sign-up & Log-in 3D Cards)
-                // -------------------------------------------------------------
-                AnimatedOpacity(
-                  opacity: showLanding ? 0.0 : 1.0,
-                  duration: const Duration(milliseconds: 600),
-                  child: IgnorePointer(
-                    ignoring: showLanding,
-                    child: Column(
+                // ── "wav" Wordmark & Tagline & Waveform ──
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final w = MediaQuery.of(context).size.width;
+                    final h = MediaQuery.of(context).size.height;
+                    final wavSize = (w * 0.2).clamp(48.0, 72.0);
+                    final tagSize = (w * 0.045).clamp(14.0, 16.0);
+                    
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          height: showAuthMethods ? 80 : 60,
-                          child: showAuthMethods
-                              ? Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                                  child: Row(
-                                    children: [
-                                      Material(
-                                        color: Colors.transparent,
-                                        child: InkWell(
-                                          onTap: _goBackToMainCards,
-                                          borderRadius: BorderRadius.circular(24),
-                                          splashColor: Colors.white.withOpacity(0.3),
-                                          highlightColor: Colors.white.withOpacity(0.1),
-                                          child: Container(
-                                            padding: const EdgeInsets.all(12),
-                                            child: const Icon(
-                                              Icons.arrow_back_rounded,
-                                              color: Colors.white,
-                                              size: 28,
-                                              shadows: [
-                                                Shadow(
-                                                  color: Colors.black26,
-                                                  blurRadius: 8,
-                                                  offset: Offset(0, 2),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      const Spacer(),
-                                      const Spacer(),
-                                      const SizedBox(width: 40),
-                                    ],
-                                  ),
-                                )
-                              : const SizedBox(height: 60),
-                        ),
-                        
-                        // Auth captions
-                        AnimatedBuilder(
-                          animation: _authMethodsController,
-                          builder: (context, child) {
-                            final progress = _authMethodsController.value;
-                            final authOpacity = Curves.easeOutCubic.transform(progress).clamp(0.0, 1.0);
-                            
-                            return SizedBox(
-                              width: double.infinity,
-                              child: Stack(
-                                alignment: Alignment.topCenter,
-                                children: [
-                                  // Auth caption
-                                  if (authOpacity > 0.01)
-                                    Opacity(
-                                      opacity: authOpacity,
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            ShaderMask(
-                                              shaderCallback: (bounds) => const LinearGradient(
-                                                colors: [Color(0xFFFFD4E9), Color(0xFFFFB3D9), Color(0xFFFFE5F1)],
-                                                begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                                              ).createShader(bounds),
-                                              child: Text(
-                                                isSignUp ? "Sign up to start\nmatching" : "Welcome\nback!",
-                                                textAlign: TextAlign.center,
-                                                style: const TextStyle(
-                                                  fontFamily: 'Circular', fontSize: 48,
-                                                  color: Colors.white, fontWeight: FontWeight.w900,
-                                                  letterSpacing: -0.5, height: 1.1,
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(height: 12),
-                                            ShaderMask(
-                                              shaderCallback: (bounds) => const LinearGradient(
-                                                colors: [Color(0xFFFFE5F1), Color(0xFFFFD4E9)],
-                                                begin: Alignment.centerLeft, end: Alignment.centerRight,
-                                              ).createShader(bounds),
-                                              child: Text(
-                                                isSignUp ? "Create an account in seconds." : "Log back in within seconds.",
-                                                textAlign: TextAlign.center,
-                                                style: const TextStyle(
-                                                  fontFamily: 'Circular', fontSize: 18,
-                                                  color: Colors.white, fontWeight: FontWeight.w600,
-                                                  letterSpacing: 0.2, height: 1.3,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                        
-                        Expanded(
-                          child: RepaintBoundary(
-                            child: Stack(
-                              children: [
-                                RepaintBoundary(
-                                  child: SlideTransition(
-                                    position: _mainCardsSlideOut,
-                                    child: FadeTransition(
-                                      opacity: _mainCardsOpacityOut,
-                                      child: _buildMainCards(),
-                                    ),
-                                  ),
-                                ),
-                                RepaintBoundary(
-                                  child: SlideTransition(
-                                    position: _authMethodsSlide,
-                                    child: FadeTransition(
-                                      opacity: _authMethodsOpacity,
-                                      child: _buildAuthMethodCards(),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                        ShaderMask(
+                          shaderCallback: (bounds) => const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Color(0xFFFFB3E6), // soft pink
+                              Color(0xFFB3D9FF), // soft blue
+                              Color(0xFFD9B3FF), // soft purple
+                            ],
+                          ).createShader(bounds),
+                          blendMode: BlendMode.srcIn,
+                          child: Text(
+                            "wav",
+                            style: TextStyle(
+                              fontFamily: 'Circular', 
+                              fontSize: wavSize,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white, 
+                              letterSpacing: -1.5,
+                              height: 1.0,
                             ),
                           ),
                         ),
-                        const SizedBox(height: 40),
+                        SizedBox(height: h * 0.01),
+                        Text(
+                          "match through music",
+                          style: TextStyle(
+                            fontFamily: 'Circular',
+                            fontSize: tagSize,
+                            fontWeight: FontWeight.w600, // Medium/SemiBold
+                            color: const Color(0xFF8B84A6).withOpacity(0.9), // Muted lavender-grey
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                        SizedBox(height: h * 0.03),
+                        _buildAnimatedWaveform(),
+                      ],
+                    );
+                  }
+                ),
+
+                const Spacer(flex: 4), // Big gap down to social proof block
+
+                // ── Social Proof Avatars ── 
+                _buildSocialProofAvatars(),
+                
+                const Spacer(flex: 2),
+                
+                // Cards Stack Area
+                SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.52, // Responsive height
+                  child: RepaintBoundary(
+                    child: Stack(
+                      children: [
+                        RepaintBoundary(
+                          child: SlideTransition(
+                            position: _mainCardsSlideOut,
+                            child: FadeTransition(
+                              opacity: _mainCardsOpacityOut,
+                              child: IgnorePointer(
+                                ignoring: showAuthMethods,
+                                child: _buildMainCards(),
+                              ),
+                            ),
+                          ),
+                        ),
+                        RepaintBoundary(
+                          child: SlideTransition(
+                            position: _authMethodsSlide,
+                            child: FadeTransition(
+                              opacity: _authMethodsOpacity,
+                              child: IgnorePointer(
+                                ignoring: !showAuthMethods,
+                                child: _buildAuthMethodCards(),
+                              ),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ),
+                const SizedBox(height: 40),
               ],
             ),
           ),
-        ),
-      ],
-    ));
+        ],
+      ),
+    );
   }
 
   Widget _buildMainCards() {
@@ -806,13 +486,13 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         
         // Calculate optimal card width (max 220, scales down on smaller screens)
         final cardWidth = (availableWidth - cardSpacing) / 2;
-        final responsiveCardWidth = cardWidth.clamp(160.0, 220.0);
+        final responsiveCardWidth = cardWidth.clamp(120.0, 220.0); // Reduced min clamp for 320px screens
         
         // Calculate horizontal offset to maintain spacing
         final horizontalOffset = (responsiveCardWidth + cardSpacing) / 2;
         
         // Scale card height proportionally
-        final cardHeight = (responsiveCardWidth * 1.27).clamp(200.0, 280.0);
+        final cardHeight = (responsiveCardWidth * 1.27).clamp(160.0, 280.0); // Reduced min clamp
         
         return Center(
           child: SizedBox(
@@ -825,55 +505,65 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                   alignment: Alignment.center,
                   clipBehavior: Clip.none,
                   children: [
-                    SlideTransition(
-                      position: _slideAnimation1,
-                      child: FadeTransition(
-                        opacity: _entranceOpacity,
-                        child: Transform.translate(
-                          offset: Offset(0, _floatingAnimation.value),
-                          child: _buildMainAuthCard(
-                            cardIndex: 0,
-                            title: "Sign up",
-                            subtitle: "Make a new account in seconds",
-                            rotation: -8,
-                            horizontalOffset: -horizontalOffset,
-                            cardWidth: responsiveCardWidth,
-                            cardHeight: cardHeight,
-                            gradientColors: const [
-                              Color(0xFFFFB8E6),
-                              Color(0xFFFFD8F0),
-                              Color(0xFFFFE8F7),
-                            ],
-                            accentColor: const Color(0xFFFF88D4),
-                            decorationType: 'blob',
-                            onTap: () => _showAuthMethodsWithAnimation(true),
+                    Positioned(
+                      left: (screenWidth / 2) - responsiveCardWidth - (cardSpacing / 2),
+                      width: responsiveCardWidth,
+                      height: cardHeight,
+                      child: SlideTransition(
+                        position: _slideAnimation1,
+                        child: FadeTransition(
+                          opacity: _entranceOpacity,
+                          child: Transform.translate(
+                            offset: Offset(0, _floatingAnimation.value),
+                            child: _buildMainAuthCard(
+                              cardIndex: 0,
+                              title: "Sign up",
+                              subtitle: "Make a new account in seconds",
+                              rotation: -8,
+                              horizontalOffset: -horizontalOffset, // Kept to determine perspective 3D tilt
+                              cardWidth: responsiveCardWidth,
+                              cardHeight: cardHeight,
+                              gradientColors: const [
+                                Color(0xFFFFB8E6),
+                                Color(0xFFFFD8F0),
+                                Color(0xFFFFE8F7),
+                              ],
+                              accentColor: const Color(0xFFFF88D4),
+                              decorationType: 'blob',
+                              onTap: () => _showAuthMethodsWithAnimation(true),
+                            ),
                           ),
                         ),
                       ),
                     ),
                     
-                    SlideTransition(
-                      position: _slideAnimation2,
-                      child: FadeTransition(
-                        opacity: _entranceOpacity,
-                        child: Transform.translate(
-                          offset: Offset(0, -_floatingAnimation.value),
-                          child: _buildMainAuthCard(
-                            cardIndex: 1,
-                            title: "Log in",
-                            subtitle: "Pick up right where you left off",
-                            rotation: 8,
-                            horizontalOffset: horizontalOffset,
-                            cardWidth: responsiveCardWidth,
-                            cardHeight: cardHeight,
-                            gradientColors: const [
-                              Color(0xFFB8DCFF),
-                              Color(0xFFD8EBFF),
-                              Color(0xFFE8F4FF),
-                            ],
-                            accentColor: const Color(0xFF88C8FF),
-                            decorationType: 'streak',
-                            onTap: () => _showAuthMethodsWithAnimation(false),
+                    Positioned(
+                      left: (screenWidth / 2) + (cardSpacing / 2),
+                      width: responsiveCardWidth,
+                      height: cardHeight,
+                      child: SlideTransition(
+                        position: _slideAnimation2,
+                        child: FadeTransition(
+                          opacity: _entranceOpacity,
+                          child: Transform.translate(
+                            offset: Offset(0, -_floatingAnimation.value),
+                            child: _buildMainAuthCard(
+                              cardIndex: 1,
+                              title: "Log in",
+                              subtitle: "Pick up right where you left off",
+                              rotation: 8,
+                              horizontalOffset: horizontalOffset, // Kept to determine perspective 3D tilt
+                              cardWidth: responsiveCardWidth,
+                              cardHeight: cardHeight,
+                              gradientColors: const [
+                                Color(0xFFB8DCFF),
+                                Color(0xFFD8EBFF),
+                                Color(0xFFE8F4FF),
+                              ],
+                              accentColor: const Color(0xFF88C8FF),
+                              decorationType: 'streak',
+                              onTap: () => _showAuthMethodsWithAnimation(false),
+                            ),
                           ),
                         ),
                       ),
@@ -902,14 +592,14 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         
         // Calculate card width (3 cards + 2 gaps)
         final cardWidth = (availableWidth - (cardSpacing * 2)) / 3;
-        final responsiveCardWidth = cardWidth.clamp(110.0, 140.0); // Slightly smaller max
+        final responsiveCardWidth = cardWidth.clamp(85.0, 140.0); // Reduced min clamp
         
         // Calculate horizontal offset
         final horizontalOffset = responsiveCardWidth + cardSpacing;
         
         // Scale card height proportionally
-        final centerCardHeight = (responsiveCardWidth * 1.62).clamp(180.0, 235.0);
-        final sideCardHeight = (responsiveCardWidth * 1.48).clamp(165.0, 215.0);
+        final centerCardHeight = (responsiveCardWidth * 1.62).clamp(140.0, 235.0); // Reduced min clamp
+        final sideCardHeight = (responsiveCardWidth * 1.48).clamp(125.0, 215.0); // Reduced min clamp
         
         return Center(
           child: SizedBox(
@@ -1083,7 +773,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         }
       },
       child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
         onTapDown: (_) {
           if (showAuthMethods) {
             setState(() => _activeCardIndex = cardIndex);
@@ -1104,7 +793,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           scale: isHovered ? 1.05 : 1.0,
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOut,
-          child: Container(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOutCubic,
             width: cardWidth,
             height: cardHeight,
             decoration: BoxDecoration(
@@ -1139,63 +830,117 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(24),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: Stack(
-                  children: [
-                    // Large icon at the top
-                    Positioned(
-                      top: cardHeight * 0.12,
-                      left: 0,
-                      right: 0,
-                      child: Center(
-                        child: AnimatedOpacity(
-                          opacity: isHovered ? 1.0 : 0.5,
-                          duration: const Duration(milliseconds: 200),
-                          child: showLoading
-                              ? SizedBox(
-                                  width: responsiveIconSize,
-                                  height: responsiveIconSize,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: cardWidth * 0.02,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : (iconWidget != null
+              child: Stack(
+                children: [
+                  BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    child: Stack(
+                      children: [
+                        // Large icon at the top
+                        Positioned(
+                          top: cardHeight * 0.12,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: AnimatedOpacity(
+                              opacity: isHovered ? 1.0 : 0.5,
+                              duration: const Duration(milliseconds: 200),
+                              child: showLoading
                                   ? SizedBox(
                                       width: responsiveIconSize,
                                       height: responsiveIconSize,
-                                      child: iconWidget,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: cardWidth * 0.02,
+                                        color: Colors.white,
+                                      ),
                                     )
-                                  : Icon(
-                                      icon,
-                                      size: responsiveIconSize,
-                                      color: Colors.white,
-                                    )),
+                                  : (iconWidget != null
+                                      ? SizedBox(
+                                          width: responsiveIconSize,
+                                          height: responsiveIconSize,
+                                          child: iconWidget,
+                                        )
+                                      : Icon(
+                                          icon,
+                                          size: responsiveIconSize,
+                                          color: Colors.white,
+                                        )),
+                            ),
+                          ),
                         ),
+                        
+                        // Single-word label at bottom
+                        Positioned(
+                          bottom: cardHeight * 0.14,
+                          left: 0,
+                          right: 0,
+                          child: Text(
+                            title,
+                            style: TextStyle(
+                              fontFamily: 'Circular',
+                              fontSize: cardWidth * 0.165,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              height: 1.2,
+                              letterSpacing: -0.5,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  // -- The Shimmer Overlay --
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: AnimatedBuilder(
+                        animation: _shimmerController,
+                        builder: (context, child) {
+                          // The shimmer animates over 3.5s, then waits 2s (Total 5.5s)
+                          final activeFraction = 3.5 / 5.5;
+                          final progress = _shimmerController.value;
+                          final animProgress = (progress / activeFraction).clamp(0.0, 1.0);
+                          final curvedProgress = Curves.easeInOut.transform(animProgress);
+                          
+                          // Position the left edge sweeping smoothly across
+                          // Starts heavily off-screen left, ends heavily off-screen right
+                          final leftPosition = (-cardWidth * 0.5) + (curvedProgress * (cardWidth * 1.8));
+                          
+                          return Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Positioned(
+                                left: leftPosition,
+                                top: -cardHeight, // Massive height to prevent clipped corners when rotated
+                                bottom: -cardHeight,
+                                width: cardWidth * 0.25, // Exactly 25% of card width for the precise beam
+                                child: Transform.rotate(
+                                  angle: 15 * math.pi / 180, // 15-degree tilt matching reference
+                                  child: Container(
+                                    decoration: const BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.centerLeft,
+                                        end: Alignment.centerRight,
+                                        colors: [
+                                          Color(0x00FFFFFF), // Transparent white prevents black interpolation
+                                          Color.fromRGBO(255, 255, 255, 0.25), // 25% brightness peak
+                                          Color(0x00FFFFFF),
+                                        ],
+                                        // Soft wash sweeping across the 25% box
+                                        stops: [0.0, 0.5, 1.0],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ),
-                    
-                    // Single-word label at bottom
-                    Positioned(
-                      bottom: cardHeight * 0.14,
-                      left: 0,
-                      right: 0,
-                      child: Text(
-                        title,
-                        style: TextStyle(
-                          fontFamily: 'Circular',
-                          fontSize: cardWidth * 0.165,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                          height: 1.2,
-                          letterSpacing: -0.5,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -1225,8 +970,10 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     final subtitleFontSize = (cardWidth * 0.073).clamp(13.0, 16.0);
     final padding = (cardWidth * 0.127).clamp(20.0, 28.0);
     
-    return Transform.translate(
-      offset: Offset(horizontalOffset, isActive ? -20.0 : 0.0),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOutCubic,
+      transform: Matrix4.translationValues(0.0, isActive ? -20.0 : 0.0, 0.0),
       child: Transform.rotate(
         angle: rotation * math.pi / 180,
         child: Transform(
@@ -1247,7 +994,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               }
             },
             child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
               onTapDown: (_) {
                 if (!showAuthMethods) {
                   setState(() => _activeCardIndex = cardIndex);
@@ -1268,87 +1014,310 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                 scale: isHovered ? 1.08 : 1.0,
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeOut,
-                child: Container(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOutCubic,
                   width: cardWidth,
-                  height: cardHeight,
-                  decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: isHovered ? Alignment.bottomCenter : Alignment.bottomRight,
-                        colors: [
-                          gradientColors[0].withOpacity(isHovered ? 0.75 : 0.65),
-                          gradientColors[1].withOpacity(isHovered ? 0.6 : 0.5),
-                          gradientColors[2].withOpacity(isHovered ? 0.45 : 0.35),
+            height: cardHeight,
+            decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: isHovered ? Alignment.bottomCenter : Alignment.bottomRight,
+                  colors: [
+                    gradientColors[0].withOpacity(isHovered ? 0.95 : 0.85),
+                    gradientColors[1].withOpacity(isHovered ? 0.8 : 0.7),
+                    if (gradientColors.length > 2) gradientColors[2].withOpacity(isHovered ? 0.65 : 0.55),
+                  ],
+                  // Handle variable length gradient properly
+                  stops: gradientColors.length == 3 ? const [0.0, 0.5, 1.0] : const [0.0, 1.0],
+                ),
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08), // Softer shadow for pastel theme
+                  blurRadius: isActive ? 40 : isHovered ? 30 : 20,
+                  offset: Offset(0, isActive ? 20.0 : isHovered ? 15.0 : 10.0),
+                  spreadRadius: -2,
+                ),
+                BoxShadow(
+                  color: accentColor.withOpacity(isActive ? 0.4 : isHovered ? 0.3 : 0.15),
+                  blurRadius: isActive ? 35 : isHovered ? 25 : 18,
+                  offset: Offset(0, isActive ? 10.0 : isHovered ? 6.0 : 4.0),
+                ),
+                BoxShadow(
+                  color: Colors.white.withOpacity(0.5), // Stronger white highlight top
+                  blurRadius: 4,
+                  offset: const Offset(0, -2),
+                  spreadRadius: 0,
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(28),
+              child: Stack(
+                children: [
+                  BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    child: Padding(
+                      padding: EdgeInsets.all(padding),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            title,
+                            style: TextStyle(
+                              fontFamily: 'Circular',
+                              fontSize: titleFontSize,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              height: 1.0,
+                              letterSpacing: -0.8,
+                            ),
+                          ),
+                          Text(
+                            subtitle,
+                            style: TextStyle(
+                              fontFamily: 'Circular',
+                              fontSize: subtitleFontSize,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white.withOpacity(0.95), // Crisper contrast since cards are lighter
+                              letterSpacing: 0.2,
+                              height: 1.3,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.visible,
+                          ),
                         ],
-                        stops: const [0.0, 0.5, 1.0],
-                      ),
-                      borderRadius: BorderRadius.circular(28),
-                      boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: isActive ? 50 : isHovered ? 40 : 30,
-                        offset: Offset(0, isActive ? 30.0 : isHovered ? 22.0 : 15.0),
-                        spreadRadius: -5,
-                      ),
-                      BoxShadow(
-                        color: accentColor.withOpacity(isActive ? 0.6 : isHovered ? 0.5 : 0.4),
-                        blurRadius: isActive ? 45 : isHovered ? 35 : 28,
-                        offset: Offset(0, isActive ? 15.0 : isHovered ? 10.0 : 6.0),
-                      ),
-                      BoxShadow(
-                        color: Colors.white.withOpacity(0.1),
-                        blurRadius: 2,
-                        offset: const Offset(0, -1),
-                        spreadRadius: 0,
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(28),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: Padding(
-                        padding: EdgeInsets.all(padding),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              title,
-                              style: TextStyle(
-                                fontFamily: 'Circular',
-                                fontSize: titleFontSize,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                                height: 1.0,
-                                letterSpacing: -0.8,
-                              ),
-                            ),
-                            Text(
-                              subtitle,
-                              style: TextStyle(
-                                fontFamily: 'Circular',
-                                fontSize: subtitleFontSize,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white.withOpacity(0.85),
-                                letterSpacing: 0.2,
-                                height: 1.3,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.visible,
-                            ),
-                          ],
-                        ),
                       ),
                     ),
                   ),
-                ),
+
+                  // -- The Shimmer Overlay --
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: AnimatedBuilder(
+                        animation: _shimmerController,
+                        builder: (context, child) {
+                          // The shimmer animates over 3.5s, then waits 2s (Total 5.5s)
+                          final activeFraction = 3.5 / 5.5;
+                          final progress = _shimmerController.value;
+                          final animProgress = (progress / activeFraction).clamp(0.0, 1.0);
+                          final curvedProgress = Curves.easeInOut.transform(animProgress);
+                          
+                          // Position the left edge sweeping smoothly across
+                          // Starts heavily off-screen left, ends heavily off-screen right
+                          final leftPosition = (-cardWidth * 0.5) + (curvedProgress * (cardWidth * 1.8));
+                          
+                          return Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Positioned(
+                                left: leftPosition,
+                                top: -cardHeight, // Massive height to prevent clipped corners when rotated
+                                bottom: -cardHeight,
+                                width: cardWidth * 0.25, // Exactly 25% of card width for the precise beam
+                                child: Transform.rotate(
+                                  angle: 15 * math.pi / 180, // 15-degree tilt matching reference
+                                  child: Container(
+                                    decoration: const BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.centerLeft,
+                                        end: Alignment.centerRight,
+                                        colors: [
+                                          Color(0x00FFFFFF), // Transparent white prevents black interpolation
+                                          Color.fromRGBO(255, 255, 255, 0.25), // 25% brightness peak
+                                          Color(0x00FFFFFF),
+                                        ],
+                                        // Soft wash sweeping across the 25% box
+                                        stops: [0.0, 0.5, 1.0],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
         ),
+              ),
+            ),
+          ),
+        ),
+    );
+  }
+
+  Widget _buildAnimatedWaveform() {
+    final baseHeights = [
+      0.1, 0.2, 0.1, 0.4, 0.6, 0.4, 0.8, 1.0, 0.8, 0.3,
+      0.5, 0.8, 0.4, 0.8, 0.6, 0.3, 0.5, 0.2, 0.1
+    ];
+    
+    return ShaderMask(
+      shaderCallback: (bounds) => const LinearGradient(
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+        colors: [
+          Color(0xFFB3D9FF), // soft blue
+          Color(0xFFFFB3E6), // soft pink
+          Color(0xFFD9B3FF), // soft purple
+        ],
+      ).createShader(bounds),
+      blendMode: BlendMode.srcIn,
+      child: SizedBox(
+        height: 24, // max height
+        child: AnimatedBuilder(
+          animation: _floatingController,
+          builder: (context, child) {
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: List.generate(baseHeights.length, (i) {
+                // Wave harmonic calculations
+                final base = baseHeights[i];
+                final phase = i * 0.4;
+                final wave = (math.sin((_floatingController.value * math.pi * 4) + phase) + 1) / 2.0;
+                final dynamicHeight = base * (0.6 + (0.4 * wave)); // varies between 60%-100% of base height
+                
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 2.0),
+                  width: 4.5,
+                  height: 24 * dynamicHeight,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                );
+              }),
+            );
+          }
+        ),
       ),
     );
+  }
 
+  Widget _buildSocialProofAvatars() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          height: 48,
+          width: 48 + (3 * 34), // Approx width considering overlap
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              _buildAvatar(0, Colors.pinkAccent.withOpacity(0.5)),
+              _buildAvatar(1, Colors.purpleAccent.withOpacity(0.5)),
+              _buildAvatar(2, Colors.lightBlueAccent.withOpacity(0.5)),
+              _buildAvatarPlaceholder(3),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          "join 2,400+ music lovers",
+          style: TextStyle(
+            fontFamily: 'Circular',
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF8B84A6).withOpacity(0.9), // Muted lavender-grey
+            letterSpacing: -0.3,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAvatar(int index, Color fallbackColor) {
+    return Positioned(
+      left: index * 32.0,
+      child: AnimatedBuilder(
+        animation: _floatingController,
+        builder: (context, child) {
+          // Calculate an offset phase so each orb bounces slightly after the previous one
+          final bounce = math.sin((_floatingController.value * math.pi * 2) + (index * 0.8)) * 3.5;
+          return Transform.translate(
+            offset: Offset(0, bounce),
+            child: child,
+          );
+        },
+        child: Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+          color: fallbackColor,
+          border: Border.all(color: Colors.white.withOpacity(0.9), width: 2.5),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 6,
+              offset: Offset(0, 3),
+            )
+          ]
+        ),
+        child: ClipOval(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Switched to locally downloaded stock assets to bypass Chrome CORS network blocks
+              Image.asset(
+                'assets/images/avatar${index + 1}.jpg', // avatar1.jpg, avatar2.jpg, avatar3.jpg
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(),
+              ),
+              // Increased blur for more stylistic privacy/aesthetic as requested
+              BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 4.0, sigmaY: 4.0),
+                child: Container(color: Colors.transparent),
+              ),
+            ],
+          ),
+        ),
+      ),
+        ),
+    );
+  }
+
+  Widget _buildAvatarPlaceholder(int index) {
+    return Positioned(
+      left: index * 32.0,
+      child: AnimatedBuilder(
+        animation: _floatingController,
+        builder: (context, child) {
+          final bounce = math.sin((_floatingController.value * math.pi * 2) + (index * 0.8)) * 3.5;
+          return Transform.translate(
+            offset: Offset(0, bounce),
+            child: child,
+          );
+        },
+        child: Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+          color: Colors.white.withOpacity(0.25), // Frosted
+          border: Border.all(color: Colors.white.withOpacity(0.9), width: 2.5),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 6,
+              offset: Offset(0, 3),
+            )
+          ]
+        ),
+        child: const Center(
+          child: Icon(Icons.add, color: Colors.white, size: 20),
+        ),
+      ),
+        ),
+    );
   }
 }

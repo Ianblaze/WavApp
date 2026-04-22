@@ -1,21 +1,24 @@
-// chat_page.dart
+// lib/pages/chat_page.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/chat_provider.dart';
 import '../models/message.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-// ----------------------
-// Y2K COLORS
-// ----------------------
-const bgTop = Color(0xFFFFE6FF);
-const bgMid = Color(0xFFF3E5FF);
-const bgBottom = Color(0xFFE1E9FF);
+// ─── Y2K Palette ──────────────────────────────────────────────────────────────
+const _bgTop        = Color(0xFFFCF4F9);
+const _bgBottom     = Color(0xFFF0EAFF);
+const _hotPink      = Color(0xFFFFB3D9);
+const _neonPurple   = Color(0xFFD9B3FF);
+const _accentPink   = Color(0xFFFF6FE8);
+const _textPrimary  = Color(0xFF1A0D26);
+const _textMuted    = Color(0xFF8A7EA5);
+const _greenOnline  = Color(0xFF4ADE80);
 
-const y2kPink = Color(0xFFFF6FE8);
-const y2kPurple = Color(0xFFB69CFF);
-const mutedText = Color(0xFF8A7EA5);
-const textDark = Color(0xFF3A2A45);
+// Bubble gradients
+const _myBubbleStart  = Color(0xFFFFCCE6);
+const _myBubbleEnd    = Color(0xFFFFB3D9);
+const _theirBubbleClr = Colors.white;
 
 class ChatPage extends StatefulWidget {
   final String chatId;
@@ -66,355 +69,304 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [bgTop, bgMid, bgBottom],
-            ),
-          ),
+    final w = MediaQuery.of(context).size.width;
+    final h = MediaQuery.of(context).size.height;
+    final hPad = w * 0.05;
+
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [_bgTop, _bgBottom],
         ),
-        Scaffold(
-          backgroundColor: Colors.transparent,
-          appBar: _buildAppBar(),
-          body: Consumer<ChatProvider>(
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
+          child: Consumer<ChatProvider>(
             builder: (context, chat, _) {
               return Column(
                 children: [
+                  _buildHeader(w, h),
+                  _buildTasteBanner(w),
                   Expanded(child: _buildMessageList(chat)),
-                  if (chat.replyingTo != null) _buildReplyPreview(chat),
-                  _buildMessageInput(),
+                  if (chat.replyingTo != null) _buildReplyPreview(chat, w),
+                  _buildMessageInput(w, h),
                 ],
               );
             },
           ),
-        )
-      ],
+        ),
+      ),
     );
   }
 
-  // ---------------------
-  // APP BAR
-  // ---------------------
-  AppBar _buildAppBar() {
-    return AppBar(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      leading: GestureDetector(
-        onTap: () => Navigator.pop(context),
-        child: const Icon(Icons.arrow_back_ios, color: textDark),
+  Widget _buildHeader(double w, double h) {
+    final avatarSize = (w * 0.1).clamp(36.0, 44.0);
+    final titleFont = (w * 0.045).clamp(16.0, 18.0);
+
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: w * 0.04, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.5),
+        border: Border(bottom: BorderSide(color: _hotPink.withOpacity(0.1))),
       ),
-      title: Row(
+      child: Row(
         children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundImage: widget.otherPhotoUrl.isNotEmpty
-                ? NetworkImage(widget.otherPhotoUrl)
-                : const AssetImage("assets/images/default_pfp.png")
-                    as ImageProvider,
+          IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _textPrimary, size: 20),
+            onPressed: () => Navigator.pop(context),
           ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(widget.otherUsername,
-                  style: const TextStyle(
-                      color: textDark,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18)),
-              const Text("Connected",
-                  style: TextStyle(color: Colors.green, fontSize: 12)),
-            ],
-          )
+          Container(
+            width: avatarSize, height: avatarSize,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              image: widget.otherPhotoUrl.isNotEmpty
+                  ? DecorationImage(image: NetworkImage(widget.otherPhotoUrl), fit: BoxFit.cover)
+                  : null,
+              color: _neonPurple.withOpacity(0.2),
+            ),
+            child: widget.otherPhotoUrl.isEmpty ? const Icon(Icons.person, color: Colors.white) : null,
+          ),
+          SizedBox(width: w * 0.03),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.otherUsername,
+                  style: TextStyle(fontFamily: 'Circular', fontSize: titleFont, fontWeight: FontWeight.w900, color: _textPrimary),
+                ),
+                Row(
+                  children: [
+                    Container(width: 6, height: 6, decoration: const BoxDecoration(color: _greenOnline, shape: BoxShape.circle)),
+                    const SizedBox(width: 4),
+                    const Text("Active now", style: TextStyle(fontFamily: 'Circular', fontSize: 11, color: _textMuted, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: _hotPink.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.graphic_eq_rounded, size: 14, color: _hotPink),
+                SizedBox(width: 4),
+                Text("Listening", style: TextStyle(fontFamily: 'Circular', fontSize: 10, fontWeight: FontWeight.w800, color: _hotPink)),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  // ---------------------
-  // MESSAGE LIST
-  // ---------------------
+  Widget _buildTasteBanner(double w) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: w * 0.06, vertical: 10),
+      color: _neonPurple.withOpacity(0.05),
+      child: Row(
+        children: [
+          const Icon(Icons.auto_awesome, size: 16, color: _neonPurple),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              "You both love Indie Pop & 80s Rock",
+              style: TextStyle(fontFamily: 'Circular', fontSize: 12, fontWeight: FontWeight.w700, color: _textMuted.withOpacity(0.9)),
+            ),
+          ),
+          const Text("94% Match", style: TextStyle(fontFamily: 'Circular', fontSize: 11, fontWeight: FontWeight.w900, color: _neonPurple)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMessageList(ChatProvider chat) {
     final messages = chat.messages;
-    final currentUid = FirebaseAuth.instance.currentUser?.uid;
-
     if (messages.isEmpty) {
-      return const Center(
-        child: CircularProgressIndicator(color: y2kPink),
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.chat_bubble_outline_rounded, size: 48, color: _hotPink.withOpacity(0.2)),
+            const SizedBox(height: 16),
+            const Text("Say hi! Music is a great icebreaker 🎵",
+                style: TextStyle(fontFamily: 'Circular', color: _textMuted, fontWeight: FontWeight.w500)),
+          ],
+        ),
       );
     }
 
-    // Messages from provider stream are ordered ascending; reverse for UI
-    final reversed = messages.reversed.toList();
-
     return ListView.builder(
       controller: _scrollController,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      itemCount: reversed.length,
-      reverse: true,
-      addAutomaticKeepAlives: true,
-      physics: const BouncingScrollPhysics(),
-      itemBuilder: (context, index) {
-        final msg = reversed[index];
-        final isMe = msg.senderId == currentUid;
-        return _buildSwipeableMessage(msg, isMe, chat);
+      padding: const EdgeInsets.all(20),
+      itemCount: messages.length,
+      itemBuilder: (context, i) {
+        final msg = messages[i];
+        final isMe = msg.senderId == FirebaseAuth.instance.currentUser?.uid;
+        return _ChatBubble(message: msg, isMe: isMe);
       },
     );
   }
 
-  // ---------------------
-  // SWIPEABLE MESSAGE
-  // ---------------------
-  Widget _buildSwipeableMessage(Message msg, bool isMe, ChatProvider chat) {
-    return GestureDetector(
-      onDoubleTap: () => chat.setReply(msg),
-      child: Align(
-        key: ValueKey(msg.id),
-        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-        child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.8,
-          ),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: isMe ? y2kPink : Colors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(4),
-              topRight: const Radius.circular(18),
-              bottomLeft: Radius.circular(isMe ? 18 : 4),
-              bottomRight: Radius.circular(isMe ? 4 : 18),
+  Widget _buildReplyPreview(ChatProvider chat, double w) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: w * 0.05, vertical: 8),
+      color: Colors.white.withOpacity(0.8),
+      child: Row(
+        children: [
+          const Icon(Icons.reply_rounded, color: _hotPink, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              chat.replyingTo?.text ?? "",
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontFamily: 'Circular', fontSize: 12, color: _textMuted),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              )
-            ],
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Reply preview if this message is a reply
-              if (msg.replyToText != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  margin: const EdgeInsets.only(bottom: 6),
-                  decoration: BoxDecoration(
-                    color: isMe
-                        ? Colors.white.withOpacity(0.25)
-                        : Colors.grey.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border(
-                      left: BorderSide(
-                        color: isMe ? Colors.white : y2kPink,
-                        width: 2.5,
-                      ),
-                    ),
-                  ),
-                  child: Text(
-                    msg.replyToText!,
-                    style: TextStyle(
-                      color:
-                          isMe ? Colors.white70 : textDark.withOpacity(0.7),
-                      fontSize: 12,
-                      fontStyle: FontStyle.italic,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-
-              // Message text
-              Text(
-                msg.text,
-                style: TextStyle(
-                  color: isMe ? Colors.white : textDark,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  height: 1.3,
-                ),
-              ),
-
-              const SizedBox(height: 3),
-
-              // Status and time row
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text(
-                    _formatTime(msg.timestamp),
-                    style: TextStyle(
-                      color: isMe ? Colors.white70 : mutedText,
-                      fontSize: 10,
-                    ),
-                  ),
-                  if (isMe) ...[
-                    const SizedBox(width: 3),
-                    _buildReadReceipt(msg.status),
-                  ],
-                ],
-              ),
-            ],
+          IconButton(
+            icon: const Icon(Icons.close, size: 16),
+            onPressed: () => chat.cancelReply(),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  // ---------------------
-  // READ RECEIPT ICONS
-  // ---------------------
-  Widget _buildReadReceipt(String status) {
-    if (status == "read") {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.done_all, size: 16, color: Colors.blue[400]),
-        ],
-      );
-    } else if (status == "delivered") {
-      return const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.done_all, size: 16, color: Colors.white70),
-        ],
-      );
-    } else {
-      return const Icon(Icons.done, size: 16, color: Colors.white70);
-    }
-  }
-
-  // ---------------------
-  // FORMAT TIME
-  // ---------------------
-  String _formatTime(DateTime? timestamp) {
-    if (timestamp == null) return "";
-    return "${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}";
-  }
-
-  // ---------------------
-  // REPLY PREVIEW BAR
-  // ---------------------
-  Widget _buildReplyPreview(ChatProvider chat) {
-    final replyingTo = chat.replyingTo!;
-    final currentUid = FirebaseAuth.instance.currentUser?.uid;
-    final isMyMessage = replyingTo.senderId == currentUid;
+  Widget _buildMessageInput(double w, double h) {
+    final inputH = (h * 0.07).clamp(56.0, 72.0);
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      padding: EdgeInsets.fromLTRB(w * 0.04, 12, w * 0.04, MediaQuery.of(context).padding.bottom + 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7EBFF),
-        border: Border(
-          top: BorderSide(color: Colors.purple.withOpacity(0.15), width: 1),
-        ),
+        color: Colors.white,
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -2))],
       ),
       child: Row(
         children: [
           Container(
-            width: 3,
-            height: 35,
-            decoration: BoxDecoration(
-              color: y2kPink,
-              borderRadius: BorderRadius.circular(2),
-            ),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: _bgTop, borderRadius: BorderRadius.circular(12)),
+            child: const Icon(Icons.music_note_rounded, color: _hotPink, size: 22),
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: w * 0.03),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  isMyMessage ? "You" : widget.otherUsername,
-                  style: const TextStyle(
-                    color: y2kPink,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(color: _bgTop, borderRadius: BorderRadius.circular(24)),
+              child: TextField(
+                controller: _messageController,
+                style: const TextStyle(fontFamily: 'Circular', fontSize: 14, color: _textPrimary),
+                decoration: const InputDecoration(
+                  hintText: "Type a message...",
+                  hintStyle: TextStyle(fontFamily: 'Circular', color: _textMuted, fontSize: 14),
+                  border: InputBorder.none,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  replyingTo.text,
-                  style: const TextStyle(color: textDark, fontSize: 13),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+                onSubmitted: (_) => _sendMessage(),
+              ),
             ),
           ),
-          IconButton(
-            onPressed: () => chat.cancelReply(),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-            icon: const Icon(Icons.close, color: mutedText, size: 20),
+          SizedBox(width: w * 0.03),
+          GestureDetector(
+            onTap: _sendMessage,
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(colors: [_hotPink, _neonPurple]),
+              ),
+              child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+            ),
           ),
         ],
       ),
     );
   }
+}
 
-  // ---------------------
-  // MESSAGE INPUT BAR
-  // ---------------------
-  Widget _buildMessageInput() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+class _ChatBubble extends StatelessWidget {
+  final Message message;
+  final bool isMe;
+
+  const _ChatBubble({required this.message, required this.isMe});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
-          // Text input pill
-          Expanded(
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          if (message.replyToText != null)
+            Container(
+              margin: const EdgeInsets.only(bottom: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFFF7EBFF),
-                borderRadius: BorderRadius.circular(25),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.purple.withOpacity(0.15),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+                color: Colors.black.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                message.replyToText!,
+                style: const TextStyle(fontFamily: 'Circular', fontSize: 11, color: _textMuted),
+              ),
+            ),
+          Row(
+            mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (!isMe)
+                CircleAvatar(radius: 12, backgroundColor: _neonPurple.withOpacity(0.3), child: const Icon(Icons.person, size: 14, color: Colors.white)),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    gradient: isMe ? const LinearGradient(colors: [_myBubbleStart, _myBubbleEnd]) : null,
+                    color: isMe ? null : _theirBubbleClr,
+                    borderRadius: BorderRadius.only(
+                      topLeft: const Radius.circular(20),
+                      topRight: const Radius.circular(20),
+                      bottomLeft: Radius.circular(isMe ? 20 : 4),
+                      bottomRight: Radius.circular(isMe ? 4 : 20),
+                    ),
+                    boxShadow: [
+                      if (!isMe) BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4, offset: const Offset(0, 2)),
+                    ],
                   ),
-                ],
-              ),
-              child: TextField(
-                controller: _messageController,
-                textInputAction: TextInputAction.send,
-                maxLines: null,
-                minLines: 1,
-                textCapitalization: TextCapitalization.sentences,
-                onSubmitted: (_) => _sendMessage(),
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                  hintText: "Message...",
-                  hintStyle: TextStyle(color: mutedText, fontSize: 15),
-                  isDense: true,
-                  contentPadding: EdgeInsets.zero,
+                  child: Text(
+                    message.text,
+                    style: TextStyle(
+                      fontFamily: 'Circular',
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: isMe ? Colors.white : _textPrimary,
+                    ),
+                  ),
                 ),
-                style: const TextStyle(color: textDark, fontSize: 15),
               ),
-            ),
+            ],
           ),
-
-          const SizedBox(width: 10),
-
-          // Send button
-          GestureDetector(
-            onTap: _sendMessage,
-            child: Image.asset(
-              "assets/images/send.png",
-              width: 46,
-              height: 46,
-            ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "12:45 PM",
+                style: TextStyle(fontFamily: 'Circular', fontSize: 10, color: _textMuted.withOpacity(0.7), fontWeight: FontWeight.w600),
+              ),
+              if (isMe) ...[
+                const SizedBox(width: 4),
+                const Icon(Icons.done_all_rounded, size: 14, color: _hotPink),
+              ],
+            ],
           ),
         ],
       ),

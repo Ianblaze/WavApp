@@ -4,17 +4,12 @@ import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'dart:ui' show ImageFilter;
 
 import '../../providers/auth_provider.dart';
 import '../utils/rate_limiter.dart';
-import '../widgets/auth_text_field.dart';
 
 const _cardHotPink     = Color(0xFFFFB3D9);
-const _accentGlow      = Color(0xFFFF99CC);
 const _cardNeonPurple  = Color(0xFFD9B3FF);
-const _cardLavenderPop = Color(0xFFE6CCFF);
-const _cardElectricBlue = Color(0xFFB3D9FF);
 
 class PhoneAuthScreen extends StatefulWidget {
   const PhoneAuthScreen({super.key});
@@ -23,20 +18,17 @@ class PhoneAuthScreen extends StatefulWidget {
   State<PhoneAuthScreen> createState() => _PhoneAuthScreenState();
 }
 
-class _PhoneAuthScreenState extends State<PhoneAuthScreen>
-    with SingleTickerProviderStateMixin {
+class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
   final _phoneCtrl = TextEditingController();
   final _otpCtrl   = TextEditingController();
 
-  String _countryCode = '+91';   // default India, user can change
+  String _countryCode = '+91';
   String? _verificationId;
   bool _loading = false;
   bool _otpSent = false;
   int _cooldownSeconds = 0;
 
   late final RateLimiter _rateLimiter;
-  late final AnimationController _bgCtrl;
-  late final Animation<double> _bgAnim;
 
   @override
   void initState() {
@@ -46,22 +38,16 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
       onTick: (s) { if (mounted) setState(() => _cooldownSeconds = s); },
       onReady: () { if (mounted) setState(() => _cooldownSeconds = 0); },
     );
-    _bgCtrl = AnimationController(
-        vsync: this, duration: const Duration(seconds: 8))
-      ..repeat(reverse: true);
-    _bgAnim = CurvedAnimation(parent: _bgCtrl, curve: Curves.easeInOut);
   }
 
   @override
   void dispose() {
     _rateLimiter.dispose();
-    _bgCtrl.dispose();
     _phoneCtrl.dispose();
     _otpCtrl.dispose();
     super.dispose();
   }
 
-  // ── Send OTP ──────────────────────────────────────────────────────
   Future<void> _sendOtp() async {
     final number = _phoneCtrl.text.trim();
     if (number.isEmpty) { _showSnack('Enter your phone number', Colors.orange); return; }
@@ -74,7 +60,6 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
       phoneNumber: '$_countryCode$number',
       onCodeSent: (verId) {
         setState(() { _verificationId = verId; _otpSent = true; _loading = false; });
-        _showSnack('OTP sent!', _accentGlow);
       },
       onError: (err) {
         if (mounted) { setState(() => _loading = false); _showSnack(err, Colors.red); }
@@ -82,7 +67,6 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
     );
   }
 
-  // ── Verify OTP ────────────────────────────────────────────────────
   Future<void> _verifyOtp() async {
     final otp = _otpCtrl.text.trim();
     if (otp.length != 6) { _showSnack('Enter the 6-digit code', Colors.orange); return; }
@@ -95,18 +79,12 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
         if (mounted) {
           setState(() => _loading = false);
           _showSnack(err, Colors.red);
-          // AUTO-RESET if session expired
           if (err.toLowerCase().contains('expired')) {
-            setState(() {
-              _otpSent = false;
-              _verificationId = null;
-              _otpCtrl.clear();
-            });
+            setState(() { _otpSent = false; _verificationId = null; _otpCtrl.clear(); });
           }
         }
       },
     );
-    // On success, AuthWrapper streams the new auth state → routes to Home automatically
     if (mounted) setState(() => _loading = false);
   }
 
@@ -120,171 +98,195 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen>
     ));
   }
 
+  Widget _buildMinimalField({
+    required String label,
+    required TextEditingController controller,
+    required double scaledFont,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      style: TextStyle(
+        fontFamily: 'Circular',
+        fontSize: scaledFont,
+        fontWeight: FontWeight.w700,
+        color: Colors.black87,
+        letterSpacing: 2.0,
+      ),
+      cursorColor: _cardHotPink,
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(
+          fontFamily: 'Circular', fontSize: scaledFont * 0.7,
+          fontWeight: FontWeight.w400, color: Colors.black54, letterSpacing: 0,
+        ),
+        floatingLabelStyle: TextStyle(
+          fontFamily: 'Circular', fontSize: scaledFont * 0.55,
+          fontWeight: FontWeight.w700, color: _cardNeonPurple, letterSpacing: 0,
+        ),
+        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+        enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.black12, width: 2)),
+        focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: _cardHotPink, width: 3)),
+        errorBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.redAccent, width: 2)),
+        focusedErrorBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.redAccent, width: 3)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final w = MediaQuery.of(context).size.width;
+    final h = MediaQuery.of(context).size.height;
+    final hPad = w * 0.08;
+    final headerFont = (w * 0.1).clamp(28.0, 44.0);
+    final subFont = (w * 0.04).clamp(13.0, 16.0);
+    final fieldFont = (w * 0.065).clamp(20.0, 28.0);
+    final btnHeight = (h * 0.065).clamp(48.0, 56.0);
+    final codePickerFont = (w * 0.055).clamp(18.0, 24.0);
+
     return Scaffold(
-      body: AnimatedBuilder(
-        animation: _bgAnim,
-        builder: (ctx, child) => Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color.lerp(_accentGlow, _cardNeonPurple, _bgAnim.value)!.withOpacity(0.85),
-                Color.lerp(_cardHotPink, _cardLavenderPop, _bgAnim.value)!.withOpacity(0.75),
-                Color.lerp(_cardLavenderPop, _cardElectricBlue, _bgAnim.value)!.withOpacity(0.7),
-              ],
-            ),
-          ),
-          child: child,
+      backgroundColor: const Color(0xFFFCF4F9),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black87),
+          onPressed: () {
+            if (_otpSent) {
+               setState(() { _otpSent = false; _verificationId = null; _otpCtrl.clear(); });
+            } else {
+               Navigator.pop(context);
+            }
+          },
         ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(28),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                    child: Container(
-                      padding: const EdgeInsets.all(32),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(28),
-                        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Phone sign-in',
-                              style: TextStyle(fontFamily: 'Circular', fontSize: 28, fontWeight: FontWeight.w800, color: Colors.white)),
-                          const SizedBox(height: 8),
-                          Text(_otpSent ? 'Enter the 6-digit code we sent you' : 'We\'ll send you a one-time code',
-                              style: TextStyle(fontFamily: 'Circular', fontSize: 15, color: Colors.white.withOpacity(0.8))),
-                          const SizedBox(height: 28),
-
-                          if (!_otpSent) ...[
-                            // Country code picker + phone number row
-                            Row(
-                              children: [
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(color: Colors.white.withOpacity(0.3)),
-                                  ),
-                                  child: CountryCodePicker(
-                                    onChanged: (c) => setState(() => _countryCode = c.dialCode ?? '+91'),
-                                    initialSelection: 'IN',
-                                    favorite: const ['IN', 'US', 'GB'],
-                                    showCountryOnly: false,
-                                    showOnlyCountryWhenClosed: false,
-                                    alignLeft: false,
-                                    textStyle: const TextStyle(color: Colors.white, fontFamily: 'Circular', fontSize: 15),
-                                    flagDecoration: BoxDecoration(borderRadius: BorderRadius.circular(4)),
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: AuthTextField(
-                                    controller: _phoneCtrl,
-                                    hint: 'phone number',
-                                    icon: Icons.phone_outlined,
-                                    keyboardType: TextInputType.phone,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 28),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 54,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: _cardHotPink,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                  elevation: 6,
-                                ),
-                                onPressed: (_loading || _cooldownSeconds > 0) ? null : _sendOtp,
-                                child: _loading
-                                    ? const SizedBox(width: 22, height: 22,
-                                        child: CircularProgressIndicator(strokeWidth: 2, color: _cardHotPink))
-                                    : Text(
-                                        _cooldownSeconds > 0
-                                            ? 'Resend in ${_cooldownSeconds}s'
-                                            : 'Send OTP',
-                                        style: const TextStyle(fontFamily: 'Circular', fontSize: 16, fontWeight: FontWeight.w700)),
-                              ),
-                            ),
-                          ],
-
-                          if (_otpSent) ...[
-                            AuthTextField(
-                              controller: _otpCtrl,
-                              hint: '6-digit OTP',
-                              icon: Icons.sms_outlined,
-                              keyboardType: TextInputType.number,
-                            ),
-                            const SizedBox(height: 16),
-                            // Resend link with cooldown
-                            TextButton(
-                              onPressed: _cooldownSeconds > 0 ? null : _sendOtp,
-                              child: Text(
-                                _cooldownSeconds > 0
-                                    ? 'Resend in ${_cooldownSeconds}s'
-                                    : 'Resend OTP',
-                                style: TextStyle(
-                                  fontFamily: 'Circular',
-                                  color: _cooldownSeconds > 0
-                                      ? Colors.white38
-                                      : Colors.white.withOpacity(0.85),
-                                  fontWeight: FontWeight.w600,
-                                  decoration: _cooldownSeconds > 0
-                                      ? TextDecoration.none
-                                      : TextDecoration.underline,
-                                  decorationColor: Colors.white.withOpacity(0.85),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 54,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: _cardHotPink,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                  elevation: 6,
-                                ),
-                                onPressed: _loading ? null : _verifyOtp,
-                                child: _loading
-                                    ? const SizedBox(width: 22, height: 22,
-                                        child: CircularProgressIndicator(strokeWidth: 2, color: _cardHotPink))
-                                    : const Text('Verify',
-                                        style: TextStyle(fontFamily: 'Circular', fontSize: 16, fontWeight: FontWeight.w700)),
-                              ),
-                            ),
-                          ],
-                        ],
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.symmetric(horizontal: hPad, vertical: h * 0.02),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _otpSent ? "My code is" : "What's your\nnumber?",
+                      style: TextStyle(
+                        fontFamily: 'Circular',
+                        fontSize: headerFont,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.black87,
+                        height: 1.1,
+                        letterSpacing: -1.0,
                       ),
                     ),
+                    SizedBox(height: h * 0.012),
+                    Text(
+                      _otpSent 
+                        ? 'We sent a 6-digit code to $_countryCode${_phoneCtrl.text}' 
+                        : 'We\'ll send a text with a code to verify your account.',
+                      style: TextStyle(
+                        fontFamily: 'Circular',
+                        fontSize: subFont,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black54,
+                        height: 1.3,
+                      ),
+                    ),
+                    SizedBox(height: h * 0.05),
+
+                    if (!_otpSent) ...[
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Container(
+                            decoration: const BoxDecoration(
+                              border: Border(bottom: BorderSide(color: Colors.black12, width: 2)),
+                            ),
+                            child: CountryCodePicker(
+                              onChanged: (c) => setState(() => _countryCode = c.dialCode ?? '+91'),
+                              initialSelection: 'IN',
+                              favorite: const ['IN', 'US', 'GB'],
+                              showCountryOnly: false,
+                              showOnlyCountryWhenClosed: false,
+                              alignLeft: false,
+                              padding: EdgeInsets.zero,
+                              textStyle: TextStyle(color: Colors.black87, fontFamily: 'Circular', fontSize: codePickerFont, fontWeight: FontWeight.w600),
+                              flagDecoration: BoxDecoration(borderRadius: BorderRadius.circular(4)),
+                            ),
+                          ),
+                          SizedBox(width: w * 0.04),
+                          Expanded(
+                            child: _buildMinimalField(
+                              label: 'Phone number',
+                              controller: _phoneCtrl,
+                              scaledFont: fieldFont,
+                              keyboardType: TextInputType.phone,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+
+                    if (_otpSent) ...[
+                      _buildMinimalField(
+                        label: '6-digit OTP',
+                        controller: _otpCtrl,
+                        scaledFont: fieldFont,
+                        keyboardType: TextInputType.number,
+                      ),
+                      SizedBox(height: h * 0.025),
+                      TextButton(
+                        onPressed: _cooldownSeconds > 0 ? null : _sendOtp,
+                        child: Text(
+                          _cooldownSeconds > 0 ? 'Resend again in ${_cooldownSeconds}s' : 'Resend code',
+                          style: TextStyle(
+                            fontFamily: 'Circular', fontSize: subFont,
+                            color: _cooldownSeconds > 0 ? Colors.black38 : _cardHotPink,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            
+            Padding(
+              padding: EdgeInsets.fromLTRB(hPad, 12, hPad, MediaQuery.of(context).padding.bottom + 16),
+              child: SizedBox(
+                width: double.infinity,
+                height: btnHeight,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(btnHeight / 2),
+                    gradient: const LinearGradient(colors: [_cardHotPink, _cardNeonPurple]),
+                    boxShadow: [
+                      BoxShadow(color: _cardHotPink.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))
+                    ],
+                  ),
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(btnHeight / 2)),
+                    ),
+                    onPressed: _loading || (_cooldownSeconds > 0 && !_otpSent)
+                        ? null
+                        : (_otpSent ? _verifyOtp : _sendOtp),
+                    child: _loading
+                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                        : Text(
+                            _otpSent ? 'Continue' : 'Send Code',
+                            style: TextStyle(fontFamily: 'Circular', fontSize: subFont + 2, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 0.5),
+                          ),
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );

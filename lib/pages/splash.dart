@@ -4,6 +4,8 @@ import 'package:swipify/auth/auth_wrapper.dart';
 import 'package:swipify/providers/auth_provider.dart';
 import 'package:swipify/pages/home_page.dart';
 import 'package:swipify/auth/login_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../intro/intro_flow.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -119,15 +121,25 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     await _revealController.forward();
     
     // 2. Navigate after 3.5 seconds total
-    Future.delayed(const Duration(milliseconds: 700), () {
+    Future.delayed(const Duration(milliseconds: 700), () async {
       if (mounted) {
+        final prefs = await SharedPreferences.getInstance();
+        final introShown = prefs.getBool('intro_shown') ?? false;
+        
         final auth = context.read<AuthProvider>();
         Widget destination;
-        if (auth.status == AuthStatus.authenticated) {
-          destination = const HomePage();
+
+        if (introShown) {
+          if (auth.status == AuthStatus.authenticated) {
+            destination = const HomePage();
+          } else {
+            destination = const AuthWrapper();
+          }
         } else {
-          destination = const AuthWrapper();
+          destination = const IntroFlow();
         }
+
+        if (!mounted) return;
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
             pageBuilder: (context, animation, secondaryAnimation) => destination,
