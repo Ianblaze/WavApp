@@ -6,6 +6,7 @@ import 'login_page.dart';
 import '../pages/home_page.dart';
 import 'screens/reauth_password_screen.dart';
 import '../onboarding/onboarding_flow.dart';
+import 'dart:io';
 
 // Y2K colors from login_page.dart
 const cardHotPink = Color(0xFFFFB3D9);
@@ -235,7 +236,7 @@ class _EmailVerificationRequiredScreenState
                             ),
                             child: Image.file(
                               // Path to the generated illustration
-                              java.io.File(r'C:\Users\ian\.gemini\antigravity\brain\b062f04f-0dc2-40e0-b676-6d3de0399b7c\email_verification_illustration_1776761403695.png'),
+                              File(r'C:\Users\ian\.gemini\antigravity\brain\b062f04f-0dc2-40e0-b676-6d3de0399b7c\email_verification_illustration_1776761403695.png'),
                               fit: BoxFit.contain,
                               errorBuilder: (context, error, stackTrace) => 
                                 Icon(Icons.mark_email_unread_rounded, size: 80, color: cardHotPink.withOpacity(0.5)),
@@ -298,7 +299,7 @@ class _EmailVerificationRequiredScreenState
                           ),
                           child: Column(
                             children: [
-                              _buildStepRow(Icons.spam_rounded, "Spam folder", "Check your spam if the email hasn't arrived."),
+                              _buildStepRow(Icons.report_rounded, "Spam folder", "Check your spam if the email hasn't arrived."),
                               const Divider(height: 32, thickness: 1, color: Colors.black12),
                               _buildStepRow(Icons.timer_rounded, "Be patient", "It can take up to 2 minutes for the link to arrive."),
                             ],
@@ -442,5 +443,4 @@ class _Orb extends StatelessWidget {
       ),
     );
   }
-}
 }
