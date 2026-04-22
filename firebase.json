@@ -23,6 +23,7 @@
     }
   },
   "hosting": {
+    "site": "wavofficial",
     "public": "build/web",
     "ignore": [
       "firebase.json",
