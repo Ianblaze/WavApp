@@ -101,5 +101,4 @@ The aesthetic is intentional and a little maximal. I decided to go with a card a
 - **Experience**: "Alive" interfaces that react to music data, making social discovery feel like a rhythm game.
 
 ---
-
-Built with ❤️ by Ian
+DISCLAIMER: Im currently still largely working on the app and brainstorming new features daily, while a few are still incomplete or in their infant stage. For native testing i have deployed wav at https://wavofficial.web.app/ if youre curious enough. Wav is a Mobile first experience so its highly recommended you test it on your phone rather than a desktop/laptop. Swipe away!
