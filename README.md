@@ -1,4 +1,4 @@
-# Wav 🎵✨
+# Wav 🎵
 
 **Find Your Perfect Harmony.**
 
@@ -8,7 +8,7 @@ It's got a heavy Y2K bubblegum aesthetic, kinda like hot pink, neon purple, fros
 
 ---
 
-## 📸 Visual Tour
+##  Visual Tour
 
 https://github.com/user-attachments/assets/5a6ae869-b400-4ae2-a9b4-6f324725aff4
 
@@ -57,7 +57,7 @@ Chat is real-time with a clean frosted-glass interface. No clutter, just convers
 
 ---
 
-## 🛠️ Technical Architecture
+##  Technical Architecture
 
 ### Frontend
 - **Framework**: Flutter (for high-performance 60fps animations)
@@ -74,7 +74,7 @@ Chat is real-time with a clean frosted-glass interface. No clutter, just convers
 
 ---
 
-## 🚀 Installation & Setup
+##  Installation & Setup
 
 1. **Clone the Repo**
    ```bash
@@ -93,7 +93,7 @@ Chat is real-time with a clean frosted-glass interface. No clutter, just convers
 
 ---
 
-## 🎨 Design Philosophy: Y2K Bubblegum
+##  Design Philosophy: Y2K Bubblegum
 
 The aesthetic is intentional and a little maximal. I decided to go with a card architecture to create something unique, staying true to the vibrant early 2000s futuristic vibe:
 - **Palette**: Hot Pink (#FF6FE8), Neon Purple (#B69CFF), and Cloud Lavender.
