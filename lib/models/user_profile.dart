@@ -11,6 +11,12 @@ class UserProfile {
   final List<String> topArtists;      // from onboarding step 3
   final bool onboardingComplete;
 
+  // ── NEW: Embedding data ───────────────────────────────────────
+  final List<double> embedding;                // 38-dim taste vector
+  final Map<String, double> genreHistogram;    // frequency distribution
+  final Map<String, double> moodHistogram;     // frequency distribution
+  final Map<String, double> artistHistogram;   // frequency distribution
+
   const UserProfile({
     required this.uid,
     required this.username,
@@ -20,6 +26,10 @@ class UserProfile {
     this.genres = const [],
     this.topArtists = const [],
     this.onboardingComplete = false,
+    this.embedding = const [],
+    this.genreHistogram = const {},
+    this.moodHistogram = const {},
+    this.artistHistogram = const {},
   });
 
   factory UserProfile.fromDoc(DocumentSnapshot doc) {
@@ -33,15 +43,27 @@ class UserProfile {
           tasteProfile: {},
       );
     }
+
+    final tp = (d['tasteProfile'] as Map<String, dynamic>?) ?? {};
+
     return UserProfile(
       uid: doc.id,
       username: d['username'] ?? '',
       photoUrl: d['photoUrl'] ?? '',
       email: d['email'] ?? '',
-      tasteProfile: (d['tasteProfile'] as Map<String, dynamic>?) ?? {},
+      tasteProfile: tp,
       genres: List<String>.from(d['genres'] ?? []),
       topArtists: List<String>.from(d['topArtists'] ?? []),
       onboardingComplete: d['onboardingComplete'] as bool? ?? false,
+      embedding: (tp['embedding'] as List<dynamic>?)
+          ?.map((e) => (e as num).toDouble())
+          .toList() ?? [],
+      genreHistogram: (tp['genreHistogram'] as Map<String, dynamic>?)
+          ?.map((k, v) => MapEntry(k, (v as num).toDouble())) ?? {},
+      moodHistogram: (tp['moodHistogram'] as Map<String, dynamic>?)
+          ?.map((k, v) => MapEntry(k, (v as num).toDouble())) ?? {},
+      artistHistogram: (tp['artistHistogram'] as Map<String, dynamic>?)
+          ?.map((k, v) => MapEntry(k, (v as num).toDouble())) ?? {},
     );
   }
 }

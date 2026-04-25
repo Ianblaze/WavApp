@@ -11,6 +11,12 @@ import '../providers/auth_provider.dart';
 import '../providers/user_profile_provider.dart';
 import '../auth/utils/auth_exception.dart';
 
+const _y2kPink      = Color(0xFFFF6FE8);
+const _y2kPurple    = Color(0xFFB69CFF);
+const _textPrimary  = Color(0xFF3A2A45);
+const _textMuted    = Color(0xFF8A7EA5);
+const _hotPink      = Color(0xFFFF2D8A);
+
 class ProfileSetupDialog extends StatefulWidget {
   const ProfileSetupDialog({super.key});
 
@@ -21,15 +27,13 @@ class ProfileSetupDialog extends StatefulWidget {
 class _ProfileSetupDialogState extends State<ProfileSetupDialog> {
   final TextEditingController _usernameCtrl = TextEditingController();
   XFile? _pickedImage;
-  Uint8List? _webImageBytes; // <-- FIX FOR WEB
+  Uint8List? _webImageBytes;
   bool _loading = false;
-
   final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
-    // Pre-fill with current username
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final profile = context.read<UserProfileProvider>().profile;
       if (profile != null) {
@@ -42,34 +46,22 @@ class _ProfileSetupDialogState extends State<ProfileSetupDialog> {
     final img = await _picker.pickImage(source: ImageSource.gallery);
     if (img != null) {
       if (kIsWeb) {
-        // read bytes for web preview
         _webImageBytes = await img.readAsBytes();
       }
-
       setState(() => _pickedImage = img);
     }
   }
 
-  // Upload image function for Web + Mobile
   Future<String?> _uploadImage() async {
     if (_pickedImage == null) return null;
-
     try {
       final uid = FirebaseAuth.instance.currentUser!.uid;
-      final storageRef =
-          FirebaseStorage.instance.ref().child("user_photos/$uid.jpg");
-
+      final storageRef = FirebaseStorage.instance.ref().child("user_photos/$uid.jpg");
       if (kIsWeb) {
-        // WEB
-        await storageRef.putData(
-          _webImageBytes!,
-          SettableMetadata(contentType: "image/jpeg"),
-        );
+        await storageRef.putData(_webImageBytes!, SettableMetadata(contentType: "image/jpeg"));
       } else {
-        // ANDROID / iOS
         await storageRef.putFile(File(_pickedImage!.path));
       }
-
       return await storageRef.getDownloadURL();
     } catch (e) {
       debugPrint("UPLOAD ERROR: $e");
@@ -79,25 +71,20 @@ class _ProfileSetupDialogState extends State<ProfileSetupDialog> {
 
   Future<void> saveProfile() async {
     final username = _usernameCtrl.text.trim();
-
     if (username.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Enter a username")),
+        const SnackBar(content: Text("Enter a username", style: TextStyle(fontFamily: 'Circular')), backgroundColor: _hotPink),
       );
       return;
     }
 
     setState(() => _loading = true);
-
-    // Upload image
     final photoUrl = await _uploadImage();
 
     if (_pickedImage != null && photoUrl == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text("Image upload failed. Try again."),
-              backgroundColor: Colors.red),
+          const SnackBar(content: Text("Upload failed. Try again.", style: TextStyle(fontFamily: 'Circular')), backgroundColor: _hotPink),
         );
         setState(() => _loading = false);
       }
@@ -106,24 +93,21 @@ class _ProfileSetupDialogState extends State<ProfileSetupDialog> {
 
     try {
       final auth = context.read<AuthProvider>();
-      
-      // Use atomic updateUsername which also handles reservation
       await auth.updateUsername(username, extraUpdates: {
         if (photoUrl != null) "photoUrl": photoUrl,
       });
-
       if (mounted) Navigator.pop(context);
     } on AuthException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message), backgroundColor: Colors.red),
+          SnackBar(content: Text(e.message, style: const TextStyle(fontFamily: 'Circular')), backgroundColor: _hotPink),
         );
         setState(() => _loading = false);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("An error occurred"), backgroundColor: Colors.red),
+          const SnackBar(content: Text("An error occurred", style: TextStyle(fontFamily: 'Circular')), backgroundColor: _hotPink),
         );
         setState(() => _loading = false);
       }
@@ -133,79 +117,103 @@ class _ProfileSetupDialogState extends State<ProfileSetupDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: const Color(0xFF121212),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
+      backgroundColor: const Color(0xFFFFF0F8),
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Container(
+        padding: const EdgeInsets.all(28),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF0F8),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: _y2kPink.withOpacity(0.2), width: 1.5),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              "Set up your profile",
+              "Edit Profile",
               style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-
-            // FIXED WEB / MOBILE PROFILE PREVIEW
-            GestureDetector(
-              onTap: pickImage,
-              child: CircleAvatar(
-                radius: 50,
-                backgroundColor: const Color(0xFF1F1F1F),
-                backgroundImage: _pickedImage == null
-                    ? null
-                    : kIsWeb
-                        ? MemoryImage(_webImageBytes!)
-                        : FileImage(File(_pickedImage!.path)),
-                child: _pickedImage == null
-                    ? const Icon(Icons.camera_alt,
-                        size: 32, color: Colors.white70)
-                    : null,
+                fontFamily: 'Circular',
+                color: _textPrimary,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.5,
               ),
             ),
+            const SizedBox(height: 24),
 
-            const SizedBox(height: 20),
-
-            TextField(
-              controller: _usernameCtrl,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: const Color(0xFF1E1E1E),
-                hintText: "Username",
-                hintStyle: const TextStyle(color: Colors.white54),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none),
+            // Profile Image Picker
+            GestureDetector(
+              onTap: pickImage,
+              child: Stack(
+                children: [
+                  Container(
+                    width: 100, height: 100,
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: [_y2kPink, _y2kPurple],
+                      ),
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white,
+                        image: _pickedImage == null
+                            ? null
+                            : kIsWeb
+                                ? DecorationImage(image: MemoryImage(_webImageBytes!), fit: BoxFit.cover)
+                                : DecorationImage(image: FileImage(File(_pickedImage!.path)), fit: BoxFit.cover),
+                      ),
+                      child: _pickedImage == null
+                          ? Icon(Icons.add_a_photo_rounded, size: 28, color: _y2kPurple.withOpacity(0.6))
+                          : null,
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 0, right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                      child: const Icon(Icons.camera_alt_rounded, size: 16, color: _textPrimary),
+                    ),
+                  ),
+                ],
               ),
             ),
 
             const SizedBox(height: 24),
 
+            TextField(
+              controller: _usernameCtrl,
+              style: const TextStyle(fontFamily: 'Circular', color: _textPrimary, fontWeight: FontWeight.w600),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.white.withOpacity(0.6),
+                hintText: "Username",
+                hintStyle: TextStyle(fontFamily: 'Circular', color: _textMuted.withOpacity(0.4)),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              ),
+            ),
+
+            const SizedBox(height: 28),
+
             SizedBox(
               width: double.infinity,
-              height: 45,
+              height: 52,
               child: ElevatedButton(
                 onPressed: _loading ? null : saveProfile,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1DB954),
-                  foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(50),
-                  ),
+                  backgroundColor: _hotPink,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
                 child: _loading
-                    ? const CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(Colors.black),
-                      )
-                    : const Text("Save",
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold)),
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Text("Save Changes", style: TextStyle(fontFamily: 'Circular', fontSize: 16, fontWeight: FontWeight.w800)),
               ),
             ),
           ],

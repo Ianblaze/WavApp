@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -418,6 +419,109 @@ class AuthService {
       throw AuthException(
         code: AuthErrorCode.unknown,
         message: 'Account deletion failed.',
+        original: e,
+      );
+    }
+  }
+
+  // ── Guest / Anonymous Sign-In ─────────────────────────────────────
+  Future<User?> signInAnonymously() async {
+    try {
+      final result = await _auth.signInAnonymously();
+      final user = result.user;
+      if (user != null) {
+        // Seed a minimal user doc with a "sample taste" so matching works instantly
+        final userRef = _db.collection('users').doc(user.uid);
+        final doc = await userRef.get();
+        final guestName = 'guest_${user.uid.substring(0, 6)}';
+        
+        // Generate a sample embedding (reproducible for the guest based on UID)
+        final r = math.Random(user.uid.hashCode);
+        final embedding = List.generate(38, (_) => r.nextDouble() * 2 - 1.0);
+
+        if (!doc.exists) {
+          await _db.runTransaction((txn) async {
+            final usernameRef = _db.collection('usernames').doc(guestName);
+            
+            // 1. Reserve username
+            txn.set(usernameRef, {
+              'uid': user.uid,
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+
+            // 2. Create guest profile
+            txn.set(userRef, {
+              'username': guestName,
+              'name': guestName,
+              'email': '',
+              'photoUrl': 'https://api.dicebear.com/7.x/avataaars/png?seed=${user.uid}',
+              'createdAt': FieldValue.serverTimestamp(),
+              'authProvider': 'guest',
+              'passwordStrengthVerified': true,
+              'onboardingComplete': false, // Force them to onboarding
+              'genres': [], // Start empty, chosen during onboarding
+              'tasteProfile': {
+                'topGenre': 'Pop',
+                'embedding': embedding, // Keep a base embedding for the engine
+                'updatedAt': FieldValue.serverTimestamp(),
+              }
+            });
+          });
+        }
+
+        // 3. Always ensure dummy match with "Melody" exists for guests
+        try {
+          const botId = 'swipify_welcome_bot';
+          final botRef = _db.collection('users').doc(botId);
+          final myMatchWithBot = userRef.collection('matches').doc(botId);
+          final botMatchWithMe = botRef.collection('matches').doc(user.uid);
+
+          final botMatchExists = (await myMatchWithBot.get()).exists;
+          if (!botMatchExists) {
+            final batch = _db.batch();
+            
+            batch.set(botRef, {
+              'username': 'melody_bot',
+              'name': 'Melody ✨',
+              'photoUrl': 'https://api.dicebear.com/7.x/bottts-neutral/png?seed=Melody&backgroundColor=b69cff',
+              'onboardingComplete': true,
+              'tasteProfile': { 'topGenre': 'Ambient' },
+            }, SetOptions(merge: true));
+
+            batch.set(myMatchWithBot, {
+              'userId': botId,
+              'status': 'connected',
+              'decision': 'connect',
+              'similarityScore': 98.5,
+              'sharedGenres': ['Pop', 'Electronic'],
+              'sharedArtists': ['The Weeknd'],
+              'sharedSongs': ['Blinding Lights'],
+              'timestamp': FieldValue.serverTimestamp(),
+            });
+
+            batch.set(botMatchWithMe, {
+              'userId': user.uid,
+              'status': 'connected',
+              'decision': 'connect',
+              'similarityScore': 98.5,
+              'sharedGenres': ['Pop', 'Electronic'],
+              'sharedArtists': ['The Weeknd'],
+              'sharedSongs': ['Blinding Lights'],
+              'timestamp': FieldValue.serverTimestamp(),
+            });
+            await batch.commit();
+          }
+        } catch (e) {
+          debugPrint('⚠️ AuthService: Failed to ensure bot match: $e');
+        }
+        
+        await user.updateDisplayName(guestName);
+      }
+      return user;
+    } on FirebaseAuthException catch (e) {
+      throw AuthException(
+        code: AuthErrorCode.unknown,
+        message: authErrorMessage(e),
         original: e,
       );
     }

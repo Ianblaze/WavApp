@@ -4,24 +4,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 
-/// 🔥 Animated flame is a simple GIF asset (flamegif.gif) shown with Image.asset.
-/// Make sure pubspec.yaml lists: assets/images/flamegif.gif
-class AnimatedFlameIcon extends StatelessWidget {
-  const AnimatedFlameIcon({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 90,
-      height: 90,
-      child: Image.asset(
-        "assets/images/flamegif.gif",
-        fit: BoxFit.contain,
-      ),
-    );
-  }
-}
-
 /// MATCH DOCK POPUP
 /// - Keeps `similarity` parameter (your HomePage still passes it)
 /// - `onConnect` = VoidCallback
@@ -34,6 +16,10 @@ class MatchDockPopup extends StatefulWidget {
   final VoidCallback onConnect;
   final ValueChanged<String?> onAbandon; // receives reason
   final VoidCallback onDismiss;
+  // NEW: Shared signal data from matching engine
+  final List<String> sharedGenres;
+  final List<String> sharedArtists;
+  final List<String> sharedSongs;
 
   const MatchDockPopup({
     super.key,
@@ -43,6 +29,9 @@ class MatchDockPopup extends StatefulWidget {
     required this.onConnect,
     required this.onAbandon,
     required this.onDismiss,
+    this.sharedGenres = const [],
+    this.sharedArtists = const [],
+    this.sharedSongs = const [],
   });
 
   @override
@@ -51,7 +40,6 @@ class MatchDockPopup extends StatefulWidget {
 
 class _MatchDockPopupState extends State<MatchDockPopup>
     with TickerProviderStateMixin {
-  late final AnimationController flameSlideCtrl;
   late final AnimationController orbSlideCtrl;
   late final AnimationController orbBounceCtrl;
   late final AnimationController expandCtrl;
@@ -59,17 +47,12 @@ class _MatchDockPopupState extends State<MatchDockPopup>
   final _player = AudioPlayer();
   bool _dingPlayed = false;
 
-  int stage = 1; // 1 = flame, 2 = orb bouncing, 3 = auto-expanded
+  int stage = 2; // 2 = orb bouncing, 3 = auto-expanded
   double dragDelta = 0;
 
   @override
   void initState() {
     super.initState();
-
-    flameSlideCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    );
 
     orbSlideCtrl = AnimationController(
       vsync: this,
@@ -90,20 +73,10 @@ class _MatchDockPopupState extends State<MatchDockPopup>
   }
 
   Future<void> _startSequence() async {
-    // Stage 1: Flame entrance (slides down from top)
-    // Play sound as flame starts sliding in
+    // Play notification sound
     _playDing();
-    await flameSlideCtrl.forward();
 
-    // Hold flame at position
-    await Future.delayed(const Duration(seconds: 2));
-
-    // Flame retreats (slides up smoothly)
-    await flameSlideCtrl.reverse();
-
-    if (!mounted) return;
-    // Stage 2: Orb appears and bounces
-    setState(() => stage = 2);
+    // Orb slides in from top
     await orbSlideCtrl.forward();
 
     // Bounce animation
@@ -113,7 +86,7 @@ class _MatchDockPopupState extends State<MatchDockPopup>
     await orbBounceCtrl.animateTo(0);
 
     if (!mounted) return;
-    // Stage 3: Auto-expand to show buttons
+    // Auto-expand to show full card
     setState(() => stage = 3);
     await expandCtrl.forward();
   }
@@ -278,7 +251,6 @@ class _MatchDockPopupState extends State<MatchDockPopup>
 
   @override
   void dispose() {
-    flameSlideCtrl.dispose();
     orbSlideCtrl.dispose();
     orbBounceCtrl.dispose();
     expandCtrl.dispose();
@@ -292,72 +264,27 @@ class _MatchDockPopupState extends State<MatchDockPopup>
       color: Colors.transparent,
       child: Stack(
         children: [
-          // Backdrop only while orb visible - clicking dismisses
-          if (stage >= 2)
-            AnimatedBuilder(
-              animation: orbSlideCtrl,
-              builder: (_, __) {
-                final t = orbSlideCtrl.value.clamp(0.0, 1.0);
-                return GestureDetector(
-                  onTap: _dismissCompletely,
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(
-                      sigmaX: 8 * t,
-                      sigmaY: 8 * t,
-                    ),
-                    child: Container(
-                      color: Colors.black.withOpacity(0.3 * t),
-                    ),
+          // Backdrop - clicking dismisses
+          AnimatedBuilder(
+            animation: orbSlideCtrl,
+            builder: (_, __) {
+              final t = orbSlideCtrl.value.clamp(0.0, 1.0);
+              return GestureDetector(
+                onTap: _dismissCompletely,
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(
+                    sigmaX: 8 * t,
+                    sigmaY: 8 * t,
                   ),
-                );
-              },
-            ),
-
-          // Stage 1: flame GIF slides down from ceiling with bounce on landing
-          if (stage == 1)
-            AnimatedBuilder(
-              animation: flameSlideCtrl,
-              builder: (_, __) {
-                final progress = flameSlideCtrl.value.clamp(0.0, 1.0);
-
-                // Different curves for entry vs exit
-                final double slide;
-                if (flameSlideCtrl.status == AnimationStatus.reverse) {
-                  // Smooth exit - no bounce
-                  slide = Curves.easeInCubic.transform(progress);
-                } else {
-                  // Ball drop with bounce effect
-                  if (progress < 0.5) {
-                    // Fast drop phase (like gravity)
-                    slide = Curves.easeInQuad.transform(progress / 0.5);
-                  } else {
-                    // Bounce phase - multiple bounces with decay
-                    final bounceProgress = (progress - 0.5) / 0.5;
-                    // Creates 2-3 bounces that get smaller
-                    final bounce = math.sin(bounceProgress * math.pi * 3) *
-                        0.15 *
-                        (1 - bounceProgress) *
-                        (1 - bounceProgress); // Quadratic decay for realistic bounce
-                    slide = 1.0 - bounce.abs();
-                  }
-                }
-
-                // Start way above screen, slide down to visible position
-                final topPosition = -150.0 + (slide * 160.0);
-
-                return Positioned(
-                  top: topPosition,
-                  left: 0,
-                  right: 0,
-                  child: Opacity(
-                    opacity: progress.clamp(0.0, 1.0),
-                    child: const Center(child: AnimatedFlameIcon()),
+                  child: Container(
+                    color: Colors.black.withOpacity(0.3 * t),
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
+          ),
 
-          // Stage 2/3: orb that expands
+          // Orb that expands into card
           if (stage >= 2)
             AnimatedBuilder(
               animation: Listenable.merge([orbSlideCtrl, orbBounceCtrl, expandCtrl]),
@@ -387,202 +314,294 @@ class _MatchDockPopupState extends State<MatchDockPopup>
 
   Widget _buildDockCard() {
     final v = expandCtrl.value.clamp(0.0, 1.0);
-    final width = lerpDouble(90, 520, v)!;
+    final width = lerpDouble(90, 340, v)!;
+    final height = lerpDouble(90, 220, v)!;
+
+    // Parse similarity for quality tier
+    final score = double.tryParse(widget.similarity) ?? 0;
+    final tierEmoji = score >= 85 ? '🔥' : score >= 65 ? '⚡' : '💫';
+    final tierLabel = score >= 85 ? 'Perfect Match' : score >= 65 ? 'Strong Match' : 'Potential Match';
+    final tierColor = score >= 85
+        ? const Color(0xFFFF6FE8)
+        : score >= 65
+            ? const Color(0xFFB69CFF)
+            : const Color(0xFF7BA7FF);
+
+    // Build shared signal chips
+    final chips = <String>[];
+    for (final g in widget.sharedGenres.take(2)) {
+      chips.add('🎵 $g');
+    }
+    for (final a in widget.sharedArtists.take(2)) {
+      chips.add('🎤 $a');
+    }
+    if (widget.sharedSongs.isNotEmpty) {
+      chips.add('🎶 ${widget.sharedSongs.length} song${widget.sharedSongs.length == 1 ? '' : 's'} in common');
+    }
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       width: width,
-      height: 90,
+      height: height,
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(45),
+        borderRadius: BorderRadius.circular(v < 0.5 ? 45 : 24),
         border: Border.all(
-          color: Colors.pink.withOpacity(0.4),
+          color: tierColor.withOpacity(0.4),
           width: 3,
         ),
-      ),
-      child: Stack(
-        children: [
-          // ------------------------------------------------------------------
-          // PERFECT CIRCLE AVATAR + SHIFT LEFT FOR FIT
-          // ------------------------------------------------------------------
-          Positioned(
-            left: -3, // shifted left so orb sits visually inside pill perfectly
-            top: 0,
-            bottom: 0,
-            child: SizedBox(
-              width: 90,
-              height: 90,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Outer pink border circle
-                  Container(
-                    width: 90,
-                    height: 90,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.pink,
-                        width: 3,
-                      ),
-                    ),
-                  ),
-
-                  // Avatar perfectly inside with even micro-gap
-                  Container(
-                    width: 82,
-                    height: 82,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Color(0xFF2A2A2A),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: (widget.photoUrl.isNotEmpty)
-                        ? Image.network(
-                            widget.photoUrl,
-                            fit: BoxFit.cover,
-                          )
-                        : const Icon(
-                            Icons.person,
-                            size: 36,
-                            color: Colors.white54,
-                          ),
-                  ),
-                ],
-              ),
-            ),
+        boxShadow: [
+          BoxShadow(
+            color: tierColor.withOpacity(0.25),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
           ),
-
-          // ------------------------------------------------------------------
-          // USERNAME & similarity badge
-          // ------------------------------------------------------------------
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 600),
-            curve: Curves.easeInOutCubic,
-            left: v < 0.5 ? 520 : 112, // accommodates the left orb + gap
-            top: 0,
-            bottom: 0,
-            child: Opacity(
-              opacity: v < 0.3 ? 0.0 : (v < 0.7 ? (v - 0.3) * 2.5 : 1.0),
-              child: SizedBox(
-                width: 150,
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: v < 0.3
+          // ── COLLAPSED: just the avatar orb ──────────────────
+          ? _buildCollapsedOrb()
+          // ── EXPANDED: full card with signals ────────────────
+          : Opacity(
+              opacity: ((v - 0.3) / 0.7).clamp(0.0, 1.0),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // USERNAME — larger + nudged down slightly to center visually
-                    Transform.translate(
-                      offset: const Offset(0, 3),
-                      child: Text(
-                        widget.username,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 21,
-                          letterSpacing: 0.2,
+                    // ── Top row: avatar + name + tier badge ────────
+                    Row(
+                      children: [
+                        // Avatar
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: tierColor, width: 2.5),
+                          ),
+                          child: ClipOval(
+                            child: (widget.photoUrl.isNotEmpty)
+                                ? Image.network(widget.photoUrl, fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      color: const Color(0xFF2A2A2A),
+                                      child: const Icon(Icons.person, size: 24, color: Colors.white54),
+                                    ))
+                                : Container(
+                                    color: const Color(0xFF2A2A2A),
+                                    child: const Icon(Icons.person, size: 24, color: Colors.white54),
+                                  ),
+                          ),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-
-                    const SizedBox(height: 4),
-
-                    // SIMILARITY — smaller, lower, tighter
-                    Transform.translate(
-                      offset: const Offset(0, 3),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.pink.withOpacity(0.28),
-                              Colors.pinkAccent.withOpacity(0.18),
+                        const SizedBox(width: 12),
+                        // Name + tier
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.username,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontFamily: 'Circular',
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 17,
+                                  letterSpacing: -0.3,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 3),
+                              // Quality tier badge
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: tierColor.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: tierColor.withOpacity(0.4), width: 1),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(tierEmoji, style: const TextStyle(fontSize: 10)),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${widget.similarity}% · $tierLabel',
+                                      style: TextStyle(
+                                        color: tierColor,
+                                        fontFamily: 'Circular',
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
-                          borderRadius: BorderRadius.circular(13),
-                          border: Border.all(
-                            color: Colors.pink.withOpacity(0.45),
-                            width: 1.1,
-                          ),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              "${widget.similarity}%", // dynamic (HomePage still passes it)
+                      ],
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    // ── Shared signals row ─────────────────────────
+                    if (chips.isNotEmpty)
+                      SizedBox(
+                        height: 28,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: chips.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 6),
+                          itemBuilder: (_, i) => Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: Colors.white.withOpacity(0.12), width: 1),
+                            ),
+                            child: Text(
+                              chips[i],
                               style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10.5,
+                                color: Colors.white70,
+                                fontFamily: 'Circular',
+                                fontSize: 11,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            const SizedBox(width: 4),
-                            Container(
-                              width: 3,
-                              height: 3,
-                              decoration: BoxDecoration(
-                                color: Colors.pink.withOpacity(0.6),
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              "similarity",
-                              style: TextStyle(
-                                color: Colors.pink.shade200,
-                                fontSize: 9,
+                          ),
+                        ),
+                      ),
+
+                    // ── Shared song highlight ─────────────────────
+                    if (widget.sharedSongs.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [tierColor.withOpacity(0.12), tierColor.withOpacity(0.05)],
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            const Text('🎧', style: TextStyle(fontSize: 13)),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                'You both liked "${widget.sharedSongs.first}"',
+                                style: TextStyle(
+                                  color: tierColor,
+                                  fontFamily: 'Circular',
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
                         ),
                       ),
+                    ],
+
+                    const Spacer(),
+
+                    // ── Buttons: Connect / Abandon ─────────────────
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => _handleAction(widget.onConnect),
+                            child: Container(
+                              height: 38,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [tierColor, tierColor.withOpacity(0.7)],
+                                ),
+                                borderRadius: BorderRadius.circular(19),
+                                boxShadow: [
+                                  BoxShadow(color: tierColor.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 3)),
+                                ],
+                              ),
+                              alignment: Alignment.center,
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.music_note_rounded, color: Colors.white, size: 16),
+                                  SizedBox(width: 6),
+                                  Text('Connect', style: TextStyle(
+                                    color: Colors.white,
+                                    fontFamily: 'Circular',
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                  )),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        GestureDetector(
+                          onTap: () async {
+                            final reason = await _showAbandonReasonDialog();
+                            if (reason == null) return;
+                            await _handleAction(() => widget.onAbandon(reason));
+                          },
+                          child: Container(
+                            height: 38,
+                            width: 38,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(19),
+                              border: Border.all(color: Colors.white.withOpacity(0.15), width: 1),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Icon(Icons.close_rounded, color: Colors.white54, size: 18),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
             ),
-          ),
+    );
+  }
 
-          // ------------------------------------------------------------------
-          // BUTTONS - Connect / Abandon
-          // ------------------------------------------------------------------
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 600),
-            curve: Curves.easeInOutCubic,
-            right: v < 0.5 ? -300 : 20,
-            top: 0,
-            bottom: 0,
-            child: Opacity(
-              opacity: v < 0.5 ? 0.0 : (v - 0.5) * 2,
-              child: Row(
-                children: [
-                  _button3D(
-                    icon: Icons.check,
-                    label: "Connect",
-                    primaryColor: const Color(0xFF4CAF50),
-                    onTap: () => _handleAction(widget.onConnect),
-                  ),
-                  const SizedBox(width: 20),
-                  _button3D(
-                    icon: Icons.close,
-                    label: "Abandon",
-                    primaryColor: const Color(0xFFE53935),
-                    onTap: () async {
-                      // Show reason dialog first
-                      final reason = await _showAbandonReasonDialog();
-                      // If user cancelled (null) -> do nothing
-                      if (reason == null) return;
-                      // Collapse and call abandon with reason
-                      await _handleAction(() => widget.onAbandon(reason));
-                    },
-                  ),
-                ],
+  /// Collapsed state — just the avatar circle
+  Widget _buildCollapsedOrb() {
+    return Center(
+      child: SizedBox(
+        width: 82,
+        height: 82,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              width: 82,
+              height: 82,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.pink, width: 3),
               ),
             ),
-          ),
-        ],
+            Container(
+              width: 74,
+              height: 74,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFF2A2A2A),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: (widget.photoUrl.isNotEmpty)
+                  ? Image.network(widget.photoUrl, fit: BoxFit.cover)
+                  : const Icon(Icons.person, size: 36, color: Colors.white54),
+            ),
+          ],
+        ),
       ),
     );
   }

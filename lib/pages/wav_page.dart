@@ -119,7 +119,8 @@ class _WavPageState extends State<WavPage>
       TweenSequenceItem(tween: Tween(begin: 4.0, end: 0.0), weight: 1),
     ]).animate(CurvedAnimation(parent: _shakeController, curve: Curves.easeInOut));
 
-    if (widget.isActive) _checkTutorialStatus();
+    // Don't check tutorial here — IndexedStack mounts this before it's visible.
+    // Wait for didUpdateWidget to fire when isActive becomes true.
   }
 
   @override

@@ -13,12 +13,8 @@ import 'match_page.dart';
 
 import '../providers/user_profile_provider.dart';
 import 'package:provider/provider.dart';
-import '../pages/match_dock_popup.dart';
-import '../pages/match_service.dart';
 import '../providers/auth_provider.dart';
-
-// ✅ ADD THIS IMPORT
-import '../services/match_notification_service.dart';
+import '../providers/match_provider.dart';
 
 // ---------------------------------------------------------
 // 🎨 LIGHT Y2K BUBBLEGUM POP PALETTE
@@ -53,12 +49,27 @@ class _HomePageState extends State<HomePage> {
   OverlayEntry? _tutorialOverlay;
   bool _tutorialShown = false;
 
+  // ── Screensaver idle timer (60s of no interaction) ──────────
+  Timer? _idleTimer;
+  bool _isIdle = false;
+
+  void _resetIdleTimer() {
+    _idleTimer?.cancel();
+    if (_isIdle && mounted) setState(() => _isIdle = false);
+    _idleTimer = Timer(const Duration(seconds: 60), () {
+      if (mounted && selectedTab == 1) {
+        setState(() => _isIdle = true);
+      }
+    });
+  }
+
   // ❌ REMOVE THIS OLD LISTENER - we're using the service now
   // StreamSubscription? _matchListener;
 
   @override
   void initState() {
     super.initState();
+    _resetIdleTimer();
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _maybeShowProfileTutorial();
@@ -69,8 +80,8 @@ class _HomePageState extends State<HomePage> {
         context.read<UserProfileProvider>().startListening(uid);
       }
       
-      // ✅ INITIALIZE THE GLOBAL NOTIFICATION SERVICE
-      MatchNotificationService().initialize(context);
+      // ✅ START NOTIFICATION LISTENER via provider
+      context.read<MatchProvider>().startNotificationListener(context);
     });
     
     // ❌ REMOVE THIS OLD LISTENER CALL
@@ -79,12 +90,11 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    _idleTimer?.cancel();
     _moodTintNotifier.dispose();
-    // ❌ REMOVE THIS
-    // _matchListener?.cancel();
     
-    // ✅ ADD THIS - Cleanup the service
-    MatchNotificationService().dispose();
+    // ✅ Cleanup notification listener
+    context.read<MatchProvider>().stopNotificationListener();
     
     _tutorialOverlay?.remove();
     super.dispose();
@@ -185,35 +195,41 @@ class _HomePageState extends State<HomePage> {
           ),
           Scaffold(
             backgroundColor: Colors.transparent,
-            body: SafeArea(
-              child: Column(
-                children: [
-                  _buildTopBar(),
-                  Expanded(
-                    child: IndexedStack(
-                      index: selectedTab,
-                      children: [
-                        HomeTab(
-                          key: const ValueKey(0),
-                          onGoToWav:     () => setState(() => selectedTab = 1),
-                          onGoToMatches: () => setState(() => selectedTab = 2),
-                          moodTint: _moodTintNotifier.value,
-                        ),
-                        WavPage(
-                          key: const ValueKey(1),
-                          isActive: selectedTab == 1,
-                          onMoodChanged: (c) => _moodTintNotifier.value = c,
-                        ),
-                        MatchPage(
-                          key: const ValueKey(2), 
-                          uid: FirebaseAuth.instance.currentUser?.uid ?? ""
-                        ),
-                        const ProfilePage(key: ValueKey(3)),
-                      ],
+            body: Listener(
+              behavior: HitTestBehavior.translucent,
+              onPointerDown: (_) => _resetIdleTimer(),
+              onPointerMove: (_) => _resetIdleTimer(),
+              child: SafeArea(
+                child: Column(
+                  children: [
+                    _buildTopBar(),
+                    Expanded(
+                      child: IndexedStack(
+                        index: selectedTab,
+                        children: [
+                          HomeTab(
+                            key: const ValueKey(0),
+                            onGoToWav:     () => setState(() => selectedTab = 1),
+                            onGoToMatches: () => setState(() => selectedTab = 2),
+                            moodTint: _moodTintNotifier.value,
+                          ),
+                          WavPage(
+                            key: const ValueKey(1),
+                            isActive: selectedTab == 1,
+                            isIdle: _isIdle && selectedTab == 1,
+                            onMoodChanged: (c) => _moodTintNotifier.value = c,
+                          ),
+                          MatchPage(
+                            key: const ValueKey(2), 
+                            uid: FirebaseAuth.instance.currentUser?.uid ?? ""
+                          ),
+                          const ProfilePage(key: ValueKey(3)),
+                        ],
+                      ),
                     ),
-                  ),
-                  _buildBottomNav(),
-                ],
+                    _buildBottomNav(),
+                  ],
+                ),
               ),
             ),
           ),

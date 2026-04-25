@@ -51,8 +51,10 @@ class AuthProvider extends ChangeNotifier {
         ? user.providerData.first.providerId
         : '';
     final isEmailProvider = providerId == 'password';
+    final isAnonymous = user.isAnonymous;
 
-    if (isEmailProvider && !user.emailVerified) {
+    // Anonymous (guest) users skip email verification entirely
+    if (isEmailProvider && !user.emailVerified && !isAnonymous) {
       _status = AuthStatus.emailUnverified;
       notifyListeners();
       return;
@@ -199,6 +201,9 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> deleteAccount() =>
       _authService.deleteAccount();
+
+  // ── Guest ────────────────────────────────────────────────────────
+  Future<void> signInAsGuest() => _authService.signInAnonymously();
 
   // ── Sign out ─────────────────────────────────────────────────────
   Future<void> signOut() => _authService.signOut();

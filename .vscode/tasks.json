@@ -4,7 +4,7 @@
     {
       "label": "Flutter Run Chrome",
       "type": "shell",
-      "command": "flutter run -d chrome",
+      "command": "flutter run -d chrome --web-port 5000",
       "group": "build",
       "presentation": {
         "reveal": "always",

@@ -462,7 +462,45 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 16),
+                // ── Guest Mode Link ──
+                GestureDetector(
+                  onTap: isLoading
+                      ? null
+                      : () async {
+                          setState(() => isLoading = true);
+                          try {
+                            await context.read<AuthProvider>().signInAsGuest();
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                content: Text('Guest login failed: $e',
+                                    style: const TextStyle(fontFamily: 'Circular', color: Colors.white)),
+                                backgroundColor: Colors.orange,
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ));
+                            }
+                          } finally {
+                            if (mounted) setState(() => isLoading = false);
+                          }
+                        },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      'Continue as Guest',
+                      style: TextStyle(
+                        fontFamily: 'Circular',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: mutedText.withOpacity(0.7),
+                        decoration: TextDecoration.underline,
+                        decorationColor: mutedText.withOpacity(0.4),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
               ],
             ),
           ),

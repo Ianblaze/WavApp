@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
+import '../services/embedding_service.dart';
 
 class OnboardingController extends ChangeNotifier {
   int _step = 0;
@@ -87,15 +88,44 @@ class OnboardingController extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // Compute initial embedding from onboarding selections
+      final embedding = EmbeddingService.computeFromOnboarding(
+        genres: _genres,
+        artists: _artists,
+      );
+
+      // Build initial histograms
+      final genreHist = <String, double>{};
+      if (_genres.isNotEmpty) {
+        final w = 1.0 / _genres.length;
+        for (final g in _genres) {
+          genreHist[g.toLowerCase()] = w;
+        }
+      }
+      final artistHist = <String, double>{};
+      if (_artists.isNotEmpty) {
+        final w = 1.0 / _artists.length;
+        for (final a in _artists) {
+          artistHist[a.toLowerCase()] = w;
+        }
+      }
+
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
         'photoUrl':           _photoUrl ?? '',
         'genres':             _genres,
         'topArtists':         _artists,
         'onboardingComplete': true,
         'tasteProfile': {
-          'topGenre':   _genres.isNotEmpty  ? _genres.first  : '',
-          'topArtist':  _artists.isNotEmpty ? _artists.first : '',
-          'updatedAt':  FieldValue.serverTimestamp(),
+          'topGenre':        _genres.isNotEmpty  ? _genres.first  : '',
+          'topArtist':       _artists.isNotEmpty ? _artists.first : '',
+          'genreHistogram':  genreHist,
+          'artistHistogram': artistHist,
+          'moodHistogram':   <String, double>{},
+          'keyHistogram':    <String, double>{},
+          'avgBpm':          0.0,
+          'bpmSpread':       0.0,
+          'embedding':       embedding,
+          'updatedAt':       FieldValue.serverTimestamp(),
         },
       }, SetOptions(merge: true));
     } catch (e) {

@@ -61,17 +61,9 @@ class _MatchPageState extends State<MatchPage> {
     final sectionFont = (w * 0.032).clamp(11.0, 13.0);
     final carouselH = (h * 0.14).clamp(100.0, 120.0);
 
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [_bgTop, _bgBottom],
-        ),
-      ),
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: SafeArea(
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
           child: Consumer<MatchProvider>(
             builder: (context, matchProvider, _) {
               if (matchProvider.isLoading) {
@@ -80,14 +72,27 @@ class _MatchPageState extends State<MatchPage> {
 
               if (matchProvider.error != null) {
                 return Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.cloud_off_rounded, size: 48, color: _textMuted.withOpacity(0.5)),
-                      const SizedBox(height: 16),
-                      Text("Couldn't load matches",
-                          style: TextStyle(fontFamily: 'Circular', color: _textMuted, fontSize: sectionFont + 3)),
-                    ],
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.cloud_off_rounded, size: 48, color: _textMuted.withOpacity(0.5)),
+                        const SizedBox(height: 16),
+                        Text("Couldn't load matches",
+                            style: TextStyle(fontFamily: 'Circular', color: _textMuted, fontSize: sectionFont + 3, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        Text(matchProvider.error!,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontFamily: 'Circular', color: _textMuted.withOpacity(0.7), fontSize: 12)),
+                        const SizedBox(height: 24),
+                        ElevatedButton(
+                          onPressed: () => matchProvider.startMatchStream(),
+                          style: ElevatedButton.styleFrom(backgroundColor: _hotPink, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                          child: const Text("Retry", style: TextStyle(fontFamily: 'Circular', fontWeight: FontWeight.w700)),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               }
@@ -107,7 +112,7 @@ class _MatchPageState extends State<MatchPage> {
                   // ── Header ──────────────────────────────────────────────
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 0),
+                      padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 20),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -125,12 +130,9 @@ class _MatchPageState extends State<MatchPage> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: Colors.white.withOpacity(0.6),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(color: _dividerClr),
-                                boxShadow: [
-                                  BoxShadow(color: _neonPurple.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2)),
-                                ],
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -149,107 +151,188 @@ class _MatchPageState extends State<MatchPage> {
                     ),
                   ),
 
-                  // ── NEW MATCHES section ─────────────────────────────────
-                  if (newMatches.isNotEmpty) ...[
+                  // ═══════════════════════════════════════════════════════
+                  //  NEW MATCHES SECTION CARD
+                  // ═══════════════════════════════════════════════════════
+                  if (newMatches.isNotEmpty)
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: EdgeInsets.fromLTRB(hPad, h * 0.03, hPad, 12),
-                        child: Text(
-                          'NEW MATCHES',
-                          style: TextStyle(
-                            fontFamily: 'Circular',
-                            fontSize: sectionFont,
-                            fontWeight: FontWeight.w800,
-                            color: _textMuted,
-                            letterSpacing: 1.2,
+                        padding: EdgeInsets.symmetric(horizontal: hPad),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.35),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.white.withOpacity(0.5), width: 1),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Section header
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 28, height: 28,
+                                      decoration: BoxDecoration(
+                                        color: _accentPink.withOpacity(0.12),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(Icons.favorite_rounded, size: 14, color: _accentPink),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      'New Matches',
+                                      style: TextStyle(
+                                        fontFamily: 'Circular',
+                                        fontSize: sectionFont + 1,
+                                        fontWeight: FontWeight.w800,
+                                        color: _textPrimary,
+                                        letterSpacing: 0.3,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    Text(
+                                      '${newMatches.length}',
+                                      style: TextStyle(
+                                        fontFamily: 'Circular',
+                                        fontSize: sectionFont,
+                                        fontWeight: FontWeight.w700,
+                                        color: _textMuted,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // Carousel
+                              SizedBox(
+                                height: carouselH,
+                                child: ListView.builder(
+                                  scrollDirection: Axis.horizontal,
+                                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                                  itemCount: newMatches.length,
+                                  itemBuilder: (ctx, i) => _NewMatchBubble(
+                                    matchData: newMatches[i],
+                                    ringColor: _ringColors[i % _ringColors.length],
+                                    onTap: () => _openChat(newMatches[i]),
+                                    qualityEmoji: newMatches[i].qualityEmoji,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                            ],
                           ),
                         ),
                       ),
                     ),
-                    SliverToBoxAdapter(
-                      child: SizedBox(
-                        height: carouselH,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          padding: EdgeInsets.symmetric(horizontal: hPad - 4),
-                          itemCount: newMatches.length,
-                          itemBuilder: (ctx, i) => _NewMatchBubble(
-                            matchData: newMatches[i],
-                            ringColor: _ringColors[i % _ringColors.length],
-                            onTap: () => _openChat(newMatches[i]),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
 
-                  // ── Divider ─────────────────────────────────────────────
+                  // Spacer between sections
+                  SliverToBoxAdapter(child: SizedBox(height: newMatches.isNotEmpty ? 16 : 0)),
+
+                  // ═══════════════════════════════════════════════════════
+                  //  MESSAGES SECTION CARD
+                  // ═══════════════════════════════════════════════════════
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 8),
-                      child: Divider(color: _dividerClr, thickness: 1),
-                    ),
-                  ),
-
-                  // ── MESSAGES section header ─────────────────────────────
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(hPad, 8, hPad, 12),
-                      child: Text(
-                        'MESSAGES',
-                        style: TextStyle(
-                          fontFamily: 'Circular',
-                          fontSize: sectionFont,
-                          fontWeight: FontWeight.w800,
-                          color: _textMuted,
-                          letterSpacing: 1.2,
+                      padding: EdgeInsets.symmetric(horizontal: hPad),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.35),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.white.withOpacity(0.5), width: 1),
                         ),
-                      ),
-                    ),
-                  ),
-
-                  // ── MESSAGES list ───────────────────────────────────────
-                  if (connectedMatches.isEmpty && newMatches.isEmpty)
-                    SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: Center(
                         child: Column(
-                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.music_note_rounded, size: 56, color: _neonPurple.withOpacity(0.4)),
-                            const SizedBox(height: 16),
-                            const Text(
-                              "No matches yet 👀\nSwipe more songs!",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontFamily: 'Circular', color: _textMuted, fontSize: 17, fontWeight: FontWeight.w500, height: 1.4),
+                            // Section header
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(18, 16, 18, 4),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 28, height: 28,
+                                    decoration: BoxDecoration(
+                                      color: _neonPurple.withOpacity(0.12),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(Icons.chat_bubble_rounded, size: 14, color: _neonPurple),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    'Messages',
+                                    style: TextStyle(
+                                      fontFamily: 'Circular',
+                                      fontSize: sectionFont + 1,
+                                      fontWeight: FontWeight.w800,
+                                      color: _textPrimary,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  if (connectedMatches.isNotEmpty)
+                                    Text(
+                                      '${connectedMatches.length}',
+                                      style: TextStyle(
+                                        fontFamily: 'Circular',
+                                        fontSize: sectionFont,
+                                        fontWeight: FontWeight.w700,
+                                        color: _textMuted,
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ),
+                            // Messages content
+                            if (connectedMatches.isEmpty && newMatches.isEmpty)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 40),
+                                child: Center(
+                                  child: Column(
+                                    children: [
+                                      Icon(Icons.music_note_rounded, size: 48, color: _neonPurple.withOpacity(0.3)),
+                                      const SizedBox(height: 12),
+                                      const Text(
+                                        "No matches yet 👀\nSwipe more songs!",
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(fontFamily: 'Circular', color: _textMuted, fontSize: 15, fontWeight: FontWeight.w500, height: 1.4),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            else if (connectedMatches.isEmpty)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 32),
+                                child: Center(
+                                  child: Text(
+                                    'No conversations yet.\nAccept a match to start chatting!',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontFamily: 'Circular', color: _textMuted.withOpacity(0.8), fontSize: 14, height: 1.5),
+                                  ),
+                                ),
+                              )
+                            else
+                              ...List.generate(connectedMatches.length, (i) {
+                                return Column(
+                                  children: [
+                                    if (i > 0)
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 18),
+                                        child: Divider(height: 1, color: _dividerClr.withOpacity(0.6)),
+                                      ),
+                                    _MessageTile(
+                                      match: connectedMatches[i],
+                                      onTap: () => _openChat(connectedMatches[i]),
+                                    ),
+                                  ],
+                                );
+                              }),
+                            const SizedBox(height: 8),
                           ],
                         ),
                       ),
-                    )
-                  else if (connectedMatches.isEmpty)
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 32),
-                        child: Center(
-                          child: Text(
-                            'No conversations yet.\nAccept a match to start chatting!',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontFamily: 'Circular', color: _textMuted.withOpacity(0.8), fontSize: 15, height: 1.5),
-                          ),
-                        ),
-                      ),
-                    )
-                  else
-                    SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (ctx, i) => _MessageTile(
-                          match: connectedMatches[i],
-                          onTap: () => _openChat(connectedMatches[i]),
-                        ),
-                        childCount: connectedMatches.length,
-                      ),
                     ),
+                  ),
                   
                   SliverToBoxAdapter(child: SizedBox(height: MediaQuery.of(context).padding.bottom + 20)),
                 ],
@@ -257,7 +340,6 @@ class _MatchPageState extends State<MatchPage> {
             },
           ),
         ),
-      ),
     );
   }
 }
@@ -266,8 +348,9 @@ class _NewMatchBubble extends StatelessWidget {
   final Match matchData;
   final Color ringColor;
   final VoidCallback onTap;
+  final String qualityEmoji;
 
-  const _NewMatchBubble({required this.matchData, required this.ringColor, required this.onTap});
+  const _NewMatchBubble({required this.matchData, required this.ringColor, required this.onTap, this.qualityEmoji = ''});
 
   @override
   Widget build(BuildContext context) {
@@ -309,6 +392,8 @@ class _NewMatchBubble extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontFamily: 'Circular', fontSize: 12, fontWeight: FontWeight.w600, color: _textPrimary),
             ),
+            if (qualityEmoji.isNotEmpty)
+              Text(qualityEmoji, style: const TextStyle(fontSize: 10)),
           ],
         ),
       ),
@@ -356,7 +441,7 @@ class _MessageTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      "Shared taste in Pop, Indie...",
+                      match.sharedTasteSummary,
                       style: TextStyle(fontFamily: 'Circular', fontSize: 13, color: _textMuted.withOpacity(0.8), fontWeight: FontWeight.w500),
                     ),
                   ],
@@ -365,14 +450,25 @@ class _MessageTile extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const Text("12:45 PM", style: TextStyle(fontFamily: 'Circular', fontSize: 11, color: _textMuted, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 6),
-                  Container(
-                    width: 18, height: 18,
-                    decoration: const BoxDecoration(color: _hotPink, shape: BoxShape.circle),
-                    alignment: Alignment.center,
-                    child: const Text("1", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900)),
+                  Text(
+                    match.matchedAt != null
+                        ? '${match.matchedAt!.hour}:${match.matchedAt!.minute.toString().padLeft(2, '0')}'
+                        : '',
+                    style: const TextStyle(fontFamily: 'Circular', fontSize: 11, color: _textMuted, fontWeight: FontWeight.w600),
                   ),
+                  const SizedBox(height: 6),
+                  if (match.similarityScore > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _hotPink.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '${match.similarityScore.toStringAsFixed(0)}%',
+                        style: const TextStyle(fontFamily: 'Circular', fontSize: 10, fontWeight: FontWeight.w800, color: _hotPink),
+                      ),
+                    ),
                 ],
               ),
             ],
