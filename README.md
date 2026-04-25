@@ -27,7 +27,7 @@ https://github.com/user-attachments/assets/5a6ae869-b400-4ae2-a9b4-6f324725aff4
 
 The landing screen leans into the aesthetic hard — abstract wave shapes, cinematic animation, the whole thing. Auth options are straightforward: Email/Password, Google, or Guest Mode if you just want to poke around.
 
-**Guest Mode** is worth calling out specifically for you busy recruiters as it auto-seeds a profile and drops a pre-built "Welcome Match" (Melody ✨) so recruiters or testers can see the full experience without creating an account.
+**Guest Mode** is worth calling out specifically for you busy recruiters as it auto-seeds a profile and drops a pre-built "Welcome Match" (Melody) so recruiters or testers can see the full experience without creating an account.
 
 
 ### Interactive Onboarding
