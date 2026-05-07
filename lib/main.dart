@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:device_preview/device_preview.dart';
 
 // Providers
 import 'providers/auth_provider.dart';
@@ -33,7 +34,12 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  runApp(const MyApp());
+  runApp(
+    DevicePreview(
+      enabled: true, // DevicePreview is always enabled for testing purposes
+      builder: (context) => const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -51,6 +57,8 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => OnboardingController()),
       ],
       child: MaterialApp(
+        locale: DevicePreview.locale(context),
+        builder: DevicePreview.appBuilder,
         debugShowCheckedModeBanner: false,
         title: "Wav",
         theme: ThemeData.dark(),
