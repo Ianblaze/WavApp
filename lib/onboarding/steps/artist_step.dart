@@ -48,10 +48,17 @@ class _ArtistStepState extends State<ArtistStep> {
               // Search box
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.55),
-                  borderRadius: BorderRadius.circular(16),
+                  color: Colors.white.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF8A7EA5).withOpacity(0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                   border: Border.all(
-                      color: Colors.white.withOpacity(0.4), width: 0.5),
+                      color: Colors.white, width: 1.5),
                 ),
                 child: TextField(
                   onChanged: (v) => setState(() => _query = v),
@@ -73,14 +80,25 @@ class _ArtistStepState extends State<ArtistStep> {
               const SizedBox(height: 12),
               // Artist grid
               Expanded(
-                child: GridView.builder(
-                  padding: EdgeInsets.zero,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    childAspectRatio: dynamicAspectRatio,
-                  ),
+                child: ShaderMask(
+                  shaderCallback: (Rect bounds) {
+                    return LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.white, Colors.white, Colors.white.withOpacity(0.0)],
+                      stops: const [0.0, 0.85, 1.0],
+                    ).createShader(bounds);
+                  },
+                  blendMode: BlendMode.dstIn,
+                  child: GridView.builder(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    clipBehavior: Clip.none,
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: dynamicAspectRatio,
+                    ),
                   itemCount: _filtered.length,
                   itemBuilder: (ctx, i) {
                     final a = _filtered[i];
@@ -91,6 +109,7 @@ class _ArtistStepState extends State<ArtistStep> {
                           context.read<OnboardingController>().toggleArtist(a.name),
                     );
                   },
+                ),
                 ),
               ),
             ],
@@ -122,25 +141,23 @@ class _ArtistStepState extends State<ArtistStep> {
           ),
           cta: SizedBox(
             width: double.infinity, height: 56,
-            child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 200),
-              opacity: done ? 1.0 : 0.5,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFFB3D9),
-                  foregroundColor: const Color(0xFF4B1528),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(28)),
-                  elevation: 0,
-                ),
-                onPressed: done ? widget.onNext : null,
-                child: Text(
-                  done ? "let's go →" : 'pick ${5 - selected.length} more',
-                  style: const TextStyle(
-                    fontFamily: 'Circular',
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFFB3D9),
+                foregroundColor: const Color(0xFF4B1528),
+                disabledBackgroundColor: const Color(0xFFEFE8F5),
+                disabledForegroundColor: const Color(0xFFB0A0C0),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(28)),
+                elevation: 0,
+              ),
+              onPressed: done ? widget.onNext : null,
+              child: Text(
+                done ? "let's go →" : 'pick ${5 - selected.length} more',
+                style: const TextStyle(
+                  fontFamily: 'Circular',
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
