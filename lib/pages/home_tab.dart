@@ -332,10 +332,8 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                             _stagger(_buildHypeBanner(), delay: 0.08),
                             SizedBox(height: vGap),
                           ],
-                          _stagger(_buildStatStrip(sw, likesLeft), delay: 0.12),
-                          SizedBox(height: vGap * 1.2),
-                          _stagger(_buildLikesCTA(likesLeft, sw), delay: 0.18),
-                          SizedBox(height: vGap * 1.2),
+                          _stagger(_buildLikesCTA(likesLeft, sw), delay: 0.12),
+                          SizedBox(height: vGap * 1.5),
                           if (_trendingSongs.isNotEmpty) ...[
                             _stagger(
                               _buildSectionHeader('🎵  Trending right now', 'See all',
@@ -364,12 +362,6 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                             ),
                             SizedBox(height: vGap * 0.6),
                           ],
-                          _stagger(
-                            _buildSectionHeader('🎧  Trending moods', null, null),
-                            delay: 0.52,
-                          ),
-                          SizedBox(height: vGap * 0.6),
-                          _stagger(_buildMoodChips(sw), delay: 0.56),
                           SizedBox(height: vGap * 2),
                         ]),
                       ),
