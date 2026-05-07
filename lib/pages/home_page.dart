@@ -261,8 +261,14 @@ class _HomePageState extends State<HomePage> {
   // 🔝 TOP BAR
   // ---------------------------------------------------------
   Widget _buildTopBar() {
+    final sw = MediaQuery.of(context).size.width;
+    final sh = MediaQuery.of(context).size.height;
+    final btnDim = (sw * 0.1).clamp(34.0, 44.0);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: EdgeInsets.symmetric(
+        horizontal: sw * 0.05,
+        vertical: (sh * 0.018).clamp(10.0, 18.0),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -273,13 +279,13 @@ class _HomePageState extends State<HomePage> {
               // No manual navigation — AuthWrapper handles it
             },
             child: Container(
-              width: 40,
-              height: 40,
+              width: btnDim,
+              height: btnDim,
               decoration: BoxDecoration(
                 color: y2kPink.withOpacity(0.25),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.logout, color: y2kPink),
+              child: Icon(Icons.logout, color: y2kPink, size: btnDim * 0.55),
             ),
           ),
 
@@ -288,14 +294,14 @@ class _HomePageState extends State<HomePage> {
             onTap: () => setState(() => selectedTab = 3),
             child: Container(
               key: _profileKey,
-              width: 40,
-              height: 40,
+              width: btnDim,
+              height: btnDim,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(btnDim / 2),
                 border: Border.all(color: y2kBlue, width: 2),
                 color: Colors.white.withOpacity(0.35),
               ),
-              child: const Icon(Icons.person_outline, color: y2kBlue),
+              child: Icon(Icons.person_outline, color: y2kBlue, size: btnDim * 0.55),
             ),
           ),
         ],
@@ -311,8 +317,9 @@ class _HomePageState extends State<HomePage> {
   // ⬇️ BOTTOM NAVIGATION (PNG ICONS)
   // ---------------------------------------------------------
   Widget _buildBottomNav() {
+    final sh = MediaQuery.of(context).size.height;
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
+      padding: EdgeInsets.symmetric(vertical: (sh * 0.016).clamp(8.0, 18.0)),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
@@ -330,6 +337,9 @@ class _HomePageState extends State<HomePage> {
   // ---------------------------------------------------------
   Widget _navItemPNG(String assetPath, String label, int index) {
     final isActive = selectedTab == index;
+    final sw = MediaQuery.of(context).size.width;
+    final iconDim = (sw * 0.08).clamp(26.0, 36.0);
+    final labelFont = (sw * 0.032).clamp(10.0, 14.0);
 
     return GestureDetector(
       onTap: () => setState(() => selectedTab = index),
@@ -346,8 +356,8 @@ class _HomePageState extends State<HomePage> {
                 opacity: isActive ? 1.0 : 0.55,
                 child: Image.asset(
                   assetPath,
-                  width: 34,
-                  height: 34,
+                  width: iconDim,
+                  height: iconDim,
                   fit: BoxFit.contain,
                 ),
               ),
@@ -356,7 +366,7 @@ class _HomePageState extends State<HomePage> {
                 label,
                 style: TextStyle(
                   color: isActive ? y2kPink : y2kPurple,
-                  fontSize: 13,
+                  fontSize: labelFont,
                   fontWeight: FontWeight.w700,
                 ),
               ),

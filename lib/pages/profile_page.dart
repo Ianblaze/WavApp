@@ -46,7 +46,7 @@ class ProfilePage extends StatelessWidget {
                   children: [
                     // Avatar with gradient ring
                     Container(
-                      width: 72, height: 72,
+                      width: (w * 0.18).clamp(56.0, 80.0), height: (w * 0.18).clamp(56.0, 80.0),
                       padding: const EdgeInsets.all(3),
                       decoration: const BoxDecoration(
                         shape: BoxShape.circle,
@@ -69,20 +69,20 @@ class ProfilePage extends StatelessWidget {
                         ),
                         child: photoUrl.isEmpty
                             ? Icon(Icons.person_rounded,
-                                color: _y2kPurple.withOpacity(0.5), size: 32)
+                                color: _y2kPurple.withOpacity(0.5), size: (w * 0.08).clamp(24.0, 36.0))
                             : null,
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    SizedBox(width: w * 0.04),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             username,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontFamily: 'Circular',
-                              fontSize: 20,
+                              fontSize: (w * 0.05).clamp(16.0, 22.0),
                               fontWeight: FontWeight.w900,
                               color: _textPrimary,
                             ),
@@ -92,7 +92,7 @@ class ProfilePage extends StatelessWidget {
                             email,
                             style: TextStyle(
                               fontFamily: 'Circular',
-                              fontSize: 13,
+                              fontSize: (w * 0.032).clamp(11.0, 14.0),
                               fontWeight: FontWeight.w500,
                               color: _textMuted.withOpacity(0.8),
                             ),
@@ -103,13 +103,13 @@ class ProfilePage extends StatelessWidget {
                     GestureDetector(
                       onTap: () => _openEditDialog(context),
                       child: Container(
-                        width: 36, height: 36,
+                        width: (w * 0.09).clamp(32.0, 40.0), height: (w * 0.09).clamp(32.0, 40.0),
                         decoration: BoxDecoration(
                           color: _y2kPink.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.edit_rounded,
-                            color: _y2kPink, size: 18),
+                        child: Icon(Icons.edit_rounded,
+                            color: _y2kPink, size: (w * 0.045).clamp(14.0, 20.0)),
                       ),
                     ),
                   ],

@@ -338,7 +338,9 @@ class _WavPageState extends State<WavPage>
 
   // ── STATS ROW — animated on card change ───────────────────────
   Widget _buildStatsRow() {
-    if (_currentSong.isEmpty) return const SizedBox(height: 54);
+    final sh = MediaQuery.of(context).size.height;
+    final statsH = (sh * 0.07).clamp(48.0, 62.0);
+    if (_currentSong.isEmpty) return SizedBox(height: statsH);
     final song = _currentSong;
     final bpm  = song['bpm']  ?? '';
     final key  = song['key']  ?? '';
@@ -363,7 +365,7 @@ class _WavPageState extends State<WavPage>
       ),
       child: SizedBox(
         key: ValueKey(_statsKey),
-        height: 58,
+        height: statsH,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -612,7 +614,7 @@ class _WavPageState extends State<WavPage>
                     // ── Gesture hints — always 32px tall to prevent layout shift ──
                     // Content fades out but space is always reserved.
                     SizedBox(
-                      height: 32,
+                      height: (sh * 0.038).clamp(24.0, 36.0),
                       child: Center(
                         child: AnimatedOpacity(
                           opacity: widget.isIdle ? 0.0 : 1.0,
@@ -627,8 +629,8 @@ class _WavPageState extends State<WavPage>
                       child: Center(
                         child: ConstrainedBox(
                           constraints: BoxConstraints(
-                            // Never shorter than 340px regardless of screen
-                            minHeight: (sh * 0.42).clamp(340.0, double.infinity),
+                            // Never shorter than 280px regardless of screen
+                            minHeight: (sh * 0.42).clamp(280.0, double.infinity),
                           ),
                           child: SizedBox(
                             width: sw * 0.92,
@@ -700,7 +702,7 @@ class _WavPageState extends State<WavPage>
                       child: _buildStatsRow(),
                     ),
 
-                    const SizedBox(height: 4),
+                    SizedBox(height: (sh * 0.005).clamp(2.0, 6.0)),
 
                     // ── Action buttons ─────────────────────
                     AnimatedOpacity(

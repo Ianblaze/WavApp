@@ -1,6 +1,7 @@
 // lib/pages/match_page.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../providers/match_provider.dart';
 import '../providers/chat_provider.dart';
 import '../models/match.dart';
@@ -38,12 +39,38 @@ class _MatchPageState extends State<MatchPage> {
     });
   }
 
-  void _openChat(Match match) {
+  void _openChat(Match match) async {
+    String chatId = match.chatId ?? '';
+
+    // If chatId is missing (old matches), create/get the chat dynamically
+    if (chatId.isEmpty) {
+      try {
+        final chatProvider = context.read<ChatProvider>();
+        final uid = match.userId;
+        final me = FirebaseAuth.instance.currentUser?.uid ?? '';
+        if (me.isEmpty) return;
+        chatId = await chatProvider.createOrGetChat(
+          currentUserId: me,
+          otherUserId: uid,
+        );
+      } catch (e) {
+        debugPrint('❌ Failed to create chat: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not open chat. Please try again.')),
+          );
+        }
+        return;
+      }
+    }
+
+    if (!mounted) return;
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ChatPage(
-          chatId: match.chatId ?? '',
+          chatId: chatId,
           otherUserId: match.userId,
           otherUsername: match.username,
           otherPhotoUrl: match.photoUrl,
@@ -354,15 +381,18 @@ class _NewMatchBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sw = MediaQuery.of(context).size.width;
+    final bubbleW = (sw * 0.2).clamp(68.0, 88.0);
+    final ringSize = (sw * 0.17).clamp(56.0, 72.0);
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 80,
+        width: bubbleW,
         margin: const EdgeInsets.only(right: 16),
         child: Column(
           children: [
             Container(
-              width: 68, height: 68,
+              width: ringSize, height: ringSize,
               padding: const EdgeInsets.all(3),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
@@ -381,7 +411,7 @@ class _NewMatchBubble extends StatelessWidget {
                       : null,
                 ),
                 child: matchData.photoUrl.isEmpty
-                    ? Icon(Icons.person_rounded, color: ringColor.withOpacity(0.5), size: 32)
+                    ? Icon(Icons.person_rounded, color: ringColor.withOpacity(0.5), size: ringSize * 0.48)
                     : null,
               ),
             ),
@@ -390,7 +420,7 @@ class _NewMatchBubble extends StatelessWidget {
               matchData.username,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontFamily: 'Circular', fontSize: 12, fontWeight: FontWeight.w600, color: _textPrimary),
+              style: TextStyle(fontFamily: 'Circular', fontSize: (sw * 0.03).clamp(10.0, 13.0), fontWeight: FontWeight.w600, color: _textPrimary),
             ),
             if (qualityEmoji.isNotEmpty)
               Text(qualityEmoji, style: const TextStyle(fontSize: 10)),
@@ -409,16 +439,20 @@ class _MessageTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sw = MediaQuery.of(context).size.width;
+    final avatarSize = (sw * 0.14).clamp(46.0, 64.0);
+    final nameFont = (sw * 0.04).clamp(14.0, 17.0);
+    final subFont = (sw * 0.032).clamp(11.0, 14.0);
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          padding: EdgeInsets.symmetric(horizontal: sw * 0.06, vertical: 12),
           child: Row(
             children: [
               Container(
-                width: 60, height: 60,
+                width: avatarSize, height: avatarSize,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: _dividerClr,
@@ -427,22 +461,22 @@ class _MessageTile extends StatelessWidget {
                       : null,
                 ),
                 child: match.photoUrl.isEmpty
-                    ? const Icon(Icons.person_rounded, color: Colors.white, size: 28)
+                    ? Icon(Icons.person_rounded, color: Colors.white, size: avatarSize * 0.45)
                     : null,
               ),
-              const SizedBox(width: 16),
+              SizedBox(width: sw * 0.04),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       match.username,
-                      style: const TextStyle(fontFamily: 'Circular', fontSize: 16, fontWeight: FontWeight.w800, color: _textPrimary),
+                      style: TextStyle(fontFamily: 'Circular', fontSize: nameFont, fontWeight: FontWeight.w800, color: _textPrimary),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       match.sharedTasteSummary,
-                      style: TextStyle(fontFamily: 'Circular', fontSize: 13, color: _textMuted.withOpacity(0.8), fontWeight: FontWeight.w500),
+                      style: TextStyle(fontFamily: 'Circular', fontSize: subFont, color: _textMuted.withOpacity(0.8), fontWeight: FontWeight.w500),
                     ),
                   ],
                 ),

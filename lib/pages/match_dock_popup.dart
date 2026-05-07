@@ -314,8 +314,12 @@ class _MatchDockPopupState extends State<MatchDockPopup>
 
   Widget _buildDockCard() {
     final v = expandCtrl.value.clamp(0.0, 1.0);
-    final width = lerpDouble(90, 340, v)!;
-    final height = lerpDouble(90, 220, v)!;
+    final sw = MediaQuery.of(context).size.width;
+    final sh = MediaQuery.of(context).size.height;
+    final maxW = (sw * 0.88).clamp(280.0, 360.0);
+    final maxH = (sh * 0.28).clamp(180.0, 240.0);
+    final width = lerpDouble(90, maxW, v)!;
+    final height = lerpDouble(90, maxH, v)!;
 
     // Parse similarity for quality tier
     final score = double.tryParse(widget.similarity) ?? 0;

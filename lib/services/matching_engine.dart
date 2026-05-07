@@ -433,10 +433,28 @@ class MatchingEngine {
   }
 
   /// Accept an incoming match request (receiver side).
+  /// Creates a chat document and stores the chatId on both match docs.
   Future<void> acceptMatch(String otherUserId) async {
     final me = FirebaseAuth.instance.currentUser?.uid;
     if (me == null) return;
 
+    // ── Create a deterministic chatId (sorted UIDs) ──────────
+    final sorted = [me, otherUserId]..sort();
+    final chatId = '${sorted[0]}_${sorted[1]}';
+
+    // Create the chat document if it doesn't already exist
+    final chatRef = _db.collection('chats').doc(chatId);
+    final chatSnap = await chatRef.get();
+    if (!chatSnap.exists) {
+      await chatRef.set({
+        'participants': [me, otherUserId],
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastMessage': '',
+        'lastTimestamp': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+
+    // ── Update both match docs with status + chatId ──────────
     final myRef = _db.collection('users').doc(me)
         .collection('matches').doc(otherUserId);
     final otherRef = _db.collection('users').doc(otherUserId)
@@ -447,17 +465,19 @@ class MatchingEngine {
     batch.update(myRef, {
       'status': 'connected',
       'decision': 'connect',
+      'chatId': chatId,
       'timestamp': FieldValue.serverTimestamp(),
     });
 
     batch.update(otherRef, {
       'status': 'connected',
       'decision': 'connect',
+      'chatId': chatId,
       'timestamp': FieldValue.serverTimestamp(),
     });
 
     await batch.commit();
-    debugPrint('✅ Match accepted: $otherUserId');
+    debugPrint('✅ Match accepted: $otherUserId (chatId: $chatId)');
   }
 
   /// Decline/abandon an incoming match request.

@@ -417,6 +417,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
   }
 
   Widget _buildHypeBanner() {
+    final sw = MediaQuery.of(context).size.width;
     final msg = _newMatchCount == 1 ? '1 new match!' : '$_newMatchCount new matches!';
     final sub = _topMatches.isNotEmpty
         ? '${_topMatches.first.name} & others love your taste'
@@ -437,12 +438,12 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
         child: Row(
           children: [
             Container(
-              width: 46, height: 46,
+              width: (sw * 0.115).clamp(38.0, 50.0), height: (sw * 0.115).clamp(38.0, 50.0),
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Center(child: Text('🔥', style: TextStyle(fontSize: 22))),
+              child: Center(child: Text('🔥', style: TextStyle(fontSize: (sw * 0.055).clamp(18.0, 24.0)))),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -475,6 +476,9 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
   }
 
   Widget _statCard(String num, String label, Color color) {
+    final sw = MediaQuery.of(context).size.width;
+    final numFont = (sw * 0.065).clamp(20.0, 28.0);
+    final labelFont = (sw * 0.022).clamp(8.0, 10.0);
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
       decoration: BoxDecoration(
@@ -484,9 +488,9 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
       ),
       child: Column(
         children: [
-          Text(num, style: TextStyle(fontFamily: 'Circular', fontSize: 26, fontWeight: FontWeight.w800, color: color, letterSpacing: -1, height: 1)),
+          Text(num, style: TextStyle(fontFamily: 'Circular', fontSize: numFont, fontWeight: FontWeight.w800, color: color, letterSpacing: -1, height: 1)),
           const SizedBox(height: 4),
-          Text(label, textAlign: TextAlign.center, style: const TextStyle(fontFamily: 'Circular', fontSize: 9, fontWeight: FontWeight.w700, color: _muted, letterSpacing: 0.4)),
+          Text(label, textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Circular', fontSize: labelFont, fontWeight: FontWeight.w700, color: _muted, letterSpacing: 0.4)),
         ],
       ),
     );

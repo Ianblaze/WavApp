@@ -9,8 +9,8 @@ const _pink   = Color(0xFFFF6FE8);
 const _purple = Color(0xFFB69CFF);
 const _blue   = Color(0xFF7BA7FF);
 
-const double _cardW = 220.0;
-const double _cardH = 300.0;
+// Card dimensions are computed dynamically in _CardStackState.build()
+// from MediaQuery — see _dynCardW / _dynCardH.
 
 // ─────────────────────────────────────────────────────────────
 class CardStack extends StatefulWidget {
@@ -1411,11 +1411,16 @@ class _CardStackState extends State<CardStack> with TickerProviderStateMixin {
   // ── BUILD ─────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    final double stackH = _dynCardH + 120;
+    final sw = MediaQuery.of(context).size.width;
+    final sh = MediaQuery.of(context).size.height;
+    // Responsive card sizing — 58% of screen width, portrait ratio
+    _dynCardW = (sw * 0.58).clamp(180.0, 280.0);
+    _dynCardH = (_dynCardW / 0.72).clamp(250.0, 400.0);
+    final double stackPad = (sh * 0.12).clamp(60.0, 120.0);
+    final double stackH = _dynCardH + stackPad;
     // Commit when card has travelled ~38% of half screen height
     // This places the threshold near the screen edge
-    _commitThreshold = MediaQuery.of(context).size.height * 0.38;
-    // Card: 58% of screen width, aspect ratio 0.72 (portrait playing card feel)
+    _commitThreshold = sh * 0.38;
     // Calculate centering offset once per build from a STABLE coordinate reference
     double centerAdjustment = 0.0;
     try {
@@ -1563,7 +1568,14 @@ class _ExpandedSongViewState extends State<_ExpandedSongView>
                   horizontal: (sw * 0.07).clamp(20.0, 36.0),
                   vertical: 16,
                 ),
-                child: Column(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: sh - MediaQuery.of(context).padding.top - MediaQuery.of(context).padding.bottom - 32,
+                    ),
+                    child: IntrinsicHeight(
+                      child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Top bar
@@ -1831,7 +1843,10 @@ class _ExpandedSongViewState extends State<_ExpandedSongView>
                 ),
               ),
             ),
-          ],
+          ),
+        ),
+      ),
+    ],
         ),
       ),
     );

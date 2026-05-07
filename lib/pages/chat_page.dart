@@ -253,9 +253,9 @@ class _ChatPageState extends State<ChatPage> {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: EdgeInsets.all((w * 0.025).clamp(8.0, 12.0)),
             decoration: BoxDecoration(color: _bgTop, borderRadius: BorderRadius.circular(12)),
-            child: const Icon(Icons.music_note_rounded, color: _hotPink, size: 22),
+            child: Icon(Icons.music_note_rounded, color: _hotPink, size: (w * 0.055).clamp(18.0, 24.0)),
           ),
           SizedBox(width: w * 0.03),
           Expanded(
@@ -278,12 +278,12 @@ class _ChatPageState extends State<ChatPage> {
           GestureDetector(
             onTap: _sendMessage,
             child: Container(
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all((w * 0.03).clamp(10.0, 14.0)),
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: LinearGradient(colors: [_hotPink, _neonPurple]),
               ),
-              child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+              child: Icon(Icons.send_rounded, color: Colors.white, size: (w * 0.05).clamp(18.0, 22.0)),
             ),
           ),
         ],
