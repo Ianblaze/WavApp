@@ -1140,16 +1140,15 @@ class _MusicConversationIllustrationState
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final h = constraints.maxHeight;
-        return Center(
-          child: Transform.translate(
-            offset: Offset(widget.parallaxOffset * 120, 0),
-            child: SizedBox(
-              width: 280,
-              height: h > 350 ? 350 : h,
-              child: Stack(
+    return Center(
+      child: Transform.translate(
+        offset: Offset(widget.parallaxOffset * 120, 0),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: SizedBox(
+            width: 280,
+            height: 350,
+            child: Stack(
             children: [
               // ── Background Orbs ──
               _BackgroundOrbs(orbCtrl: _orbCtrl),
@@ -1258,12 +1257,11 @@ class _MusicConversationIllustrationState
                   ),
                 ],
               ),
-                ],
-              ),
-            ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
+      ),
     );
   }
 }
