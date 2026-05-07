@@ -4,7 +4,8 @@ import 'package:provider/provider.dart';
 
 import '../onboarding_controller.dart';
 import '../data/artist_list.dart';
-import '../widgets/artist_card.dart';
+import '../widgets/artist_card.dart'; // Kept for reference but unused
+import '../widgets/genre_chip.dart';
 import '../widgets/split_screen_shell.dart';
 
 class ArtistStep extends StatefulWidget {
@@ -40,11 +41,35 @@ class _ArtistStepState extends State<ArtistStep> {
         final dynamicAspectRatio = (screenW / (screenH * 0.38)).clamp(0.9, 1.25);
 
         return SplitScreenShell(
-          topFlex: 62,
-          bottomFlex: 38,
           topGradient: const [Color(0xFFD4E4FF), Color(0xFFEDD4FF)],
           illustration: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Selection counter
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                decoration: BoxDecoration(
+                  color: done
+                      ? const Color(0xFFE1F5EE)
+                      : Colors.white.withOpacity(0.35),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: done
+                        ? const Color(0xFF5DCAA5)
+                        : Colors.white.withOpacity(0.4),
+                    width: 0.5,
+                  ),
+                ),
+                child: Text(
+                  '${selected.length} / 5 selected',
+                  style: TextStyle(
+                    fontFamily: 'Circular', fontSize: 13, fontWeight: FontWeight.w700,
+                    color: done ? const Color(0xFF085041) : const Color(0xFF8A7EA5),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
               // Search box
               Container(
                 decoration: BoxDecoration(
@@ -90,74 +115,50 @@ class _ArtistStepState extends State<ArtistStep> {
                     ).createShader(bounds);
                   },
                   blendMode: BlendMode.dstIn,
-                  child: GridView.builder(
+                  child: SingleChildScrollView(
                     padding: const EdgeInsets.only(bottom: 20),
-                    clipBehavior: Clip.none,
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: dynamicAspectRatio,
+                    child: Wrap(
+                      spacing: 10, runSpacing: 10,
+                      children: List.generate(_filtered.length, (i) {
+                        final a = _filtered[i];
+                        final isSelected = selected.contains(a.name);
+                        final selIdx = isSelected ? selected.indexOf(a.name) : 0;
+                        return GenreChip(
+                          label: a.name,
+                          selected: isSelected,
+                          selectionIndex: selIdx,
+                          onTap: () => context.read<OnboardingController>().toggleArtist(a.name),
+                        );
+                      }),
                     ),
-                  itemCount: _filtered.length,
-                  itemBuilder: (ctx, i) {
-                    final a = _filtered[i];
-                    return ArtistCard(
-                      artist: a,
-                      selected: selected.contains(a.name),
-                      onTap: () =>
-                          context.read<OnboardingController>().toggleArtist(a.name),
-                    );
-                  },
-                ),
+                  ),
                 ),
               ),
             ],
           ),
           title: 'Favourite artists',
           subtitle: 'Pick 5 artists you love. They shape every match.',
-          extras: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-            decoration: BoxDecoration(
-              color: done
-                  ? const Color(0xFFE1F5EE)
-                  : Colors.white.withOpacity(0.35),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: done
-                    ? const Color(0xFF5DCAA5)
-                    : Colors.white.withOpacity(0.4),
-                width: 0.5,
-              ),
-            ),
-            child: Text(
-              '${selected.length} / 5 selected',
-              style: TextStyle(
-                fontFamily: 'Circular', fontSize: 13, fontWeight: FontWeight.w700,
-                color: done ? const Color(0xFF085041) : const Color(0xFF8A7EA5),
-              ),
-            ),
-          ),
           cta: SizedBox(
             width: double.infinity, height: 56,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFB3D9),
-                foregroundColor: const Color(0xFF4B1528),
-                disabledBackgroundColor: const Color(0xFFEFE8F5),
-                disabledForegroundColor: const Color(0xFFB0A0C0),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(28)),
-                elevation: 0,
-              ),
-              onPressed: done ? widget.onNext : null,
-              child: Text(
-                done ? "let's go →" : 'pick ${5 - selected.length} more',
-                style: const TextStyle(
-                  fontFamily: 'Circular',
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 200),
+              opacity: done ? 1.0 : 0.5,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFB3D9),
+                  foregroundColor: const Color(0xFF4B1528),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(28)),
+                  elevation: 0,
+                ),
+                onPressed: done ? widget.onNext : null,
+                child: Text(
+                  done ? "let's go →" : 'pick ${5 - selected.length} more',
+                  style: const TextStyle(
+                    fontFamily: 'Circular',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
             ),
