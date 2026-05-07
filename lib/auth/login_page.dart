@@ -329,8 +329,15 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
           // ── Main Content Area ──
           SafeArea(
-            child: Column(
-              children: [
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final h = constraints.maxHeight;
+                return SingleChildScrollView(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: h),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
                 // Header (Back navigation or spacing)
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 300),
@@ -367,7 +374,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                 ),
                 
                 // Spacing to push content down near center (like hinge/tinder layouts)
-                const Spacer(flex: 2),
+                SizedBox(height: h * 0.05),
 
                 // ── "wav" Wordmark & Tagline & Waveform ──
                 LayoutBuilder(
@@ -421,16 +428,16 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                   }
                 ),
 
-                const Spacer(flex: 4), // Big gap down to social proof block
+                SizedBox(height: h * 0.08), // Big gap down to social proof block
 
                 // ── Social Proof Avatars ── 
                 _buildSocialProofAvatars(),
                 
-                const Spacer(flex: 2),
+                SizedBox(height: h * 0.05),
                 
                 // Cards Stack Area
-                Expanded(
-                  flex: 14,
+                SizedBox(
+                  height: 420, // Fixed height to prevent squishing, scrolls if screen is too small
                   child: RepaintBoundary(
                     child: Stack(
                       children: [
@@ -504,7 +511,11 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               ],
             ),
           ),
-        ],
+        );
+      },
+    ),
+  ),
+],
       ),
     );
   }

@@ -88,35 +88,31 @@ class SplitScreenShell extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Flexible(
-                                child: Text(
-                                  title,
-                                  style: TextStyle(
-                                    fontFamily: 'Circular',
-                                    fontSize: titleFont,
-                                    fontWeight: FontWeight.w900,
-                                    color: const Color(0xFF0F0B1A),
-                                    letterSpacing: -1.2,
-                                    height: 1.05,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 3,
+                              Text(
+                                title,
+                                style: TextStyle(
+                                  fontFamily: 'Circular',
+                                  fontSize: titleFont,
+                                  fontWeight: FontWeight.w900,
+                                  color: const Color(0xFF0F0B1A),
+                                  letterSpacing: -1.2,
+                                  height: 1.05,
                                 ),
+                                overflow: TextOverflow.visible,
+                                maxLines: 3,
                               ),
                               SizedBox(height: totalH * 0.012),
-                              Flexible(
-                                child: Text(
-                                  subtitle,
-                                  style: TextStyle(
-                                    fontFamily: 'Circular',
-                                    fontSize: subtitleFont,
-                                    fontWeight: FontWeight.w500,
-                                    color: const Color(0xFF0F0B1A).withOpacity(0.7),
-                                    height: 1.45,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 3,
+                              Text(
+                                subtitle,
+                                style: TextStyle(
+                                  fontFamily: 'Circular',
+                                  fontSize: subtitleFont,
+                                  fontWeight: FontWeight.w500,
+                                  color: const Color(0xFF0F0B1A).withOpacity(0.7),
+                                  height: 1.45,
                                 ),
+                                overflow: TextOverflow.visible,
+                                maxLines: 3,
                               ),
                               if (extras != null) ...[
                                 SizedBox(height: totalH * 0.02),
