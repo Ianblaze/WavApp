@@ -429,8 +429,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                 const Spacer(flex: 2),
                 
                 // Cards Stack Area
-                SizedBox(
-                  height: MediaQuery.of(context).size.height * 0.52, // Responsive height
+                Expanded(
+                  flex: 14,
                   child: RepaintBoundary(
                     child: Stack(
                       children: [

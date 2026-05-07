@@ -111,10 +111,10 @@ class _MatchCardsIllustrationState extends State<MatchCardsIllustration>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                SizedBox(
-                  width: w,
-                  height: h * 0.63,
-                  child: Stack(
+                Expanded(
+                  child: SizedBox(
+                    width: w,
+                    child: Stack(
                     alignment: Alignment.center,
                     clipBehavior: Clip.none,
                     children: [
@@ -302,9 +302,10 @@ class _MatchCardsIllustrationState extends State<MatchCardsIllustration>
                     ],
                   ),
                 ),
+                ),
 
                 // #6: Waveform (Clean visualizer, no touch)
-                const SizedBox(height: 42), // Lowered even more
+                SizedBox(height: (h * 0.05).clamp(10.0, 42.0)),
                 _ReactiveWaveform(swipeCtrl: _swipeCtrl),
               ],
             ),
@@ -1139,13 +1140,16 @@ class _MusicConversationIllustrationState
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Transform.translate(
-        offset: Offset(widget.parallaxOffset * 120, 0),
-        child: SizedBox(
-          width: 280,
-          height: 350,
-          child: Stack(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final h = constraints.maxHeight;
+        return Center(
+          child: Transform.translate(
+            offset: Offset(widget.parallaxOffset * 120, 0),
+            child: SizedBox(
+              width: 280,
+              height: h > 350 ? 350 : h,
+              child: Stack(
             children: [
               // ── Background Orbs ──
               _BackgroundOrbs(orbCtrl: _orbCtrl),
@@ -1254,10 +1258,12 @@ class _MusicConversationIllustrationState
                   ),
                 ],
               ),
-            ],
+                ],
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
