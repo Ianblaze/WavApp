@@ -98,6 +98,8 @@ flutter:
     - assets/images/avatar1.jpg
     - assets/images/avatar2.jpg
     - assets/images/avatar3.jpg
+    - assets/images/logo_final.png
+    - assets/images/wav_final.png
     - assets/images/login_bg.png
     - assets/images/finalfinalbg.mp4
     - assets/images/splashbg.mp4
