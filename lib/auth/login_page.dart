@@ -429,48 +429,43 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                 // Spacing to push content down near center (like hinge/tinder layouts)
                 const Spacer(flex: 2),
 
-                // ── "wav" Wordmark & Tagline & Waveform ──
+                // ── Brand Unit (Logo & Wordmark) ──
                 LayoutBuilder(
                   builder: (context, constraints) {
                     final w = MediaQuery.of(context).size.width;
                     final h = MediaQuery.of(context).size.height;
-                    final wavSize = (w * 0.2).clamp(48.0, 72.0);
-                    final tagSize = (w * 0.045).clamp(14.0, 16.0);
+                    final logoSize = (w * 0.15).clamp(54.0, 72.0);
+                    final wavHeight = (w * 0.12).clamp(32.0, 48.0);
                     
                     return Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        ShaderMask(
-                          shaderCallback: (bounds) => const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Color(0xFFFFB3E6), // soft pink
-                              Color(0xFFB3D9FF), // soft blue
-                              Color(0xFFD9B3FF), // soft purple
-                            ],
-                          ).createShader(bounds),
-                          blendMode: BlendMode.srcIn,
-                          child: Text(
-                            "wav",
-                            style: TextStyle(
-                              fontFamily: 'Circular', 
-                              fontSize: wavSize,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white, 
-                              letterSpacing: -1.5,
-                              height: 1.0,
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Image.asset(
+                              'assets/images/logo_final.png',
+                              width: logoSize,
+                              height: logoSize,
+                              fit: BoxFit.contain,
                             ),
-                          ),
+                            const SizedBox(width: 12),
+                            Image.asset(
+                              'assets/images/wav_final.png',
+                              height: wavHeight,
+                              fit: BoxFit.contain,
+                            ),
+                          ],
                         ),
-                        SizedBox(height: h * 0.01),
+                        SizedBox(height: h * 0.012),
                         Text(
                           "match through music",
                           style: TextStyle(
                             fontFamily: 'Circular',
-                            fontSize: tagSize,
-                            fontWeight: FontWeight.w600, // Medium/SemiBold
-                            color: const Color(0xFF8B84A6).withOpacity(0.9), // Muted lavender-grey
+                            fontSize: (w * 0.045).clamp(14.0, 16.0),
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF8B84A6).withOpacity(0.9),
                             letterSpacing: 0.2,
                           ),
                         ),

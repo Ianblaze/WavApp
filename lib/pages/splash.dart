@@ -300,71 +300,51 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                       ),
                       child: FittedBox(
                         fit: BoxFit.scaleDown, // Scales down if content too large
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Animated logo - reveals from left to right
-                            AnimatedBuilder(
-                              animation: _revealController,
-                              builder: (context, child) {
-                                return ClipRect(
-                                  child: Align(
-                                    alignment: Alignment.centerLeft,
-                                    widthFactor: _revealProgress.value, // Reveals left to right
-                                    child: Image.asset(
-                                      'assets/images/filogo.png',
-                                      width: logoSize,
-                                      height: logoSize,
-                                      fit: BoxFit.contain,
-                                    ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Animated logo - reveals from left to right
+                          AnimatedBuilder(
+                            animation: _revealController,
+                            builder: (context, child) {
+                              return ClipRect(
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  widthFactor: _revealProgress.value, // Reveals left to right
+                                  child: Image.asset(
+                                    'assets/images/logo_final.png',
+                                    width: logoSize,
+                                    height: logoSize,
+                                    fit: BoxFit.contain,
                                   ),
-                                );
-                              },
-                            ),
-                            
-                            SizedBox(width: spacing),
-                            
-                            // Animated "Wav" text - full word slides in
-                            AnimatedBuilder(
-                              animation: _textController,
-                              builder: (context, child) {
-                                return SlideTransition(
-                                  position: _textSlide,
-                                  child: FadeTransition(
-                                    opacity: _textOpacity,
-                                    child: Transform.translate(
-                                      offset: const Offset(-4, 0),
-                                      child: ShaderMask(
-                                        shaderCallback: (bounds) => const LinearGradient(
-                                          begin: Alignment.topLeft,
-                                          end: Alignment.bottomRight,
-                                          colors: [
-                                            Color(0xFFFFB3E6), // soft pink
-                                            Color(0xFFB3D9FF), // soft blue
-                                            Color(0xFFD9B3FF), // soft purple
-                                          ],
-                                        ).createShader(bounds),
-                                        child: Text(
-                                          'Wav',
-                                          style: TextStyle(
-                                            fontFamily: 'Circular',
-                                            fontSize: wavFontSize,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.white,
-                                            letterSpacing: -2,
-                                            height: 1.0,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
+                                ),
+                              );
+                            },
+                          ),
+                          
+                          SizedBox(width: spacing),
+                          
+                          // Animated "wav" image - slides in
+                          AnimatedBuilder(
+                            animation: _textController,
+                            builder: (context, child) {
+                              return SlideTransition(
+                                position: _textSlide,
+                                child: FadeTransition(
+                                  opacity: _textOpacity,
+                                  child: Image.asset(
+                                    'assets/images/wav_final.png',
+                                    height: wavFontSize * 0.8, // Adjust scale to match font size
+                                    fit: BoxFit.contain,
                                   ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
                       ),
                     );
                   },
