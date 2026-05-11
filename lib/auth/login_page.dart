@@ -440,23 +440,10 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                     return Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Image.asset(
-                              'assets/images/logo_final.png',
-                              width: logoSize,
-                              height: logoSize,
-                              fit: BoxFit.contain,
-                            ),
-                            const SizedBox(width: 12),
-                            Image.asset(
-                              'assets/images/wav_final.png',
-                              height: wavHeight,
-                              fit: BoxFit.contain,
-                            ),
-                          ],
+                        Image.asset(
+                          'assets/images/wav_final.png',
+                          height: wavHeight,
+                          fit: BoxFit.contain,
                         ),
                         SizedBox(height: h * 0.012),
                         Text(

@@ -237,49 +237,15 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                     double spacing;
                     
                     if (isLandscape) {
-                      // Landscape mode - scale based on height (limited vertical space)
                       final minDimension = screenHeight;
-                      logoSize = (screenWidth * 0.28).clamp(90.0, 130.0);
-                      wavFontSize = (screenWidth * 0.25).clamp(70.0, 110.0);
-                      spacing = (minDimension * 0.015).clamp(6.0, 12.0);
+                      logoSize = (minDimension * 0.3).clamp(100.0, 150.0);
+                      wavFontSize = (minDimension * 0.25).clamp(80.0, 130.0);
+                      spacing = (minDimension * 0.02).clamp(8.0, 16.0);
                     } else {
-                      // Portrait mode - scale based on width
-                      if (screenWidth < 320) {
-                        // Very small phones
-                        logoSize = 60.0;
-                        wavFontSize = 30.0;
-                        spacing = 4.0;
-                      } else if (screenWidth < 360) {
-                        // Small phones
-                        logoSize = 70.0;
-                        wavFontSize = 35.0;
-                        spacing = 5.0;
-                      } else if (screenWidth < 400) {
-                        // Medium phones
-                        logoSize = 85.0;
-                        wavFontSize = 42.0;
-                        spacing = 6.0;
-                      } else if (screenWidth < 450) {
-                        // Large phones
-                        logoSize = 100.0;
-                        wavFontSize = 50.0;
-                        spacing = 8.0;
-                      } else if (screenWidth < 600) {
-                        // Phablets
-                        logoSize = 115.0;
-                        wavFontSize = 58.0;
-                        spacing = 10.0;
-                      } else if (screenWidth < 400) {
-                        // Medium phones
-                        logoSize = 100.0;
-                        wavFontSize = 90.0;
-                        spacing = 8.0;
-                      } else {
-                        // Large phones / Default
-                        logoSize = 120.0;
-                        wavFontSize = 110.0;
-                        spacing = 10.0;
-                      }
+                      // Portrait - Ultra Large Sizing
+                      logoSize = (screenWidth * 0.45).clamp(140.0, 200.0);
+                      wavFontSize = (screenWidth * 0.4).clamp(120.0, 180.0);
+                      spacing = (screenWidth * 0.03).clamp(12.0, 20.0);
                     }
                     
                     // Ensure content fits within available space
