@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
 
-class AuthVideoBackground extends StatefulWidget {
+class AuthVideoBackground extends StatelessWidget {
   final Widget child;
   final double overlayOpacity;
 
@@ -12,57 +11,27 @@ class AuthVideoBackground extends StatefulWidget {
   });
 
   @override
-  State<AuthVideoBackground> createState() => _AuthVideoBackgroundState();
-}
-
-class _AuthVideoBackgroundState extends State<AuthVideoBackground> {
-  late VideoPlayerController _controller;
-  bool _isInitialized = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = VideoPlayerController.asset('assets/images/splashbg.mp4')
-      ..initialize().then((_) {
-        if (mounted) {
-          setState(() => _isInitialized = true);
-          _controller.setLooping(true);
-          _controller.setVolume(0);
-          _controller.play();
-        }
-      });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Stack(
       fit: StackFit.expand,
       children: [
-        // ── Video Layer ──
+        // ── Static Background Layer ──
         Positioned.fill(
-          child: FittedBox(
+          child: Image.asset(
+            'assets/images/bgstatic.png',
             fit: BoxFit.cover,
-            child: SizedBox(
-              width: _controller.value.isInitialized ? _controller.value.size.width : 1,
-              height: _controller.value.isInitialized ? _controller.value.size.height : 1,
-              child: VideoPlayer(_controller),
-            ),
           ),
         ),
 
         // ── Dark Overlay ──
         Positioned.fill(
-          child: ColoredBox(color: Colors.black.withOpacity(widget.overlayOpacity)),
+          child: ColoredBox(
+            color: Colors.black.withOpacity(overlayOpacity),
+          ),
         ),
 
         // ── Content ──
-        widget.child,
+        child,
       ],
     );
   }
