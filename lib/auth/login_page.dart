@@ -12,6 +12,8 @@ import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 import 'dart:async';
 import 'widgets/animated_waveform.dart';
+import 'widgets/auth_snackbar.dart';
+import 'package:video_player/video_player.dart';
 
 // ----------------------
 // Y2K COLORS (STRONGER PASTELS)
@@ -45,6 +47,16 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
+  late VideoPlayerController _mainController;
+  late VideoPlayerController _authController;
+  late VideoPlayerController _signUpVideoCtrl;
+  late VideoPlayerController _loginVideoCtrl;
+  late VideoPlayerController _gmailVideoCtrl;
+  late VideoPlayerController _googleVideoCtrl;
+  late VideoPlayerController _phoneVideoCtrl;
+  bool _isMainInitialized = false;
+  bool _isAuthInitialized = false;
+  bool _isSplashInitialized = false;
   bool isLoading = false;
   bool showLanding = false;
   
@@ -101,7 +113,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    
     _entranceController = AnimationController(
       duration: const Duration(milliseconds: 1400),
       vsync: this,
@@ -127,7 +138,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       vsync: this,
     )..repeat();
     
-    // 5.5s total: 3.5s animation + 2s delay
     _shimmerController = AnimationController(
       duration: const Duration(milliseconds: 5500),
       vsync: this,
@@ -167,7 +177,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     
     _authMethodsSlide = Tween<Offset>(
       begin: const Offset(0, 1.0),
-      end: Offset.zero,
+      end: const Offset(0, 0.02), // Moved higher (was 0.15)
     ).animate(CurvedAnimation(
       parent: _authMethodsController,
       curve: Curves.easeOutCubic,
@@ -212,8 +222,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       parent: _gradientShiftController,
       curve: Curves.easeInOutSine,
     ));
-    
-    // Tick match count every 3.8 seconds for social proof (per design)
+
     _matchTimer = Timer.periodic(const Duration(milliseconds: 3800), (_) {
       if (mounted) {
         setState(() {
@@ -221,16 +230,51 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         });
       }
     });
-    
-    // Session persistence is handled by Firebase Auth natively.
-    // AuthWrapper observes idTokenChanges() and routes accordingly.
 
-    // Automate entrance if showing cards immediately
     if (!showLanding) {
       Future.delayed(const Duration(milliseconds: 600), () {
         if (mounted) _entranceController.forward();
       });
     }
+
+    _mainController = VideoPlayerController.asset('assets/images/finalbg.mp4')
+      ..initialize().then((_) {
+        setState(() => _isMainInitialized = true);
+        _mainController.setLooping(true);
+        _mainController.setVolume(0);
+        _mainController.play();
+      });
+
+    _authController = VideoPlayerController.asset('assets/images/finalfinalbg.mp4')
+      ..initialize().then((_) {
+        setState(() => _isAuthInitialized = true);
+        _authController.setLooping(true);
+        _authController.setVolume(0);
+        _authController.pause(); // Start paused, play when switched
+      });
+
+    _signUpVideoCtrl = VideoPlayerController.asset('assets/images/splashbg.mp4');
+    _loginVideoCtrl = VideoPlayerController.asset('assets/images/splashbg.mp4');
+    _gmailVideoCtrl = VideoPlayerController.asset('assets/images/splashbg.mp4');
+    _googleVideoCtrl = VideoPlayerController.asset('assets/images/splashbg.mp4');
+    _phoneVideoCtrl = VideoPlayerController.asset('assets/images/splashbg.mp4');
+
+    Future.wait([
+      _signUpVideoCtrl.initialize(),
+      _loginVideoCtrl.initialize(),
+      _gmailVideoCtrl.initialize(),
+      _googleVideoCtrl.initialize(),
+      _phoneVideoCtrl.initialize(),
+    ]).then((_) {
+      if (mounted) {
+        setState(() => _isSplashInitialized = true);
+        for (var ctrl in [_signUpVideoCtrl, _loginVideoCtrl, _gmailVideoCtrl, _googleVideoCtrl, _phoneVideoCtrl]) {
+          ctrl.setLooping(true);
+          ctrl.setVolume(0);
+          ctrl.play();
+        }
+      }
+    });
   }
 
   @override
@@ -242,6 +286,13 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     _gradientShiftController.dispose();
     _shimmerController.dispose();
     _matchTimer?.cancel();
+    _mainController.dispose();
+    _authController.dispose();
+    _signUpVideoCtrl.dispose();
+    _loginVideoCtrl.dispose();
+    _gmailVideoCtrl.dispose();
+    _googleVideoCtrl.dispose();
+    _phoneVideoCtrl.dispose();
     super.dispose();
   }
 
@@ -254,19 +305,25 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       _hoveredCardIndex = null;
       _activeCardIndex = null;
     });
-    _authMethodsController.forward();
+    _authController.play();
+    _authMethodsController.forward().then((_) {
+      if (mounted) _mainController.pause();
+    });
   }
   
   void _goBackToMainCards() {
     if (_authMethodsController.isAnimating) return;
     
+    _mainController.play();
+    setState(() {
+      showAuthMethods = false;
+      _hoveredCardIndex = null;
+      _activeCardIndex = null;
+    });
+    
     _authMethodsController.reverse().then((_) {
       if (mounted) {
-        setState(() {
-          showAuthMethods = false;
-          _hoveredCardIndex = null;
-          _activeCardIndex = null;
-        });
+        _authController.pause();
       }
     });
   }
@@ -305,57 +362,84 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final h = MediaQuery.of(context).size.height;
     return Scaffold(
+      extendBodyBehindAppBar: true,
       resizeToAvoidBottomInset: false,
       body: Stack(
+        fit: StackFit.expand,
         children: [
-          // ── Minimal Pastel Background (Per Design) ──
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0xFFFDE8FF), // Soft pastel pale pink at top
-                    Color(0xFFE5DEFF), // Very soft lavender in middle
-                    Color(0xFFD6EBFF), // Soft icy blue at bottom
-                  ],
-                  stops: [0.0, 0.6, 1.0],
+          // LAYER 1: DUAL VIDEO BACKGROUND WITH CROSS-FADE
+          Stack(
+            fit: StackFit.expand,
+            children: [
+              // Main video (finalbg.mp4)
+              if (_isMainInitialized)
+                AnimatedOpacity(
+                  opacity: showAuthMethods ? 0.0 : 1.0,
+                  duration: const Duration(milliseconds: 800),
+                  child: SizedBox.expand(
+                    child: FittedBox(
+                      fit: BoxFit.fill,
+                      alignment: Alignment.center,
+                      child: SizedBox(
+                        width: _mainController.value.size.width,
+                        height: _mainController.value.size.height,
+                        child: VideoPlayer(_mainController),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
+              // Auth video (finalfinalbg.mp4)
+              if (_isAuthInitialized)
+                AnimatedOpacity(
+                  opacity: showAuthMethods ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 800),
+                  child: SizedBox.expand(
+                    child: FittedBox(
+                      fit: BoxFit.fill,
+                      alignment: Alignment.center,
+                      child: SizedBox(
+                        width: _authController.value.size.width,
+                        height: _authController.value.size.height,
+                        child: VideoPlayer(_authController),
+                      ),
+                    ),
+                  ),
+                ),
+              if (!_isMainInitialized && !_isAuthInitialized)
+                const SizedBox.expand(child: ColoredBox(color: Colors.black)),
+            ],
+          ),
+
+          // LAYER 2: DARK OVERLAY
+          const SizedBox.expand(
+            child: ColoredBox(color: Color(0x4D000000)),
           ),
 
           // ── Main Content Area ──
           SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final h = constraints.maxHeight;
-                return SingleChildScrollView(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: h),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
                 // Header (Back navigation or spacing)
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 300),
-                  height: showAuthMethods ? 80 : 60,
+                  height: showAuthMethods ? 80 : 40,
                   child: showAuthMethods
                       ? Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Row(
                             children: [
                               Material(
                                 color: Colors.transparent,
                                 child: InkWell(
                                   onTap: _goBackToMainCards,
-                                  borderRadius: BorderRadius.circular(24),
+                                  borderRadius: BorderRadius.circular(30),
                                   splashColor: Colors.white.withOpacity(0.3),
                                   highlightColor: Colors.white.withOpacity(0.1),
                                   child: Container(
-                                    padding: const EdgeInsets.all(12),
+                                    padding: const EdgeInsets.all(16),
                                     child: const Icon(
                                       Icons.arrow_back_rounded,
                                       color: Colors.white,
@@ -365,16 +449,15 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                 ),
                               ),
                               const Spacer(),
-                              const Spacer(),
                               const SizedBox(width: 40),
                             ],
                           ),
                         )
-                      : const SizedBox(height: 60),
+                      : const SizedBox(height: 40),
                 ),
                 
                 // Spacing to push content down near center (like hinge/tinder layouts)
-                SizedBox(height: h * 0.05),
+                const Spacer(flex: 2),
 
                 // ── "wav" Wordmark & Tagline & Waveform ──
                 LayoutBuilder(
@@ -421,23 +504,16 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                             letterSpacing: 0.2,
                           ),
                         ),
-                        SizedBox(height: h * 0.03),
-                        _buildAnimatedWaveform(),
                       ],
                     );
                   }
                 ),
 
-                SizedBox(height: h * 0.08), // Big gap down to social proof block
-
-                // ── Social Proof Avatars ── 
-                _buildSocialProofAvatars(),
-                
-                SizedBox(height: h * 0.05),
+                const Spacer(flex: 5), // Combined spacer to push cards down
                 
                 // Cards Stack Area
                 SizedBox(
-                  height: 420, // Fixed height to prevent squishing, scrolls if screen is too small
+                  height: (h * 0.45).clamp(280.0, 380.0), // Squeezed to prevent overflow
                   child: RepaintBoundary(
                     child: Stack(
                       children: [
@@ -460,7 +536,14 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                               opacity: _authMethodsOpacity,
                               child: IgnorePointer(
                                 ignoring: !showAuthMethods,
-                                child: _buildAuthMethodCards(),
+                                child: GestureDetector(
+                                  onVerticalDragUpdate: (details) {
+                                    if (details.delta.dy < -10) { // Swipe up
+                                      _goBackToMainCards();
+                                    }
+                                  },
+                                  child: _buildAuthMethodCards(),
+                                ),
                               ),
                             ),
                           ),
@@ -469,40 +552,42 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
                 // ── Guest Mode Link ──
-                GestureDetector(
-                  onTap: isLoading
-                      ? null
-                      : () async {
-                          setState(() => isLoading = true);
-                          try {
-                            await context.read<AuthProvider>().signInAsGuest();
-                          } catch (e) {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                content: Text('Guest login failed: $e',
-                                    style: const TextStyle(fontFamily: 'Circular', color: Colors.white)),
-                                backgroundColor: Colors.orange,
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ));
-                            }
-                          } finally {
-                            if (mounted) setState(() => isLoading = false);
-                          }
-                        },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Text(
-                      'Continue as Guest',
-                      style: TextStyle(
-                        fontFamily: 'Circular',
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: mutedText.withOpacity(0.7),
-                        decoration: TextDecoration.underline,
-                        decorationColor: mutedText.withOpacity(0.4),
+                // ── Guest Mode Link ──
+                AnimatedOpacity(
+                  opacity: showAuthMethods ? 0.0 : 1.0,
+                  duration: const Duration(milliseconds: 400),
+                  child: IgnorePointer(
+                    ignoring: showAuthMethods,
+                    child: GestureDetector(
+                      onTap: isLoading
+                          ? null
+                          : () async {
+                              setState(() => isLoading = true);
+                              try {
+                                await context.read<AuthProvider>().signInAsGuest();
+                              } catch (e) {
+                                if (mounted) {
+                                  AuthSnackBar.show(context, 'Guest login failed: $e');
+                                }
+                              } finally {
+                                if (mounted) setState(() => isLoading = false);
+                              }
+                            },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Text(
+                          'Continue as Guest',
+                          style: TextStyle(
+                            fontFamily: 'Circular',
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: mutedText.withOpacity(0.7),
+                            decoration: TextDecoration.underline,
+                            decorationColor: mutedText.withOpacity(0.4),
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -511,11 +596,27 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               ],
             ),
           ),
-        );
-      },
-    ),
-  ),
-],
+          
+          // LAYER 4: TOP-LEVEL SPLASH OVERLAY
+          if (_isSplashInitialized)
+            IgnorePointer(
+              child: AnimatedOpacity(
+                opacity: 0.2,
+                duration: const Duration(milliseconds: 800),
+                child: SizedBox.expand(
+                  child: FittedBox(
+                    fit: BoxFit.fill,
+                    alignment: Alignment.center,
+                    child: SizedBox(
+                      width: _signUpVideoCtrl.value.size.width,
+                      height: _signUpVideoCtrl.value.size.height,
+                      child: VideoPlayer(_signUpVideoCtrl),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -580,6 +681,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                               accentColor: const Color(0xFFFF88D4),
                               decorationType: 'blob',
                               onTap: () => _showAuthMethodsWithAnimation(true),
+                              videoCtrl: _signUpVideoCtrl,
                             ),
                           ),
                         ),
@@ -612,6 +714,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                               accentColor: const Color(0xFF88C8FF),
                               decorationType: 'streak',
                               onTap: () => _showAuthMethodsWithAnimation(false),
+                              videoCtrl: _loginVideoCtrl,
                             ),
                           ),
                         ),
@@ -731,23 +834,12 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                         builder: (_) => const EmailLoginScreen(showLinkingBanner: true),
                                       ));
                                     } else {
-                                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                        content: Text(e.message,
-                                            style: const TextStyle(fontFamily: 'Circular', color: Colors.white, fontWeight: FontWeight.w600)),
-                                        backgroundColor: Colors.red,
-                                        behavior: SnackBarBehavior.floating,
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                        margin: const EdgeInsets.all(16),
-                                      ));
+                                      AuthSnackBar.show(context, e.message);
                                     }
                                   }
                                 } catch (e) {
                                   if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                                      content: Text('Sign-in failed', style: TextStyle(fontFamily: 'Circular', color: Colors.white)),
-                                      backgroundColor: Colors.orange,
-                                      behavior: SnackBarBehavior.floating,
-                                    ));
+                                    AuthSnackBar.show(context, 'Sign-in failed');
                                   }
                                 } finally {
                                   if (mounted) setState(() => isLoading = false);
@@ -848,41 +940,45 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
             width: cardWidth,
             height: cardHeight,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  gradientColors[0].withOpacity(isHovered ? 0.85 : 0.7),
-                  gradientColors[1].withOpacity(isHovered ? 0.65 : 0.5),
-                ],
-              ),
+              color: Colors.transparent,
               borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.2),
+                width: 1.5,
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: isActive ? 35 : isHovered ? 28 : 22,
-                  offset: Offset(0, isActive ? 20.0 : isHovered ? 16.0 : 12.0),
-                  spreadRadius: -5,
-                ),
-                BoxShadow(
-                  color: gradientColors[0].withOpacity(isActive ? 0.7 : isHovered ? 0.6 : 0.3),
-                  blurRadius: isActive ? 30 : isHovered ? 24 : 18,
-                  offset: Offset(0, isActive ? 10.0 : isHovered ? 8.0 : 5.0),
-                ),
-                BoxShadow(
-                  color: Colors.white.withOpacity(0.1),
-                  blurRadius: 2,
-                  offset: const Offset(0, -1),
-                  spreadRadius: 0,
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: isActive ? 35 : 22,
+                  offset: Offset(0, isActive ? 20.0 : 12.0),
                 ),
               ],
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(24),
               child: Stack(
+                fit: StackFit.expand,
                 children: [
+                  // EMBEDDED VIDEO BACKGROUND
+                  if (_isSplashInitialized) () {
+                    final ctrl = cardIndex == 0 ? _gmailVideoCtrl : (cardIndex == 1 ? _googleVideoCtrl : _phoneVideoCtrl);
+                    return FittedBox(
+                      fit: BoxFit.cover,
+                      child: SizedBox(
+                        width: ctrl.value.size.width,
+                        height: ctrl.value.size.height,
+                        child: VideoPlayer(ctrl),
+                      ),
+                    );
+                  }(),
+
+                  // Very subtle dark tint
+                  Container(
+                    color: Colors.black.withOpacity(0.1),
+                  ),
+
                   BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
                     child: Stack(
                       children: [
                         // Large icon at the top
@@ -892,7 +988,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                           right: 0,
                           child: Center(
                             child: AnimatedOpacity(
-                              opacity: isHovered ? 1.0 : 0.5,
+                              opacity: isHovered ? 1.0 : 0.8,
                               duration: const Duration(milliseconds: 200),
                               child: showLoading
                                   ? SizedBox(
@@ -913,6 +1009,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                                           icon,
                                           size: responsiveIconSize,
                                           color: Colors.white,
+                                          shadows: const [
+                                            Shadow(color: Colors.black45, blurRadius: 15, offset: Offset(0, 4))
+                                          ],
                                         )),
                             ),
                           ),
@@ -932,6 +1031,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                               color: Colors.white,
                               height: 1.2,
                               letterSpacing: -0.5,
+                              shadows: [
+                                Shadow(color: Colors.black.withOpacity(0.6), blurRadius: 15, offset: const Offset(0, 2))
+                              ],
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -1010,6 +1112,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     required Color accentColor,
     required String decorationType,
     required VoidCallback onTap,
+    required VideoPlayerController videoCtrl,
   }) {
     bool isActive = !showAuthMethods && _activeCardIndex == cardIndex;
     bool isHovered = !showAuthMethods && _hoveredCardIndex == cardIndex;
@@ -1066,307 +1169,150 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 250),
                   curve: Curves.easeOutCubic,
-                  width: cardWidth,
-            height: cardHeight,
-            decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: isHovered ? Alignment.bottomCenter : Alignment.bottomRight,
-                  colors: [
-                    gradientColors[0].withOpacity(isHovered ? 0.95 : 0.85),
-                    gradientColors[1].withOpacity(isHovered ? 0.8 : 0.7),
-                    if (gradientColors.length > 2) gradientColors[2].withOpacity(isHovered ? 0.65 : 0.55),
-                  ],
-                  // Handle variable length gradient properly
-                  stops: gradientColors.length == 3 ? const [0.0, 0.5, 1.0] : const [0.0, 1.0],
-                ),
-                borderRadius: BorderRadius.circular(28),
-                boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.08), // Softer shadow for pastel theme
-                  blurRadius: isActive ? 40 : isHovered ? 30 : 20,
-                  offset: Offset(0, isActive ? 20.0 : isHovered ? 15.0 : 10.0),
-                  spreadRadius: -2,
-                ),
-                BoxShadow(
-                  color: accentColor.withOpacity(isActive ? 0.4 : isHovered ? 0.3 : 0.15),
-                  blurRadius: isActive ? 35 : isHovered ? 25 : 18,
-                  offset: Offset(0, isActive ? 10.0 : isHovered ? 6.0 : 4.0),
-                ),
-                BoxShadow(
-                  color: Colors.white.withOpacity(0.5), // Stronger white highlight top
-                  blurRadius: 4,
-                  offset: const Offset(0, -2),
-                  spreadRadius: 0,
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(28),
-              child: Stack(
-                children: [
-                  BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                    child: Padding(
-                      padding: EdgeInsets.all(padding),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            title,
-                            style: TextStyle(
-                              fontFamily: 'Circular',
-                              fontSize: titleFontSize,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              height: 1.0,
-                              letterSpacing: -0.8,
-                            ),
-                          ),
-                          Text(
-                            subtitle,
-                            style: TextStyle(
-                              fontFamily: 'Circular',
-                              fontSize: subtitleFontSize,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white.withOpacity(0.95), // Crisper contrast since cards are lighter
-                              letterSpacing: 0.2,
-                              height: 1.3,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.visible,
-                          ),
-                        ],
-                      ),
+                  height: cardHeight,
+                  decoration: BoxDecoration(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.2),
+                      width: 1.5,
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.3),
+                        blurRadius: isActive ? 40 : 25,
+                        offset: Offset(0, isActive ? 20 : 10),
+                      ),
+                    ],
                   ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(28),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        // EMBEDDED VIDEO BACKGROUND
+                        if (_isSplashInitialized)
+                          Opacity(
+                            opacity: 0.35,
+                            child: FittedBox(
+                              fit: BoxFit.cover,
+                              child: SizedBox(
+                                width: videoCtrl.value.size.width,
+                                height: videoCtrl.value.size.height,
+                                child: VideoPlayer(videoCtrl),
+                              ),
+                            ),
+                          ),
 
-                  // -- The Shimmer Overlay --
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: AnimatedBuilder(
-                        animation: _shimmerController,
-                        builder: (context, child) {
-                          // The shimmer animates over 3.5s, then waits 2s (Total 5.5s)
-                          final activeFraction = 3.5 / 5.5;
-                          final progress = _shimmerController.value;
-                          final animProgress = (progress / activeFraction).clamp(0.0, 1.0);
-                          final curvedProgress = Curves.easeInOut.transform(animProgress);
-                          
-                          // Position the left edge sweeping smoothly across
-                          // Starts heavily off-screen left, ends heavily off-screen right
-                          final leftPosition = (-cardWidth * 0.5) + (curvedProgress * (cardWidth * 1.8));
-                          
-                          return Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              Positioned(
-                                left: leftPosition,
-                                top: -cardHeight, // Massive height to prevent clipped corners when rotated
-                                bottom: -cardHeight,
-                                width: cardWidth * 0.25, // Exactly 25% of card width for the precise beam
-                                child: Transform.rotate(
-                                  angle: 15 * math.pi / 180, // 15-degree tilt matching reference
-                                  child: Container(
-                                    decoration: const BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.centerLeft,
-                                        end: Alignment.centerRight,
-                                        colors: [
-                                          Color(0x00FFFFFF), // Transparent white prevents black interpolation
-                                          Color.fromRGBO(255, 255, 255, 0.25), // 25% brightness peak
-                                          Color(0x00FFFFFF),
-                                        ],
-                                        // Soft wash sweeping across the 25% box
-                                        stops: [0.0, 0.5, 1.0],
+                        // Very subtle dark tint
+                        Container(
+                          color: Colors.black.withOpacity(0.1),
+                        ),
+
+                        BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+                          child: Padding(
+                            padding: EdgeInsets.fromLTRB(padding, padding, padding, padding * 1.2),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Text(
+                                  title,
+                                  style: TextStyle(
+                                    fontFamily: 'Circular',
+                                    fontSize: titleFontSize,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                    height: 1.1,
+                                    letterSpacing: -0.8,
+                                    shadows: [
+                                      Shadow(
+                                        color: Colors.black.withOpacity(0.6),
+                                        blurRadius: 12,
+                                        offset: const Offset(0, 2),
                                       ),
-                                    ),
+                                    ],
                                   ),
                                 ),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
+                                SizedBox(height: cardHeight * 0.025),
+                                Text(
+                                  subtitle,
+                                  softWrap: true,
+                                  style: TextStyle(
+                                    fontFamily: 'Circular',
+                                    fontSize: subtitleFontSize,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.white.withOpacity(0.85),
+                                    height: 1.4,
+                                    shadows: [
+                                      Shadow(
+                                        color: Colors.black.withOpacity(0.4),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 1),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        
+                        // -- The Shimmer Overlay --
+                        Positioned.fill(
+                          child: IgnorePointer(
+                            child: AnimatedBuilder(
+                              animation: _shimmerController,
+                              builder: (context, child) {
+                                final activeFraction = 3.5 / 5.5;
+                                final progress = _shimmerController.value;
+                                final animProgress = (progress / activeFraction).clamp(0.0, 1.0);
+                                final curvedProgress = Curves.easeInOut.transform(animProgress);
+                                final leftPosition = (-cardWidth * 0.5) + (curvedProgress * (cardWidth * 1.8));
+                                
+                                return Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    Positioned(
+                                      left: leftPosition,
+                                      top: -cardHeight,
+                                      bottom: -cardHeight,
+                                      width: cardWidth * 0.25,
+                                      child: Transform.rotate(
+                                        angle: 15 * math.pi / 180,
+                                        child: Container(
+                                          decoration: const BoxDecoration(
+                                            gradient: LinearGradient(
+                                              begin: Alignment.centerLeft,
+                                              end: Alignment.centerRight,
+                                              colors: [
+                                                Color(0x00FFFFFF),
+                                                Color.fromRGBO(255, 255, 255, 0.25),
+                                                Color(0x00FFFFFF),
+                                              ],
+                                              stops: [0.0, 0.5, 1.0],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
             ),
           ),
         ),
-              ),
-            ),
-          ),
-        ),
-    );
-  }
-
-  Widget _buildAnimatedWaveform() {
-    final baseHeights = [
-      0.1, 0.2, 0.1, 0.4, 0.6, 0.4, 0.8, 1.0, 0.8, 0.3,
-      0.5, 0.8, 0.4, 0.8, 0.6, 0.3, 0.5, 0.2, 0.1
-    ];
-    
-    return ShaderMask(
-      shaderCallback: (bounds) => const LinearGradient(
-        begin: Alignment.centerLeft,
-        end: Alignment.centerRight,
-        colors: [
-          Color(0xFFB3D9FF), // soft blue
-          Color(0xFFFFB3E6), // soft pink
-          Color(0xFFD9B3FF), // soft purple
-        ],
-      ).createShader(bounds),
-      blendMode: BlendMode.srcIn,
-      child: SizedBox(
-        height: 24, // max height
-        child: AnimatedBuilder(
-          animation: _floatingController,
-          builder: (context, child) {
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: List.generate(baseHeights.length, (i) {
-                // Wave harmonic calculations
-                final base = baseHeights[i];
-                final phase = i * 0.4;
-                final wave = (math.sin((_floatingController.value * math.pi * 4) + phase) + 1) / 2.0;
-                final dynamicHeight = base * (0.6 + (0.4 * wave)); // varies between 60%-100% of base height
-                
-                return Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 2.0),
-                  width: 4.5,
-                  height: 24 * dynamicHeight,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                );
-              }),
-            );
-          }
-        ),
       ),
     );
   }
 
-  Widget _buildSocialProofAvatars() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          height: 48,
-          width: 48 + (3 * 34), // Approx width considering overlap
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              _buildAvatar(0, Colors.pinkAccent.withOpacity(0.5)),
-              _buildAvatar(1, Colors.purpleAccent.withOpacity(0.5)),
-              _buildAvatar(2, Colors.lightBlueAccent.withOpacity(0.5)),
-              _buildAvatarPlaceholder(3),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          "join 2,400+ music lovers",
-          style: TextStyle(
-            fontFamily: 'Circular',
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF8B84A6).withOpacity(0.9), // Muted lavender-grey
-            letterSpacing: -0.3,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAvatar(int index, Color fallbackColor) {
-    return Positioned(
-      left: index * 32.0,
-      child: AnimatedBuilder(
-        animation: _floatingController,
-        builder: (context, child) {
-          // Calculate an offset phase so each orb bounces slightly after the previous one
-          final bounce = math.sin((_floatingController.value * math.pi * 2) + (index * 0.8)) * 3.5;
-          return Transform.translate(
-            offset: Offset(0, bounce),
-            child: child,
-          );
-        },
-        child: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-          color: fallbackColor,
-          border: Border.all(color: Colors.white.withOpacity(0.9), width: 2.5),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black12,
-              blurRadius: 6,
-              offset: Offset(0, 3),
-            )
-          ]
-        ),
-        child: ClipOval(
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // Switched to locally downloaded stock assets to bypass Chrome CORS network blocks
-              Image.asset(
-                'assets/images/avatar${index + 1}.jpg', // avatar1.jpg, avatar2.jpg, avatar3.jpg
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(),
-              ),
-              // Increased blur for more stylistic privacy/aesthetic as requested
-              BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 4.0, sigmaY: 4.0),
-                child: Container(color: Colors.transparent),
-              ),
-            ],
-          ),
-        ),
-      ),
-        ),
-    );
-  }
-
-  Widget _buildAvatarPlaceholder(int index) {
-    return Positioned(
-      left: index * 32.0,
-      child: AnimatedBuilder(
-        animation: _floatingController,
-        builder: (context, child) {
-          final bounce = math.sin((_floatingController.value * math.pi * 2) + (index * 0.8)) * 3.5;
-          return Transform.translate(
-            offset: Offset(0, bounce),
-            child: child,
-          );
-        },
-        child: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-          color: Colors.white.withOpacity(0.25), // Frosted
-          border: Border.all(color: Colors.white.withOpacity(0.9), width: 2.5),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black12,
-              blurRadius: 6,
-              offset: Offset(0, 3),
-            )
-          ]
-        ),
-        child: const Center(
-          child: Icon(Icons.add, color: Colors.white, size: 20),
-        ),
-      ),
-        ),
-    );
-  }
-}
+}

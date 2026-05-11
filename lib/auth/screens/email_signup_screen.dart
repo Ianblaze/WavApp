@@ -7,6 +7,8 @@ import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
 import '../utils/auth_exception.dart';
+import '../widgets/auth_video_background.dart';
+import '../widgets/auth_snackbar.dart';
 import '../widgets/password_requirements.dart';
 
 const _cardHotPink = Color(0xFFFFB3D9);
@@ -74,7 +76,7 @@ class _EmailSignUpScreenState extends State<EmailSignUpScreen> {
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (!_usernameAvailable) {
-      _showSnack('Pick an available username', Colors.orange);
+      AuthSnackBar.show(context, 'Pick an available username');
       return;
     }
     setState(() => _loading = true);
@@ -104,23 +106,13 @@ class _EmailSignUpScreenState extends State<EmailSignUpScreen> {
       await auth.sendVerificationEmail();
       if (mounted) Navigator.pop(context);
     } on AuthException catch (e) {
-      if (mounted) _showSnack(e.message, Colors.red);
+      if (mounted) AuthSnackBar.show(context, e.message);
     } catch (e) {
       if (kDebugMode) debugPrint('SignUp error: $e');
-      if (mounted) _showSnack('Something went wrong. Please try again.', Colors.red);
+      if (mounted) AuthSnackBar.show(context, 'Something went wrong. Please try again.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
-  }
-
-  void _showSnack(String msg, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg, style: const TextStyle(fontFamily: 'Circular', color: Colors.white, fontWeight: FontWeight.w600)),
-      backgroundColor: color,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      margin: const EdgeInsets.all(16),
-    ));
   }
 
   // ── Minimalist Hinge-Style Field Builder ──────────────────────────
@@ -144,7 +136,7 @@ class _EmailSignUpScreenState extends State<EmailSignUpScreen> {
         fontFamily: 'Circular',
         fontSize: scaledFont,
         fontWeight: FontWeight.w600,
-        color: Colors.black87,
+        color: Colors.white,
         letterSpacing: 0.5,
       ),
       cursorColor: _cardHotPink,
@@ -154,17 +146,17 @@ class _EmailSignUpScreenState extends State<EmailSignUpScreen> {
           fontFamily: 'Circular',
           fontSize: scaledFont * 0.82,
           fontWeight: FontWeight.w400,
-          color: Colors.black54,
+          color: Colors.white70,
         ),
         floatingLabelStyle: TextStyle(
           fontFamily: 'Circular',
           fontSize: scaledFont * 0.64,
           fontWeight: FontWeight.w700,
-          color: _cardNeonPurple,
+          color: _cardHotPink,
         ),
         contentPadding: const EdgeInsets.symmetric(vertical: 12),
         enabledBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Colors.black12, width: 2),
+          borderSide: BorderSide(color: Colors.white24, width: 2),
         ),
         focusedBorder: const UnderlineInputBorder(
           borderSide: BorderSide(color: _cardHotPink, width: 3),
@@ -196,152 +188,156 @@ class _EmailSignUpScreenState extends State<EmailSignUpScreen> {
     final btnHeight = (h * 0.065).clamp(48.0, 56.0);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFCF4F9),
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black87),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(horizontal: hPad, vertical: h * 0.02),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Create your\naccount.",
-                        style: TextStyle(
-                          fontFamily: 'Circular',
-                          fontSize: headerFont,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.black87,
-                          height: 1.1,
-                          letterSpacing: -1.0,
+      body: AuthVideoBackground(
+        overlayOpacity: 0.4,
+        child: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.symmetric(horizontal: hPad, vertical: h * 0.02),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Create your\naccount.",
+                          style: TextStyle(
+                            fontFamily: 'Circular',
+                            fontSize: headerFont,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            height: 1.1,
+                            letterSpacing: -1.0,
+                          ),
                         ),
-                      ),
-                      SizedBox(height: h * 0.012),
-                      Text(
-                        "Set up your profile to start matching.",
-                        style: TextStyle(
-                          fontFamily: 'Circular',
-                          fontSize: subFont,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.black54,
+                        SizedBox(height: h * 0.012),
+                        Text(
+                          "Set up your profile to start matching.",
+                          style: TextStyle(
+                            fontFamily: 'Circular',
+                            fontSize: subFont,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white70,
+                          ),
                         ),
-                      ),
-                      SizedBox(height: h * 0.045),
-
-                      _buildMinimalField(
-                        label: 'Username',
-                        controller: _usernameCtrl,
-                        scaledFont: fieldFont,
-                        onChanged: _checkUsername,
-                      ),
-                      if (_usernameChecking)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Row(children: const [
-                            SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black54)),
-                            SizedBox(width: 8),
-                            Text('Checking...', style: TextStyle(color: Colors.black54, fontSize: 13, fontFamily: 'Circular')),
-                          ]),
+                        SizedBox(height: h * 0.045),
+  
+                        _buildMinimalField(
+                          label: 'Username',
+                          controller: _usernameCtrl,
+                          scaledFont: fieldFont,
+                          onChanged: _checkUsername,
                         ),
-                      if (_usernameError != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Text(_usernameError!, style: const TextStyle(color: Colors.redAccent, fontSize: 13, fontFamily: 'Circular')),
+                        if (_usernameChecking)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Row(children: const [
+                              SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white70)),
+                              SizedBox(width: 8),
+                              Text('Checking...', style: TextStyle(color: Colors.white70, fontSize: 13, fontFamily: 'Circular')),
+                            ]),
+                          ),
+                        if (_usernameError != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(_usernameError!, style: const TextStyle(color: Colors.redAccent, fontSize: 13, fontFamily: 'Circular')),
+                          ),
+                        if (_usernameAvailable && _usernameCtrl.text.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: const Text('✓ Available', style: TextStyle(color: Colors.greenAccent, fontSize: 13, fontFamily: 'Circular', fontWeight: FontWeight.w600)),
+                          ),
+                        SizedBox(height: h * 0.03),
+  
+                        _buildMinimalField(
+                          label: 'Email address',
+                          controller: _emailCtrl,
+                          scaledFont: fieldFont,
+                          keyboardType: TextInputType.emailAddress,
+                          validator: (v) {
+                            if (v == null || v.isEmpty) return 'Required';
+                            if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v)) return 'Invalid email';
+                            return null;
+                          },
                         ),
-                      if (_usernameAvailable && _usernameCtrl.text.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: const Text('✓ Available', style: TextStyle(color: Colors.green, fontSize: 13, fontFamily: 'Circular', fontWeight: FontWeight.w600)),
+                        SizedBox(height: h * 0.03),
+  
+                        _buildMinimalField(
+                          label: 'Password',
+                          controller: _passwordCtrl,
+                          scaledFont: fieldFont,
+                          obscureText: _obscure,
+                          onChanged: (_) => setState(() {}),
+                          suffixIcon: IconButton(
+                            icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: Colors.white70),
+                            onPressed: () => setState(() => _obscure = !_obscure),
+                          ),
+                          validator: (v) {
+                            if (v == null || v.length < 8) return 'At least 8 characters';
+                            if (!v.contains(RegExp(r'[A-Z]'))) return 'Add an uppercase letter';
+                            if (!v.contains(RegExp(r'[0-9]'))) return 'Add a number';
+                            if (!v.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) return 'Add a special character';
+                            return null;
+                          },
                         ),
-                      SizedBox(height: h * 0.03),
-
-                      _buildMinimalField(
-                        label: 'Email address',
-                        controller: _emailCtrl,
-                        scaledFont: fieldFont,
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (v) {
-                          if (v == null || v.isEmpty) return 'Required';
-                          if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v)) return 'Invalid email';
-                          return null;
-                        },
-                      ),
-                      SizedBox(height: h * 0.03),
-
-                      _buildMinimalField(
-                        label: 'Password',
-                        controller: _passwordCtrl,
-                        scaledFont: fieldFont,
-                        obscureText: _obscure,
-                        onChanged: (_) => setState(() {}),
-                        suffixIcon: IconButton(
-                          icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: Colors.black45),
-                          onPressed: () => setState(() => _obscure = !_obscure),
-                        ),
-                        validator: (v) {
-                          if (v == null || v.length < 8) return 'At least 8 characters';
-                          if (!v.contains(RegExp(r'[A-Z]'))) return 'Add an uppercase letter';
-                          if (!v.contains(RegExp(r'[0-9]'))) return 'Add a number';
-                          if (!v.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) return 'Add a special character';
-                          return null;
-                        },
-                      ),
-                      SizedBox(height: h * 0.015),
-                      
-                      PasswordRequirements(password: _passwordCtrl.text),
-                      SizedBox(height: h * 0.04),
-                    ],
+                        SizedBox(height: h * 0.015),
+                        
+                        PasswordRequirements(password: _passwordCtrl.text),
+                        SizedBox(height: h * 0.04),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            
-            // Fixed bottom submit button
-            Padding(
-              padding: EdgeInsets.fromLTRB(hPad, 12, hPad, MediaQuery.of(context).padding.bottom + 16),
-              child: SizedBox(
-                width: double.infinity,
-                height: btnHeight,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(btnHeight / 2),
-                    gradient: const LinearGradient(
-                      colors: [_cardHotPink, _cardNeonPurple],
+              
+              // Fixed bottom submit button
+              Padding(
+                padding: EdgeInsets.fromLTRB(hPad, 12, hPad, MediaQuery.of(context).padding.bottom + 16),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: btnHeight,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(btnHeight / 2),
+                      gradient: const LinearGradient(
+                        colors: [_cardHotPink, _cardNeonPurple],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _cardHotPink.withOpacity(0.3),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        )
+                      ],
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: _cardHotPink.withOpacity(0.3),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      )
-                    ],
-                  ),
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(btnHeight / 2)),
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(btnHeight / 2)),
+                      ),
+                      onPressed: _loading ? null : _submit,
+                      child: _loading
+                          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                          : Text('Continue', style: TextStyle(fontFamily: 'Circular', fontSize: subFont, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 0.5)),
                     ),
-                    onPressed: _loading ? null : _submit,
-                    child: _loading
-                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
-                        : Text('Continue', style: TextStyle(fontFamily: 'Circular', fontSize: subFont, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 0.5)),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

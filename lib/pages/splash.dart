@@ -6,6 +6,7 @@ import 'package:swipify/pages/home_page.dart';
 import 'package:swipify/auth/login_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../intro/intro_flow.dart';
+import 'package:video_player/video_player.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -28,6 +29,9 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   
   late AnimationController _gradientShiftController;
   late Animation<double> _gradientShift;
+  
+  late VideoPlayerController _videoController;
+  bool _isVideoInitialized = false;
 
   @override
   void initState() {
@@ -107,6 +111,14 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     
     // Start animation sequence
     _startAnimationSequence();
+
+    _videoController = VideoPlayerController.asset('assets/images/splashbg.mp4')
+      ..initialize().then((_) {
+        setState(() => _isVideoInitialized = true);
+        _videoController.setLooping(true);
+        _videoController.setVolume(0);
+        _videoController.play();
+      });
   }
   
   void _startAnimationSequence() async {
@@ -179,6 +191,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     _pulseController.dispose();
     _textController.dispose();
     _gradientShiftController.dispose();
+    _videoController.dispose();
     super.dispose();
   }
 
@@ -186,91 +199,48 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: AnimatedBuilder(
-          animation: _gradientShiftController,
-          builder: (context, child) {
-            final shift = _gradientShift.value;
-            
-            // Y2K gradient colors
-            const bubblegumPink = Color(0xFFFF69B4);
-            const chromeSilver = Color(0xFFC8C8C8);
-            const digitalBlue = Color(0xFF007AFF);
-            const limeFlashGreen = Color(0xFF32CD32);
-            
-            Color getColorForStage(Color c1, Color c2, Color c3, Color c4) {
-              if (shift < 0.25) {
-                return Color.lerp(c1, c2, shift * 4)!;
-              } else if (shift < 0.5) {
-                return Color.lerp(c2, c3, (shift - 0.25) * 4)!;
-              } else if (shift < 0.75) {
-                return Color.lerp(c3, c4, (shift - 0.5) * 4)!;
-              } else {
-                return Color.lerp(c4, c1, (shift - 0.75) * 4)!;
-              }
-            }
-            
-            final color1 = getColorForStage(
-              bubblegumPink.withOpacity(0.65),
-              digitalBlue.withOpacity(0.65),
-              chromeSilver.withOpacity(0.75),
-              limeFlashGreen.withOpacity(0.65),
-            );
-            
-            final color2 = getColorForStage(
-              digitalBlue.withOpacity(0.65),
-              chromeSilver.withOpacity(0.75),
-              limeFlashGreen.withOpacity(0.65),
-              bubblegumPink.withOpacity(0.65),
-            );
-            
-            final color3 = getColorForStage(
-              chromeSilver.withOpacity(0.75),
-              limeFlashGreen.withOpacity(0.65),
-              bubblegumPink.withOpacity(0.65),
-              digitalBlue.withOpacity(0.65),
-            );
-            
-            final color4 = getColorForStage(
-              limeFlashGreen.withOpacity(0.65),
-              bubblegumPink.withOpacity(0.65),
-              digitalBlue.withOpacity(0.65),
-              chromeSilver.withOpacity(0.75),
-            );
-            
-            return Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [color1, color2, color3],
-                  stops: const [0.0, 0.5, 1.0],
-                ),
-              ),
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: Alignment.topRight,
-                    radius: 1.5,
-                    colors: [color4.withOpacity(0.5), Colors.transparent],
-                    stops: const [0.0, 0.7],
+        child: Stack(
+          children: [
+            // ── Minimal Pastel Background (Matching Login Screen) ──
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xFFFDE8FF), // Soft pastel pale pink at top
+                      Color(0xFFE5DEFF), // Very soft lavender in middle
+                      Color(0xFFD6EBFF), // Soft icy blue at bottom
+                    ],
+                    stops: [0.0, 0.6, 1.0],
                   ),
                 ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      center: Alignment.bottomLeft,
-                      radius: 1.8,
-                      colors: [color1.withOpacity(0.4), Colors.transparent],
-                      stops: const [0.0, 0.8],
-                    ),
+              ),
+            ),
+            
+            // ── Video Background ──
+            if (_isVideoInitialized)
+              Positioned.fill(
+                child: FittedBox(
+                  fit: BoxFit.cover,
+                  child: SizedBox(
+                    width: _videoController.value.size.width,
+                    height: _videoController.value.size.height,
+                    child: VideoPlayer(_videoController),
                   ),
-                  child: child,
                 ),
               ),
-            );
-          },
-          child: Center(
-            child: OrientationBuilder(
+            
+            // ── Dark Overlay (Optional, for better contrast) ──
+            Positioned.fill(
+              child: ColoredBox(color: Colors.black.withOpacity(0.2)),
+            ),
+
+            
+            Positioned.fill(
+              child: Center(
+                child: OrientationBuilder(
               builder: (context, orientation) {
                 return LayoutBuilder(
                   builder: (context, constraints) {
@@ -416,9 +386,11 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                     );
                   },
                 );
-              },
+                  },
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
