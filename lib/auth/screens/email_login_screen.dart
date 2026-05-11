@@ -148,6 +148,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       extendBodyBehindAppBar: true,
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -280,6 +281,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                   ),
                 ),
               ),
+              SizedBox(height: MediaQuery.of(context).viewInsets.bottom + 16),
             ],
           ),
         ),

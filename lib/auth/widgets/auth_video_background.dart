@@ -12,11 +12,19 @@ class AuthVideoBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Lock background to full screen dimensions to prevent "gap" or "jump" 
+    // when the keyboard resizes the Scaffold body.
+    final screenSize = MediaQuery.of(context).size;
+    
     return Stack(
-      fit: StackFit.expand,
+      clipBehavior: Clip.none,
       children: [
         // ── Static Background Layer ──
-        Positioned.fill(
+        Positioned(
+          top: 0,
+          left: 0,
+          width: screenSize.width,
+          height: screenSize.height,
           child: Image.asset(
             'assets/images/bgstatic.png',
             fit: BoxFit.cover,
@@ -24,7 +32,11 @@ class AuthVideoBackground extends StatelessWidget {
         ),
 
         // ── Dark Overlay ──
-        Positioned.fill(
+        Positioned(
+          top: 0,
+          left: 0,
+          width: screenSize.width,
+          height: screenSize.height,
           child: ColoredBox(
             color: Colors.black.withOpacity(overlayOpacity),
           ),

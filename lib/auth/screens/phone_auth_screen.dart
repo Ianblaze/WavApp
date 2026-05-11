@@ -141,6 +141,7 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       extendBodyBehindAppBar: true,
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -251,7 +252,7 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
               ),
               
               Padding(
-                padding: EdgeInsets.fromLTRB(hPad, 12, hPad, MediaQuery.of(context).padding.bottom + 16),
+                padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 16),
                 child: SizedBox(
                   width: double.infinity,
                   height: btnHeight,
@@ -282,6 +283,7 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
                   ),
                 ),
               ),
+              SizedBox(height: MediaQuery.of(context).viewInsets.bottom + 16),
             ],
           ),
         ),
