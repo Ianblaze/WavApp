@@ -102,6 +102,7 @@ flutter:
     - assets/images/finalfinalbg.mp4
     - assets/images/splashbg.mp4
     - assets/images/finalbg.mp4
+    - assets/images/bgstatic.png
     - assets/.env
   #   - images/a_dot_ham.jpeg
 

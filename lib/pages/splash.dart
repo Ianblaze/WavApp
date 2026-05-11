@@ -198,27 +198,10 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       body: SafeArea(
         child: Stack(
           children: [
-            // ── Minimal Pastel Background (Matching Login Screen) ──
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0xFFFDE8FF), // Soft pastel pale pink at top
-                      Color(0xFFE5DEFF), // Very soft lavender in middle
-                      Color(0xFFD6EBFF), // Soft icy blue at bottom
-                    ],
-                    stops: [0.0, 0.6, 1.0],
-                  ),
-                ),
-              ),
-            ),
-            
             // ── Video Background ──
             if (_isVideoInitialized)
               Positioned.fill(

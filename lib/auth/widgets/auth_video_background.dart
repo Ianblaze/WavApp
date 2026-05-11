@@ -45,19 +45,16 @@ class _AuthVideoBackgroundState extends State<AuthVideoBackground> {
       fit: StackFit.expand,
       children: [
         // ── Video Layer ──
-        if (_isInitialized)
-          SizedBox.expand(
-            child: FittedBox(
-              fit: BoxFit.cover,
-              child: SizedBox(
-                width: _controller.value.size.width,
-                height: _controller.value.size.height,
-                child: VideoPlayer(_controller),
-              ),
+        Positioned.fill(
+          child: FittedBox(
+            fit: BoxFit.cover,
+            child: SizedBox(
+              width: _controller.value.isInitialized ? _controller.value.size.width : 1,
+              height: _controller.value.isInitialized ? _controller.value.size.height : 1,
+              child: VideoPlayer(_controller),
             ),
-          )
-        else
-          const SizedBox.expand(child: ColoredBox(color: Colors.white)),
+          ),
+        ),
 
         // ── Dark Overlay ──
         Positioned.fill(
