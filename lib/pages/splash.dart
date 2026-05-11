@@ -239,8 +239,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                     if (isLandscape) {
                       // Landscape mode - scale based on height (limited vertical space)
                       final minDimension = screenHeight;
-                      logoSize = (minDimension * 0.20).clamp(50.0, 100.0);
-                      wavFontSize = (minDimension * 0.12).clamp(30.0, 60.0);
+                      logoSize = (screenWidth * 0.28).clamp(90.0, 130.0);
+                      wavFontSize = (screenWidth * 0.25).clamp(70.0, 110.0);
                       spacing = (minDimension * 0.015).clamp(6.0, 12.0);
                     } else {
                       // Portrait mode - scale based on width
@@ -269,16 +269,16 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                         logoSize = 115.0;
                         wavFontSize = 58.0;
                         spacing = 10.0;
-                      } else if (screenWidth < 800) {
-                        // Small tablets
-                        logoSize = 135.0;
-                        wavFontSize = 67.0;
-                        spacing = 12.0;
+                      } else if (screenWidth < 400) {
+                        // Medium phones
+                        logoSize = 100.0;
+                        wavFontSize = 90.0;
+                        spacing = 8.0;
                       } else {
-                        // Large tablets
-                        logoSize = 160.0;
-                        wavFontSize = 80.0;
-                        spacing = 15.0;
+                        // Large phones / Default
+                        logoSize = 120.0;
+                        wavFontSize = 110.0;
+                        spacing = 10.0;
                       }
                     }
                     

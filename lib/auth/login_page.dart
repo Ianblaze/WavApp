@@ -434,8 +434,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                   builder: (context, constraints) {
                     final w = MediaQuery.of(context).size.width;
                     final h = MediaQuery.of(context).size.height;
-                    final logoSize = (w * 0.15).clamp(54.0, 72.0);
-                    final wavHeight = (w * 0.22).clamp(50.0, 80.0);
+                    final logoSize = (w * 0.28).clamp(90.0, 130.0);
+                    final wavHeight = (w * 0.35).clamp(80.0, 120.0);
                     
                     return Column(
                       mainAxisSize: MainAxisSize.min,
