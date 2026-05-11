@@ -336,7 +336,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                                   opacity: _textOpacity,
                                   child: Image.asset(
                                     'assets/images/wav_final.png',
-                                    height: wavFontSize * 0.8, // Adjust scale to match font size
+                                    height: wavFontSize * 1.5,
                                     fit: BoxFit.contain,
                                   ),
                                 ),
