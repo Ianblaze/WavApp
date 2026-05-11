@@ -138,31 +138,32 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
     final btnHeight = (h * 0.065).clamp(48.0, 56.0);
     final codePickerFont = (w * 0.055).clamp(18.0, 24.0);
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      extendBodyBehindAppBar: true,
-      resizeToAvoidBottomInset: false,
-      appBar: AppBar(
+    return AuthVideoBackground(
+      overlayOpacity: 0.4,
+      child: Scaffold(
         backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
-          onPressed: () {
-            if (_otpSent) {
-               setState(() { _otpSent = false; _verificationId = null; _otpCtrl.clear(); });
-            } else {
-               Navigator.pop(context);
-            }
-          },
+        extendBodyBehindAppBar: true,
+        resizeToAvoidBottomInset: true,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+            onPressed: () {
+              if (_otpSent) {
+                setState(() { _otpSent = false; _verificationId = null; _otpCtrl.clear(); });
+              } else {
+                Navigator.pop(context);
+              }
+            },
+          ),
         ),
-      ),
-      body: AuthVideoBackground(
-        overlayOpacity: 0.4,
-        child: SafeArea(
+        body: SafeArea(
           child: Column(
             children: [
               Expanded(
                 child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
                   padding: EdgeInsets.symmetric(horizontal: hPad, vertical: h * 0.02),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -283,7 +284,6 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
                   ),
                 ),
               ),
-              SizedBox(height: MediaQuery.of(context).viewInsets.bottom + 16),
             ],
           ),
         ),

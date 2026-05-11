@@ -145,25 +145,26 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
     final fieldFont = (w * 0.052).clamp(16.0, 22.0);
     final btnHeight = (h * 0.065).clamp(48.0, 56.0);
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      extendBodyBehindAppBar: true,
-      resizeToAvoidBottomInset: false,
-      appBar: AppBar(
+    return AuthVideoBackground(
+      overlayOpacity: 0.4,
+      child: Scaffold(
         backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+        extendBodyBehindAppBar: true,
+        resizeToAvoidBottomInset: true,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
         ),
-      ),
-      body: AuthVideoBackground(
-        overlayOpacity: 0.4, // Darker overlay for better readability
-        child: SafeArea(
+        body: SafeArea(
           child: Column(
             children: [
               Expanded(
                 child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
                   padding: EdgeInsets.symmetric(horizontal: hPad, vertical: h * 0.02),
                   child: Form(
                     key: _formKey,
@@ -255,7 +256,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
               ),
               
               Padding(
-                padding: EdgeInsets.fromLTRB(hPad, 12, hPad, MediaQuery.of(context).padding.bottom + 16),
+                padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 16),
                 child: SizedBox(
                   width: double.infinity,
                   height: btnHeight,
@@ -281,7 +282,6 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                   ),
                 ),
               ),
-              SizedBox(height: MediaQuery.of(context).viewInsets.bottom + 16),
             ],
           ),
         ),
