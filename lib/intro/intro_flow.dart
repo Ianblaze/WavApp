@@ -20,7 +20,6 @@ class _IntroFlowState extends State<IntroFlow> with TickerProviderStateMixin {
   double _scrollOffset = 0.0;
   bool _isPlaying = true;
   late AnimationController _progressCtrl;
-  late AnimationController _skipToggleCtrl;
 
   @override
   void initState() {
@@ -31,9 +30,11 @@ class _IntroFlowState extends State<IntroFlow> with TickerProviderStateMixin {
     )..addListener(() {
       if (mounted && _isPlaying) {
         final targetPage = (_progressCtrl.value * 3).floor();
-        if (targetPage != _page && targetPage < 3) {
+        if (targetPage >= 3) {
+          _finish();
+        } else if (targetPage != _page) {
           final oldPage = _page;
-          _page = targetPage; // Update immediately to prevent re-triggering
+          _page = targetPage; 
           _ctrl.animateToPage(
             targetPage,
             duration: const Duration(milliseconds: 1000),
@@ -47,10 +48,6 @@ class _IntroFlowState extends State<IntroFlow> with TickerProviderStateMixin {
     });
 
     _progressCtrl.forward();
-    _skipToggleCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 5),
-    )..repeat();
 
     _ctrl.addListener(() {
       if (mounted) {
@@ -163,11 +160,11 @@ class _IntroFlowState extends State<IntroFlow> with TickerProviderStateMixin {
     });
 
     // Fast forward effect: Animate through remaining slides quickly if not already at end
-    if (_progressCtrl.value < 0.99) {
+    if (_progressCtrl.value < 0.98) {
       await _progressCtrl.animateTo(
         1.0,
-        duration: const Duration(milliseconds: 1200),
-        curve: Curves.fastOutSlowIn,
+        duration: const Duration(milliseconds: 800),
+        curve: Curves.easeOutCubic,
       );
     }
 
@@ -188,7 +185,6 @@ class _IntroFlowState extends State<IntroFlow> with TickerProviderStateMixin {
   void dispose() {
     _ctrl.dispose();
     _progressCtrl.dispose();
-    _skipToggleCtrl.dispose();
     super.dispose();
   }
 
@@ -237,43 +233,17 @@ class _IntroFlowState extends State<IntroFlow> with TickerProviderStateMixin {
             Positioned(
               top: MediaQuery.of(context).padding.top + 16,
               right: 24,
-              child: AnimatedBuilder(
-                animation: _skipToggleCtrl,
-                builder: (context, _) {
-                  final isBored = _skipToggleCtrl.value > 0.75; // Flip for 25% of the time
-                  return GestureDetector(
-                    onTap: _finish,
-                    behavior: HitTestBehavior.opaque,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 500),
-                        transitionBuilder: (child, anim) => FadeTransition(
-                          opacity: anim,
-                          child: ScaleTransition(scale: anim, child: child),
-                        ),
-                        child: isBored
-                            ? Text(
-                                'bored?',
-                                key: const ValueKey('text'),
-                                style: TextStyle(
-                                  fontFamily: 'Circular',
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white.withOpacity(0.85),
-                                  letterSpacing: -0.2,
-                                ),
-                              )
-                            : Icon(
-                                Icons.fast_forward_rounded,
-                                key: const ValueKey('icon'),
-                                size: 30,
-                                color: Colors.white.withOpacity(0.9),
-                              ),
-                      ),
-                    ),
-                  );
-                },
+              child: GestureDetector(
+                onTap: _finish,
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Icon(
+                    Icons.fast_forward_rounded,
+                    size: 30,
+                    color: Colors.white.withOpacity(0.9),
+                  ),
+                ),
               ),
             ),
 
