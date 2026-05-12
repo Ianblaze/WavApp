@@ -45,7 +45,10 @@ class AuthWrapper extends StatelessWidget {
             Future.microtask(() {
               context.read<UserProfileProvider>().startListening(auth.currentUid!);
             });
-            return const OnboardingFlow();
+            return const AuthVideoBackground(
+              overlayOpacity: 0.3,
+              child: OnboardingFlow(),
+            );
           case AuthStatus.passwordUpgradeRequired:
             return ReauthPasswordScreen(user: auth.currentUser!);
           case AuthStatus.authenticated:

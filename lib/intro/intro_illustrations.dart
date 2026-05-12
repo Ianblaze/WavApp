@@ -2,13 +2,19 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/foundation.dart';
 
 // ── Illustration 1: Floating match cards ──────────────────────────────────────
 /// Shows three stacked profile cards (left tilted, right tilted, centre front)
 /// with a waveform beneath. Teases the card-swipe mechanic.
 class MatchCardsIllustration extends StatefulWidget {
   final double parallaxOffset;
-  const MatchCardsIllustration({super.key, this.parallaxOffset = 0.0});
+  final bool isPlaying;
+  const MatchCardsIllustration({
+    super.key,
+    this.parallaxOffset = 0.0,
+    this.isPlaying = true,
+  });
 
   @override
   State<MatchCardsIllustration> createState() => _MatchCardsIllustrationState();
@@ -16,12 +22,13 @@ class MatchCardsIllustration extends StatefulWidget {
 
 class _MatchCardsIllustrationState extends State<MatchCardsIllustration>
     with TickerProviderStateMixin {
-  late AnimationController _bobCtrl;
-  late AnimationController _pulseCtrl;
+  late Ticker _ticker;
+  final _elapsed = ValueNotifier<double>(0.0);
+  double _baseTime = 0.0;
+  
   late AnimationController _swipeCtrl;
   late AnimationController _rotateCtrl;
   late AnimationController _emojiCtrl;
-  late AnimationController _shimmerCtrl;
 
   int _phase = 0;
   bool _isSwiping = false;
@@ -31,53 +38,96 @@ class _MatchCardsIllustrationState extends State<MatchCardsIllustration>
   @override
   void initState() {
     super.initState();
-    _bobCtrl = AnimationController(
-        vsync: this, duration: const Duration(seconds: 4))
-      ..repeat(reverse: true);
-    _pulseCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1200))
-      ..repeat(reverse: true);
+    _ticker = createTicker((d) {
+      _elapsed.value = _baseTime + d.inMicroseconds / 1e6;
+    });
+
+    if (widget.isPlaying) {
+      _ticker.start();
+    }
+
     _swipeCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 1000));
     _rotateCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 700));
     _emojiCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 800));
-    _shimmerCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 2500))
-      ..repeat();
 
     _startLoop();
   }
 
-  void _startLoop() async {
+  @override
+  void didUpdateWidget(MatchCardsIllustration oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isPlaying != oldWidget.isPlaying) {
+      if (widget.isPlaying) {
+        _ticker.start();
+        _resumeControllers();
+      } else {
+        _baseTime = _elapsed.value;
+        _ticker.stop();
+        _pauseControllers();
+      }
+    }
+  }
+
+  void _pauseControllers() {
+    _swipeCtrl.stop(canceled: false);
+    _rotateCtrl.stop(canceled: false);
+    _emojiCtrl.stop(canceled: false);
+  }
+
+  void _resumeControllers() {
+    if (_swipeCtrl.value > 0 && _swipeCtrl.value < 1) _swipeCtrl.forward();
+    if (_rotateCtrl.value > 0 && _rotateCtrl.value < 1) _rotateCtrl.forward();
+    if (_emojiCtrl.value > 0 && _emojiCtrl.value < 1) _emojiCtrl.forward();
+  }
+
+  Future<void> _waitForPlay() async {
+    while (mounted && !widget.isPlaying) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+  }
+
+  Future<void> _startLoop() async {
     while (mounted) {
+      await _waitForPlay();
       await Future.delayed(const Duration(milliseconds: 2200));
+      await _waitForPlay();
       if (!mounted) break;
 
       _phase = 0;
       setState(() => _isSwiping = true);
       _emojiCtrl.forward(from: 0.0);
       await _swipeCtrl.forward(from: 0.0);
+      await _waitForPlay();
       if (!mounted) break;
+
       setState(() => _isSwiping = false);
       await _rotateCtrl.forward(from: 0.0);
+      await _waitForPlay();
       if (!mounted) break;
+
       _swipeCtrl.reset();
       _rotateCtrl.reset();
       _emojiCtrl.reset();
 
       await Future.delayed(const Duration(milliseconds: 1500));
+      await _waitForPlay();
       if (!mounted) break;
 
       _phase = 1;
       setState(() => _isSwiping = true);
       _emojiCtrl.forward(from: 0.0);
       await _swipeCtrl.forward(from: 0.0);
+      await _waitForPlay();
       if (!mounted) break;
+
       setState(() => _isSwiping = false);
       await _rotateCtrl.forward(from: 0.0);
+      await _waitForPlay();
       if (!mounted) break;
+
       _swipeCtrl.reset();
       _rotateCtrl.reset();
       _emojiCtrl.reset();
@@ -86,12 +136,10 @@ class _MatchCardsIllustrationState extends State<MatchCardsIllustration>
 
   @override
   void dispose() {
-    _bobCtrl.dispose();
-    _pulseCtrl.dispose();
+    _ticker.dispose();
     _swipeCtrl.dispose();
     _rotateCtrl.dispose();
     _emojiCtrl.dispose();
-    _shimmerCtrl.dispose();
     super.dispose();
   }
 
@@ -119,10 +167,10 @@ class _MatchCardsIllustrationState extends State<MatchCardsIllustration>
                     clipBehavior: Clip.none,
                     children: [
                       // ── #2: Enhanced Ambient glow (Multi-layered) ──
-                      AnimatedBuilder(
-                        animation: _pulseCtrl,
-                        builder: (ctx, _) {
-                          final pulse = _pulseCtrl.value;
+                      ValueListenableBuilder<double>(
+                        valueListenable: _elapsed,
+                        builder: (ctx, elapsed, _) {
+                          final pulse = (sin(elapsed * 2 * pi / 1.2) + 1) / 2;
                           return Stack(
                             alignment: Alignment.center,
                             children: [
@@ -166,28 +214,29 @@ class _MatchCardsIllustrationState extends State<MatchCardsIllustration>
                       ),
 
                       // ── #5: Music note particles ──
-                      _MusicNoteParticles(controller: _bobCtrl),
+                      _MusicNoteParticles(elapsed: _elapsed),
 
                       // ── 3-Card Stack with Parallax & Float ──
                       AnimatedBuilder(
-                        animation: Listenable.merge([_bobCtrl, _rotateCtrl, _swipeCtrl]),
+                        animation: Listenable.merge([_elapsed, _rotateCtrl, _swipeCtrl]),
                         builder: (ctx, _) {
-                          final floatX = sin(_bobCtrl.value * pi * 2) * 8; // Gentle horizontal float
+                          final elapsed = _elapsed.value;
+                          final floatX = sin(elapsed * 2 * pi / 4) * 8; // Gentle horizontal float
                           
                           return Stack(
                             alignment: Alignment.center,
                             clipBehavior: Clip.none,
                             children: [
                               // ── Left Card (#3: Blurred & Faded) ──
-                              _buildSideCard(-1, spacing, bobPhase: 0.0, bobSpeed: 1.0, floatX: floatX),
+                              _buildSideCard(-1, spacing, bobPhase: 0.0, floatX: floatX),
                               // ── Right Card (#3: Blurred & Faded) ──
-                              _buildSideCard(1, spacing, bobPhase: 0.5, bobSpeed: 0.7, floatX: floatX),
+                              _buildSideCard(1, spacing, bobPhase: 0.5, floatX: floatX),
 
                               // ── Front card with prominence & shimmer ──
                               AnimatedBuilder(
-                                animation: Listenable.merge([_bobCtrl, _swipeCtrl, _shimmerCtrl]),
+                                animation: Listenable.merge([_elapsed, _swipeCtrl]),
                                 builder: (ctx, child) {
-                                  final bobY = sin((_bobCtrl.value + 0.8) % 1.0 * pi * 2) * 12; // Increased bobbing intensity
+                                  final bobY = sin((elapsed / 4.0 + 0.8) % 1.0 * pi * 2) * 12; // Continuous bob
                                   final t = Curves.easeInCubic.transform(_swipeCtrl.value);
                                   final swipeY = (_phase == 0) ? t * 320 : t * -320;
                                   final swipeAngle = _swipeCtrl.value * (_phase == 0 ? 0.28 : -0.28);
@@ -228,9 +277,10 @@ class _MatchCardsIllustrationState extends State<MatchCardsIllustration>
                                     ),
                                     // Shimmer
                                     Positioned.fill(
-                                      child: AnimatedBuilder(
-                                        animation: _shimmerCtrl,
-                                        builder: (ctx, _) {
+                                      child: ValueListenableBuilder<double>(
+                                        valueListenable: _elapsed,
+                                        builder: (ctx, elapsed, _) {
+                                          final shimmerValue = (elapsed % 2.5) / 2.5;
                                           return ClipRRect(
                                             borderRadius: BorderRadius.circular(24),
                                             child: Container(
@@ -244,7 +294,7 @@ class _MatchCardsIllustrationState extends State<MatchCardsIllustration>
                                                     Colors.white.withOpacity(0.0),
                                                   ],
                                                   stops: const [0.3, 0.5, 0.7],
-                                                  transform: _SlideGradientTransform((_shimmerCtrl.value * 2 - 0.5)),
+                                                  transform: _SlideGradientTransform((shimmerValue * 2 - 0.5)),
                                                 ),
                                               ),
                                             ),
@@ -306,7 +356,7 @@ class _MatchCardsIllustrationState extends State<MatchCardsIllustration>
 
                 // #6: Waveform (Clean visualizer, no touch)
                 SizedBox(height: (h * 0.05).clamp(10.0, 42.0)),
-                _ReactiveWaveform(swipeCtrl: _swipeCtrl),
+                _ReactiveWaveform(swipeCtrl: _swipeCtrl, elapsed: _elapsed),
               ],
             ),
           ),
@@ -316,26 +366,24 @@ class _MatchCardsIllustrationState extends State<MatchCardsIllustration>
   }
 
   /// Side cards with parallax bob + right card turns pink during rotation
-  Widget _buildSideCard(int i, double spacing, {required double bobPhase, required double bobSpeed, required double floatX}) {
+  Widget _buildSideCard(int i, double spacing, {required double bobPhase, required double floatX}) {
     const leftGrad = [Color(0xFFD9B3FF), Color(0xFFB3D9FF)];
     const rightGrad = [Color(0xFFB3D9FF), Color(0xFFD9B3FF)];
     const pinkGrad = [Color(0xFFFFB3D9), Color(0xFFFF99CC)];
 
     return AnimatedBuilder(
-      animation: Listenable.merge([_rotateCtrl, _bobCtrl]),
+      animation: Listenable.merge([_rotateCtrl, _elapsed]),
       builder: (ctx, _) {
         final double raw = _isSwiping ? 0.0 : _rotateCtrl.value;
         final double progress = _springCurve.transform(raw);
 
         final double effective = i.toDouble() - progress;
-        // Seamless scale transition: lerp from side scale (0.85) to front scale (1.05)
         final s = (1.05 - (effective.abs() * 0.2)).clamp(0.6, 1.1); 
         final hOffset = effective * spacing + floatX;
         final r = effective * 0.12;
-        // Adjusted opacity to stay visible as per ref
         final op = (0.7 - (effective.abs() * 0.2)).clamp(0.4, 0.9);
-        // Added +14 vertical offset to make side cards sit a little lower
-        final bobY = (sin((_bobCtrl.value * bobSpeed + bobPhase) % 1.0 * pi * 2) * 4) + 14; 
+        final elapsed = _elapsed.value;
+        final bobY = (sin((elapsed / 4.0 + bobPhase) % 1.0 * pi * 2) * 4) + 14; 
 
         // Reduced blur from 7.0 to 2.5 as requested
         final blurSigma = (effective.abs() * 2.5).clamp(0.0, 2.5);
@@ -472,21 +520,21 @@ class _GlassProfileCard extends StatelessWidget {
 
 // ── #5: Music Note Particles ──
 class _MusicNoteParticles extends StatelessWidget {
-  final AnimationController controller;
-  const _MusicNoteParticles({required this.controller});
+  final ValueListenable<double> elapsed;
+  const _MusicNoteParticles({required this.elapsed});
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (ctx, _) {
+    return ValueListenableBuilder<double>(
+      valueListenable: elapsed,
+      builder: (ctx, elapsedValue, _) {
         return Stack(
           children: List.generate(10, (i) {
             final rng = Random(i * 13 + 7);
             final baseX = rng.nextDouble() * 240 - 120;
             final speed = 0.3 + rng.nextDouble() * 0.7;
             final phase = rng.nextDouble();
-            final t = (controller.value * speed + phase) % 1.0;
+            final t = (elapsedValue * speed / 4.0 + phase) % 1.0;
             
             // Curved path
             final y = 100 - (t * 220);
@@ -530,7 +578,8 @@ class _MusicNoteParticles extends StatelessWidget {
 // ── Touch-Interactive Waveform ──
 class _ReactiveWaveform extends StatefulWidget {
   final AnimationController swipeCtrl;
-  const _ReactiveWaveform({required this.swipeCtrl});
+  final ValueListenable<double> elapsed;
+  const _ReactiveWaveform({required this.swipeCtrl, required this.elapsed});
 
   @override
   _ReactiveWaveformState createState() => _ReactiveWaveformState();
@@ -545,19 +594,17 @@ class _ReactiveWaveformState extends State<_ReactiveWaveform> with SingleTickerP
   @override
   void initState() {
     super.initState();
-    _idleCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat();
   }
 
   @override
   void dispose() {
-    _idleCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: _idleCtrl,
+      animation: Listenable.merge([widget.swipeCtrl, widget.elapsed]),
       builder: (ctx, _) {
         return SizedBox(
           height: 60,
@@ -600,9 +647,9 @@ class _ReactiveWaveformState extends State<_ReactiveWaveform> with SingleTickerP
   }
 
   double _getDancingHeight(int i) {
-    final t = _idleCtrl.value * pi * 2;
-    final variation = sin(t + (i * 0.45)) * 14.0;
-    return (_baseHeights[i] + variation).clamp(10.0, 55.0);
+    final t = widget.elapsed.value * pi * 2;
+    final variation = sin(t / 1.5 + (i * 0.45)) * 14.0;
+    return (_baseHeights[i] + variation + (widget.swipeCtrl.value * 12)).clamp(10.0, 55.0);
   }
 }
 
@@ -682,7 +729,12 @@ class _ProfileCard extends StatelessWidget {
 
 class SolarSystemIllustration extends StatefulWidget {
   final double parallaxOffset;
-  const SolarSystemIllustration({super.key, this.parallaxOffset = 0.0});
+  final bool isPlaying;
+  const SolarSystemIllustration({
+    super.key,
+    this.parallaxOffset = 0.0,
+    this.isPlaying = true,
+  });
 
   @override
   State<SolarSystemIllustration> createState() =>
@@ -693,13 +745,30 @@ class _SolarSystemIllustrationState extends State<SolarSystemIllustration>
     with SingleTickerProviderStateMixin {
   late final Ticker _ticker;
   final ValueNotifier<double> _elapsed = ValueNotifier(0.0);
+  double _baseTime = 0.0;
 
   @override
   void initState() {
     super.initState();
     _ticker = createTicker((d) {
-      _elapsed.value = d.inMicroseconds / 1e6;
-    })..start();
+      _elapsed.value = _baseTime + d.inMicroseconds / 1e6;
+    });
+    if (widget.isPlaying) {
+      _ticker.start();
+    }
+  }
+
+  @override
+  void didUpdateWidget(SolarSystemIllustration oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isPlaying != oldWidget.isPlaying) {
+      if (widget.isPlaying) {
+        _ticker.start();
+      } else {
+        _baseTime = _elapsed.value;
+        _ticker.stop();
+      }
+    }
   }
 
   @override
@@ -772,16 +841,16 @@ class _SolarPainter extends CustomPainter {
   }
 
   static const _soloYou = [
-    _Genre('indie', Color(0xFFFFB3D9), Color(0xFF4B1528), _R1,  0.50,  0.0),
-    _Genre('pop',   Color(0xFFFFE5B3), Color(0xFF412402), _R2, -0.34,  1.88),
+    _Genre('indie', Color(0xFFFF6FE8), Colors.white, _R1,  0.50,  0.0),
+    _Genre('pop',   Color(0xFFFF9D42), Colors.white, _R2, -0.34,  1.88),
   ];
   static const _soloThem = [
-    _Genre('soul',    Color(0xFFB3FFD9), Color(0xFF04342C), _R1,  0.42,  3.14),
-    _Genre('hip-hop', Color(0xFFB3D9FF), Color(0xFF042C53), _R2, -0.48, -2.51),
+    _Genre('soul',    Color(0xFF00E5BC), Colors.white, _R1,  0.42,  3.14),
+    _Genre('hip-hop', Color(0xFF42A5FF), Colors.white, _R2, -0.48, -2.51),
   ];
   static const _shared = [
-    _Genre('r&b',  Color(0xFFD9B3FF), Color(0xFF26215C), 0, 0.10, 0.0),
-    _Genre('k-pop',Color(0xFFFFBEE1), Color(0xFF4B1528), 0, 0.10, 0.5),
+    _Genre('r&b',  Color(0xFFB366FF), Colors.white, 0, 0.10, 0.0),
+    _Genre('k-pop',Color(0xFFFF47B1), Colors.white, 0, 0.10, 0.5),
   ];
 
   @override
@@ -851,10 +920,10 @@ class _SolarPainter extends CustomPainter {
         final pos = sunOffset + Offset(cos(a) * g.r, sin(a) * g.r);
         
         // 1. Z-axis Scaling
-        final zScale = 1.0 + sin(a) * 0.15;
-        final zOpacity = 0.65 + (sin(a) * 0.35);
+        final zScale = 1.0 + sin(a) * 0.12; // Slightly reduced scale range
+        final zOpacity = 0.85 + (sin(a) * 0.15); // Much higher base visibility
 
-        _drawChip(canvas, pos, g.label, g.bg, g.tc, 0.90 * zOpacity, zScale);
+        _drawChip(canvas, pos, g.label, g.bg, g.tc, 1.0 * zOpacity, zScale);
       }
     }
 
@@ -901,8 +970,8 @@ class _SolarPainter extends CustomPainter {
       
       // Z-axis roughly by mapped Y pos
       final mappedY = (p.dy - cy) / (_A * 0.5 * _SY);
-      final zScale = 1.0 + mappedY * 0.15;
-      final zOpacity = 0.70 + mappedY * 0.30;
+      final zScale = 1.0 + mappedY * 0.12;
+      final zOpacity = 0.85 + mappedY * 0.15;
 
       // Glow ring near suns
       if (proxSun > 0.05) {
@@ -929,7 +998,7 @@ class _SolarPainter extends CustomPainter {
       }
 
       _drawChip(canvas, p, g.label, g.bg, g.tc,
-          (0.82 + proxSun * 0.18) * zOpacity, zScale);
+          1.0 * zOpacity, zScale);
     }
 
     // Suns on top
@@ -960,7 +1029,7 @@ class _SolarPainter extends CustomPainter {
         style: TextStyle(
           fontFamily: 'Circular',
           fontSize: 9.5,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w800, // Even bolder
           color: tc.withOpacity(alpha.clamp(0.0, 1.0)),
         ),
       ),
@@ -1019,11 +1088,18 @@ class _SolarPainter extends CustomPainter {
     final tp = TextPainter(
       text: TextSpan(
         text: label,
-        style: const TextStyle(
+        style: TextStyle(
           fontFamily: 'Circular',
           fontSize: 10,
-          fontWeight: FontWeight.w600,
-          color: Color(0x6B1A0D26),
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+          shadows: [
+            Shadow(
+              color: Colors.black.withOpacity(0.5),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
         ),
       ),
       textDirection: TextDirection.ltr,
@@ -1050,7 +1126,12 @@ class _Genre {
 // ── Illustration 3: Music conversation ───────────────────────────────────────
 class MusicConversationIllustration extends StatefulWidget {
   final double parallaxOffset;
-  const MusicConversationIllustration({super.key, this.parallaxOffset = 0.0});
+  final bool isPlaying;
+  const MusicConversationIllustration({
+    super.key,
+    this.parallaxOffset = 0.0,
+    this.isPlaying = true,
+  });
 
   @override
   State<MusicConversationIllustration> createState() =>
@@ -1060,21 +1141,25 @@ class MusicConversationIllustration extends StatefulWidget {
 class _MusicConversationIllustrationState
     extends State<MusicConversationIllustration>
     with TickerProviderStateMixin {
-  late AnimationController _eqCtrl;
+  late Ticker _ticker;
+  final _elapsed = ValueNotifier<double>(0.0);
+  double _baseTime = 0.0;
 
   // Animation controllers
   late AnimationController _msg1Ctrl;
   late AnimationController _msg2Ctrl;
   late AnimationController _msg3Ctrl;
-  late AnimationController _orbCtrl; // For background orbs
 
   @override
   void initState() {
     super.initState();
-    _eqCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1800),
-    )..repeat();
+    _ticker = createTicker((d) {
+      _elapsed.value = _baseTime + d.inMicroseconds / 1e6;
+    });
+
+    if (widget.isPlaying) {
+      _ticker.start();
+    }
 
     _msg1Ctrl = AnimationController(
       vsync: this,
@@ -1089,16 +1174,45 @@ class _MusicConversationIllustrationState
       duration: const Duration(milliseconds: 400),
     );
 
-    _orbCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 4),
-    )..repeat(reverse: true);
-
     _runMessageLoop();
+  }
+
+  @override
+  void didUpdateWidget(MusicConversationIllustration oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isPlaying != oldWidget.isPlaying) {
+      if (widget.isPlaying) {
+        _ticker.start();
+        _resumeControllers();
+      } else {
+        _baseTime = _elapsed.value;
+        _ticker.stop();
+        _pauseControllers();
+      }
+    }
+  }
+
+  void _pauseControllers() {
+    _msg1Ctrl.stop(canceled: false);
+    _msg2Ctrl.stop(canceled: false);
+    _msg3Ctrl.stop(canceled: false);
+  }
+
+  void _resumeControllers() {
+    if (_msg1Ctrl.value > 0 && _msg1Ctrl.value < 1) _msg1Ctrl.forward();
+    if (_msg2Ctrl.value > 0 && _msg2Ctrl.value < 1) _msg2Ctrl.forward();
+    if (_msg3Ctrl.value > 0 && _msg3Ctrl.value < 1) _msg3Ctrl.forward();
+  }
+
+  Future<void> _waitForPlay() async {
+    while (mounted && !widget.isPlaying) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
   }
 
   Future<void> _runMessageLoop() async {
     while (mounted) {
+      await _waitForPlay();
       // Reset all
       _msg1Ctrl.reset();
       _msg2Ctrl.reset();
@@ -1107,20 +1221,26 @@ class _MusicConversationIllustrationState
 
       // Wait, then pop message 1
       await Future.delayed(const Duration(milliseconds: 1200));
+      await _waitForPlay();
       if (!mounted) break;
       await _msg1Ctrl.forward();
+      await _waitForPlay();
       if (!mounted) break;
 
       // Pause, then message 2
       await Future.delayed(const Duration(milliseconds: 1800));
+      await _waitForPlay();
       if (!mounted) break;
       await _msg2Ctrl.forward();
+      await _waitForPlay();
       if (!mounted) break;
 
       // Pause, then your reply
       await Future.delayed(const Duration(milliseconds: 1500));
+      await _waitForPlay();
       if (!mounted) break;
       await _msg3Ctrl.forward();
+      await _waitForPlay();
       if (!mounted) break;
 
       // Hold the full conversation, then loop
@@ -1130,11 +1250,10 @@ class _MusicConversationIllustrationState
 
   @override
   void dispose() {
-    _eqCtrl.dispose();
+    _ticker.dispose();
     _msg1Ctrl.dispose();
     _msg2Ctrl.dispose();
     _msg3Ctrl.dispose();
-    _orbCtrl.dispose();
     super.dispose();
   }
 
@@ -1151,13 +1270,13 @@ class _MusicConversationIllustrationState
             child: Stack(
             children: [
               // ── Background Orbs ──
-              _BackgroundOrbs(orbCtrl: _orbCtrl),
+              // Removed Background Orbs as requested
 
               // ── Main Content ──
               Column(
                 children: [
                   // ── Now Playing bar (top) ──
-                  _NowPlayingCard(eqCtrl: _eqCtrl),
+                  _NowPlayingCard(elapsed: _elapsed),
                   const SizedBox(height: 4),
 
                   // ── Chat screen ──
@@ -1209,8 +1328,8 @@ class _MusicConversationIllustrationState
                                         child: _ChatBubble(
                                           text: 'i love the smiths.',
                                           timestamp: '6:42 pm',
-                                          color: const Color(0xFFB3D9FF),
-                                          textColor: const Color(0xFF042C53),
+                                          color: const Color(0xFF42A5FF),
+                                          textColor: Colors.white,
                                           isLeft: true,
                                         ),
                                       ),
@@ -1224,8 +1343,8 @@ class _MusicConversationIllustrationState
                                         child: _ChatBubble(
                                           text: 'you have good taste in music.',
                                           timestamp: '6:42 pm',
-                                          color: const Color(0xFFB3D9FF),
-                                          textColor: const Color(0xFF042C53),
+                                          color: const Color(0xFF42A5FF),
+                                          textColor: Colors.white,
                                           isLeft: true,
                                         ),
                                       ),
@@ -1240,8 +1359,8 @@ class _MusicConversationIllustrationState
                                         child: _ChatBubble(
                                           text: 'did we just become soulmates? 😭',
                                           timestamp: '6:43 pm',
-                                          color: const Color(0xFFFFB3D9),
-                                          textColor: const Color(0xFF4B1528),
+                                          color: const Color(0xFFFF6FE8),
+                                          textColor: Colors.white,
                                           isLeft: false,
                                         ),
                                       ),
@@ -1268,15 +1387,15 @@ class _MusicConversationIllustrationState
 
 // ── Background Orbs ───────────────────────────────────────────────────────────
 class _BackgroundOrbs extends StatelessWidget {
-  final AnimationController orbCtrl;
-  const _BackgroundOrbs({required this.orbCtrl});
+  final ValueListenable<double> elapsed;
+  const _BackgroundOrbs({required this.elapsed});
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: orbCtrl,
-      builder: (ctx, _) {
-        final t = orbCtrl.value;
+    return ValueListenableBuilder<double>(
+      valueListenable: elapsed,
+      builder: (ctx, elapsedValue, _) {
+        final t = (sin(elapsedValue * 2 * pi / 4) + 1) / 2;
         return Stack(
           children: [
             // Left Orb (Them - Blue)
@@ -1284,8 +1403,8 @@ class _BackgroundOrbs extends StatelessWidget {
               top: 40 + (t * 30),
               left: 10 + (t * 20),
               child: _GlowOrb(
-                color: const Color(0xFFB3D9FF).withOpacity(0.6),
-                size: 180 + (t * 30),
+                color: const Color(0xFFB3D9FF).withOpacity(0.3),
+                size: 140 + (t * 20),
               ),
             ),
             // Right Orb (You - Pink)
@@ -1293,8 +1412,8 @@ class _BackgroundOrbs extends StatelessWidget {
               bottom: 60 - (t * 30),
               right: 20 + (t * 20),
               child: _GlowOrb(
-                color: const Color(0xFFFFB3D9).withOpacity(0.55),
-                size: 200 + ((1 - t) * 30),
+                color: const Color(0xFFFFB3D9).withOpacity(0.25),
+                size: 160 + ((1 - t) * 20),
               ),
             ),
           ],
@@ -1322,7 +1441,7 @@ class _GlowOrb extends StatelessWidget {
             color.withOpacity(0.4),
             color.withOpacity(0.0),
           ],
-          stops: const [0.0, 0.4, 1.0],
+          stops: const [0.0, 0.3, 1.0],
         ),
       ),
     );
@@ -1422,8 +1541,8 @@ class _ChatAvatar extends StatelessWidget {
           style: TextStyle(
             fontFamily: 'Circular',
             fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF1A0D26).withOpacity(0.6),
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF1A0D26).withOpacity(0.85),
           ),
         ),
       ],
@@ -1433,8 +1552,8 @@ class _ChatAvatar extends StatelessWidget {
 
 // ── Now Playing card ──────────────────────────────────────────────────────────
 class _NowPlayingCard extends StatelessWidget {
-  final AnimationController eqCtrl;
-  const _NowPlayingCard({required this.eqCtrl});
+  final ValueListenable<double> elapsed;
+  const _NowPlayingCard({required this.elapsed});
 
   @override
   Widget build(BuildContext context) {
@@ -1561,14 +1680,14 @@ class _NowPlayingCard extends StatelessWidget {
           SizedBox(
             width: 28,
             height: 22,
-            child: AnimatedBuilder(
-              animation: eqCtrl,
-              builder: (ctx, _) {
+            child: ValueListenableBuilder<double>(
+              valueListenable: elapsed,
+              builder: (ctx, elapsedValue, _) {
                 return Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: List.generate(5, (i) {
-                    final t = eqCtrl.value * pi * 2;
+                    final t = elapsedValue * pi * 2;
                     final h = 6.0 +
                         sin(t + i * 1.3) * 5.0 +
                         cos(t * 1.5 + i * 0.8) * 3.0;
@@ -1618,30 +1737,41 @@ class _ChatBubble extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 170),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.55),
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(isLeft ? 4 : 16),
-              topRight: Radius.circular(isLeft ? 16 : 4),
-              bottomLeft: const Radius.circular(16),
-              bottomRight: const Radius.circular(16),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                color.withOpacity(0.85),
+                color.withOpacity(0.7),
+              ],
             ),
-            border: Border.all(color: color.withOpacity(0.35), width: 0.5),
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(isLeft ? 4 : 20),
+              topRight: Radius.circular(isLeft ? 20 : 4),
+              bottomLeft: const Radius.circular(20),
+              bottomRight: const Radius.circular(20),
+            ),
             boxShadow: [
               BoxShadow(
-                color: color.withOpacity(0.12),
-                blurRadius: 8,
-                offset: const Offset(0, 3),
+                color: color.withOpacity(0.2),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
             ],
+            border: Border.all(
+              color: Colors.white.withOpacity(0.25),
+              width: 0.8,
+            ),
           ),
           child: Text(
             text,
-            style: TextStyle(
-              fontFamily: 'Circular',
-              fontSize: 12,
+            style: const TextStyle(
+              // Removed fontFamily to ensure system emoji support
+              fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: textColor,
-              height: 1.35,
+              color: Color(0xFF1A0D26), // Premium deep black/purple
+              height: 1.25,
+              letterSpacing: -0.1,
             ),
           ),
         ),
@@ -1655,9 +1785,9 @@ class _ChatBubble extends StatelessWidget {
             timestamp,
             style: TextStyle(
               fontFamily: 'Circular',
-              fontSize: 8,
-              fontWeight: FontWeight.w500,
-              color: const Color(0xFF8A7EA5).withOpacity(0.6),
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF1A0D26).withOpacity(0.45),
             ),
           ),
         ),

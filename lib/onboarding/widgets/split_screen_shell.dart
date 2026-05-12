@@ -50,12 +50,8 @@ class SplitScreenShell extends StatelessWidget {
                 flex: topFlex,
                 child: Container(
                   width: double.infinity,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: topGradient.map((c) => c.withOpacity(0.4)).toList(),
-                    ),
+                  decoration: const BoxDecoration(
+                    color: Colors.transparent,
                   ),
                   child: SafeArea(
                     bottom: false,
@@ -77,12 +73,8 @@ class SplitScreenShell extends StatelessWidget {
                 flex: bottomFlex,
                 child: Container(
                   width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.85), // Semi-transparent for glass effect
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(32),
-                      topRight: Radius.circular(32),
-                    ),
+                  decoration: const BoxDecoration(
+                    color: Colors.transparent,
                   ),
                   child: SafeArea(
                     top: false,
@@ -96,10 +88,16 @@ class SplitScreenShell extends StatelessWidget {
                             style: TextStyle(
                               fontFamily: 'Circular',
                               fontSize: titleFont,
-                              fontWeight: FontWeight.w900,
-                              color: const Color(0xFF0F0B1A),
-                              letterSpacing: -1.2,
-                              height: 1.05,
+                              fontWeight: FontWeight.w800, // Slightly cleaner than w900
+                              color: Colors.white,
+                              letterSpacing: -1.0,
+                              height: 1.1,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.white.withOpacity(0.25),
+                                  blurRadius: 15,
+                                ),
+                              ],
                             ),
                             overflow: TextOverflow.visible,
                             maxLines: 3,
@@ -110,9 +108,9 @@ class SplitScreenShell extends StatelessWidget {
                             style: TextStyle(
                               fontFamily: 'Circular',
                               fontSize: subtitleFont,
-                              fontWeight: FontWeight.w500,
-                              color: const Color(0xFF0F0B1A).withOpacity(0.7),
-                              height: 1.45,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.white.withOpacity(0.75),
+                              height: 1.5,
                             ),
                             overflow: TextOverflow.visible,
                             maxLines: 3,
