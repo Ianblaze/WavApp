@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../auth/auth_wrapper.dart';
+import '../auth/widgets/auth_video_background.dart';
 import '../onboarding/widgets/split_screen_shell.dart';
 import 'intro_illustrations.dart';
 
@@ -101,48 +102,52 @@ class _IntroFlowState extends State<IntroFlow> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          PageView.builder(
-            controller: _ctrl,
-            itemCount: _screens.length,
-            onPageChanged: (i) => setState(() => _page = i),
-            itemBuilder: (ctx, i) {
-              final s = _screens[i];
-              return SplitScreenShell(
-                topGradient: s.topGradient,
-                bottomGradient: s.bottomGradient,
-                illustration: _getIllustration(i, _scrollOffset), // Dynamic Parallax
-                title: s.title,
-                subtitle: s.subtitle,
-                extras: _DotIndicators(count: 3, active: i),
-                cta: _IntroCTA(
-                  isLast: s.isLast,
-                  onTap: _next,
-                ),
-              );
-            },
-          ),
-          // Skip button — top right, minimal style
-          if (_page < 2)
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 16,
-              right: 24,
-              child: GestureDetector(
-                onTap: _finish,
-                child: Text(
-                  'Skip',
-                  style: TextStyle(
-                    fontFamily: 'Circular',
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF0F0B1A).withOpacity(0.5),
+    return AuthVideoBackground(
+      overlayOpacity: 0.1, // Minimal overlay to keep intro bright
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Stack(
+          children: [
+            PageView.builder(
+              controller: _ctrl,
+              itemCount: _screens.length,
+              onPageChanged: (i) => setState(() => _page = i),
+              itemBuilder: (ctx, i) {
+                final s = _screens[i];
+                return SplitScreenShell(
+                  topGradient: s.topGradient,
+                  bottomGradient: s.bottomGradient,
+                  illustration: _getIllustration(i, _scrollOffset), // Dynamic Parallax
+                  title: s.title,
+                  subtitle: s.subtitle,
+                  extras: _DotIndicators(count: 3, active: i),
+                  cta: _IntroCTA(
+                    isLast: s.isLast,
+                    onTap: _next,
+                  ),
+                );
+              },
+            ),
+            // Skip button — top right, minimal style
+            if (_page < 2)
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 16,
+                right: 24,
+                child: GestureDetector(
+                  onTap: _finish,
+                  child: Text(
+                    'Skip',
+                    style: TextStyle(
+                      fontFamily: 'Circular',
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF0F0B1A).withOpacity(0.6), // Slightly darker for bg
+                    ),
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
