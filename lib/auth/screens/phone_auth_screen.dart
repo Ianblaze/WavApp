@@ -104,7 +104,7 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
       keyboardType: keyboardType,
       textInputAction: textInputAction,
       onFieldSubmitted: (_) => onSubmitted?.call(),
-      autofocus: true,
+      autofocus: false,
       style: TextStyle(
         fontFamily: 'Circular',
         fontSize: scaledFont,
@@ -152,6 +152,7 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
+          scrolledUnderElevation: 0, // Prevent shadow when content scrolls under
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
             onPressed: () {
@@ -172,7 +173,7 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
                 Expanded(
                   child: SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
-                    padding: EdgeInsets.symmetric(horizontal: hPad, vertical: h * 0.02),
+                    padding: EdgeInsets.symmetric(horizontal: hPad, vertical: h * 0.05),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

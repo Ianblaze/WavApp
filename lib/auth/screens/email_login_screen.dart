@@ -146,6 +146,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
+          scrolledUnderElevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
             onPressed: () => Navigator.pop(context),
@@ -160,7 +161,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                 Expanded(
                   child: SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
-                    padding: EdgeInsets.symmetric(horizontal: hPad, vertical: h * 0.02),
+                    padding: EdgeInsets.symmetric(horizontal: hPad, vertical: h * 0.05),
                     child: Form(
                       key: _formKey,
                       child: Column(
@@ -218,7 +219,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                             scaledFont: fieldFont,
                             keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
-                            autofocus: true,
+                            autofocus: false,
                             validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
                           ),
                           SizedBox(height: h * 0.03),

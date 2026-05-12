@@ -123,6 +123,7 @@ class _EmailSignUpScreenState extends State<EmailSignUpScreen> {
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
+          scrolledUnderElevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
             onPressed: () => Navigator.pop(context),
@@ -137,7 +138,7 @@ class _EmailSignUpScreenState extends State<EmailSignUpScreen> {
                 Expanded(
                   child: SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
-                    padding: EdgeInsets.symmetric(horizontal: hPad, vertical: h * 0.02),
+                    padding: EdgeInsets.symmetric(horizontal: hPad, vertical: h * 0.05),
                     child: Form(
                       key: _formKey,
                       child: Column(
@@ -171,7 +172,7 @@ class _EmailSignUpScreenState extends State<EmailSignUpScreen> {
                             controller: _usernameCtrl,
                             scaledFont: fieldFont,
                             textInputAction: TextInputAction.next,
-                            autofocus: true,
+                            autofocus: false,
                             onChanged: _checkUsername,
                           ),
                           if (_usernameChecking)
