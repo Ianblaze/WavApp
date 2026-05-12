@@ -115,30 +115,36 @@ class _IntroFlowState extends State<IntroFlow> with TickerProviderStateMixin {
   }
 
   void _next() {
-    setState(() {
-      _isPlaying = true;
-      _progressCtrl.forward();
-    });
     if (_page < 2) {
-      _ctrl.nextPage(
+      final target = _page + 1;
+      setState(() {
+        _page = target;
+        _isPlaying = true;
+      });
+      _ctrl.animateToPage(
+        target,
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOutCubic,
       );
+      _progressCtrl.forward(from: target / 3.0);
     } else {
       _finish();
     }
   }
 
   void _previous() {
-    setState(() {
-      _isPlaying = true;
-      _progressCtrl.forward();
-    });
     if (_page > 0) {
-      _ctrl.previousPage(
+      final target = _page - 1;
+      setState(() {
+        _page = target;
+        _isPlaying = true;
+      });
+      _ctrl.animateToPage(
+        target,
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOutCubic,
       );
+      _progressCtrl.forward(from: target / 3.0);
     }
   }
 
@@ -379,7 +385,7 @@ class _MusicPlayerNavigation extends StatelessWidget {
                 icon: Icon(
                   isLast ? Icons.check_circle_rounded : Icons.skip_next_rounded,
                   size: 36,
-                  color: Colors.white,
+                  color: isLast ? const Color(0xFF1DB954) : Colors.white, // Spotify green
                 ),
               ),
             ],
