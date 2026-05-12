@@ -148,7 +148,7 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         extendBodyBehindAppBar: true,
-        resizeToAvoidBottomInset: true,
+        resizeToAvoidBottomInset: false, // Custom animation handling
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -171,9 +171,13 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
             child: Column(
               children: [
                 Expanded(
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    padding: EdgeInsets.symmetric(horizontal: hPad, vertical: h * 0.05),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOutCubic,
+                    padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom > 0 ? 20 : 0),
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: EdgeInsets.symmetric(horizontal: hPad, vertical: h * 0.05),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -264,9 +268,12 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
                     ),
                   ),
                 ),
+              ),
                 
-                Padding(
-                  padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 16),
+                AnimatedPadding(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOutCubic,
+                  padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 16 + MediaQuery.of(context).viewInsets.bottom),
                   child: SizedBox(
                     width: double.infinity,
                     height: btnHeight,
