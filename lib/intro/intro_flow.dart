@@ -20,6 +20,7 @@ class _IntroFlowState extends State<IntroFlow> with TickerProviderStateMixin {
   double _scrollOffset = 0.0;
   bool _isPlaying = true;
   late AnimationController _progressCtrl;
+  bool _isFinishing = false;
 
   @override
   void initState() {
@@ -33,15 +34,12 @@ class _IntroFlowState extends State<IntroFlow> with TickerProviderStateMixin {
         if (targetPage >= 3) {
           _finish();
         } else if (targetPage != _page) {
-          final oldPage = _page;
           _page = targetPage; 
           _ctrl.animateToPage(
             targetPage,
             duration: const Duration(milliseconds: 1000),
             curve: Curves.easeInOutCubic,
-          ).then((_) {
-            if (mounted) setState(() {});
-          });
+          );
         }
         setState(() {}); // For progress bar
       }
@@ -128,7 +126,11 @@ class _IntroFlowState extends State<IntroFlow> with TickerProviderStateMixin {
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOutCubic,
       );
-      _progressCtrl.forward(from: target / 3.0);
+      _progressCtrl.animateTo(
+        target / 3.0,
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeOutCubic,
+      ).then((_) => _progressCtrl.forward());
     } else {
       _finish();
     }
@@ -146,37 +148,51 @@ class _IntroFlowState extends State<IntroFlow> with TickerProviderStateMixin {
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOutCubic,
       );
-      _progressCtrl.forward(from: target / 3.0);
+      _progressCtrl.animateTo(
+        target / 3.0,
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeOutCubic,
+      ).then((_) => _progressCtrl.forward());
     }
   }
 
-  bool _isFinishing = false;
-
   Future<void> _finish() async {
-    if (_isFinishing) return;
-    setState(() {
-      _isFinishing = true;
-      _isPlaying = true;
-    });
+    // If already finishing and at end, just force navigation
+    if (_isFinishing && _progressCtrl.value > 0.95) {
+       _performNavigation();
+       return;
+    }
+    
+    _isFinishing = true;
+    if (mounted) setState(() => _isPlaying = true);
 
-    // Fast forward effect: Animate through remaining slides quickly if not already at end
+    // Fast forward effect: Animate through remaining slides smoothly
     if (_progressCtrl.value < 0.98) {
       await _progressCtrl.animateTo(
         1.0,
         duration: const Duration(milliseconds: 800),
         curve: Curves.easeOutCubic,
       );
+    } else {
+      _progressCtrl.value = 1.0;
     }
 
+    await _performNavigation();
+  }
+
+  Future<void> _performNavigation() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('intro_shown', true);
+    
     if (!mounted) return;
+    
+    // Use pushReplacement with a clear transition
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (_, __, ___) => const AuthWrapper(),
         transitionsBuilder: (_, anim, __, child) =>
             FadeTransition(opacity: anim, child: child),
-        transitionDuration: const Duration(milliseconds: 800),
+        transitionDuration: const Duration(milliseconds: 500),
       ),
     );
   }
@@ -212,7 +228,11 @@ class _IntroFlowState extends State<IntroFlow> with TickerProviderStateMixin {
                   setState(() {
                     _page = i;
                     _isPlaying = true;
-                    _progressCtrl.forward(from: i / 3.0);
+                    _progressCtrl.animateTo(
+                      i / 3.0,
+                      duration: const Duration(milliseconds: 600),
+                      curve: Curves.easeOutCubic,
+                    ).then((_) => _progressCtrl.forward());
                   });
                 },
                 itemBuilder: (ctx, i) {
@@ -387,13 +407,21 @@ class _MusicPlayerNavigation extends StatelessWidget {
               ),
               const SizedBox(width: 24), // Closer together
 
-              // Next Button
+              // Next / Done Button
               IconButton(
                 onPressed: onNext,
-                icon: Icon(
-                  isLast ? Icons.check_circle_rounded : Icons.skip_next_rounded,
-                  size: 36,
-                  color: isLast ? const Color(0xFF1DB954) : Colors.white, // Spotify green
+                icon: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 500),
+                  transitionBuilder: (child, anim) => FadeTransition(
+                    opacity: anim,
+                    child: ScaleTransition(scale: anim, child: child),
+                  ),
+                  child: Icon(
+                    isLast ? Icons.check_circle_rounded : Icons.skip_next_rounded,
+                    key: ValueKey(isLast ? 'done' : 'next'),
+                    size: 36,
+                    color: isLast ? const Color(0xFF1DB954) : Colors.white,
+                  ),
                 ),
               ),
             ],

@@ -505,42 +505,49 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                   ),
                 ),
                 const SizedBox(height: 8),
-                // ── Guest Mode Link ──
-                // ── Guest Mode Link ──
-                AnimatedOpacity(
-                  opacity: showAuthMethods ? 0.0 : 1.0,
-                  duration: const Duration(milliseconds: 400),
-                  child: IgnorePointer(
-                    ignoring: showAuthMethods,
-                    child: GestureDetector(
-                      onTap: isLoading
-                          ? null
-                          : () async {
-                              setState(() => isLoading = true);
-                              try {
-                                await context.read<AuthProvider>().signInAsGuest();
-                              } catch (e) {
-                                if (mounted) {
-                                  AuthSnackBar.show(context, 'Guest login failed: $e');
-                                }
-                              } finally {
-                                if (mounted) setState(() => isLoading = false);
-                              }
-                            },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Text(
-                          'Continue as Guest',
+                // ── Terms & Conditions ──
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 10),
+                  child: RichText(
+                    textAlign: TextAlign.center,
+                    text: TextSpan(
+                      style: TextStyle(
+                        fontFamily: 'Circular',
+                        fontSize: 12,
+                        color: Colors.white.withOpacity(0.7),
+                        height: 1.4,
+                        letterSpacing: 0.1,
+                      ),
+                      children: [
+                        const TextSpan(text: 'By tapping Sign in or Create account, you agree to our '),
+                        TextSpan(
+                          text: 'Terms of Service',
                           style: TextStyle(
-                            fontFamily: 'Circular',
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: mutedText.withOpacity(0.7),
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white.withOpacity(0.95),
                             decoration: TextDecoration.underline,
-                            decorationColor: mutedText.withOpacity(0.4),
                           ),
                         ),
-                      ),
+                        const TextSpan(text: '. Learn how we process your data in our '),
+                        TextSpan(
+                          text: 'Privacy Policy',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white.withOpacity(0.95),
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                        const TextSpan(text: ' and '),
+                        TextSpan(
+                          text: 'Cookies Policy',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white.withOpacity(0.95),
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                        const TextSpan(text: '.'),
+                      ],
                     ),
                   ),
                 ),
