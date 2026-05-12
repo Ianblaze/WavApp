@@ -87,7 +87,7 @@ class _AuthVideoBackgroundState extends State<AuthVideoBackground> {
           ),
 
           // ── Content ──
-          child,
+          widget.child,
         ],
       ),
     );
