@@ -84,53 +84,45 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
     required String label,
     required TextEditingController controller,
     required double scaledFont,
-    TextInputType keyboardType = TextInputType.text,
     bool obscureText = false,
     Widget? suffixIcon,
+    TextInputType keyboardType = TextInputType.text,
+    TextInputAction? textInputAction,
+    VoidCallback? onSubmitted,
+    bool autofocus = false,
     String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
-      keyboardType: keyboardType,
       obscureText: obscureText,
+      keyboardType: keyboardType,
+      textInputAction: textInputAction,
+      onFieldSubmitted: (_) => onSubmitted?.call(),
+      autofocus: autofocus,
       validator: validator,
       style: TextStyle(
         fontFamily: 'Circular',
         fontSize: scaledFont,
         fontWeight: FontWeight.w600,
         color: Colors.white,
-        letterSpacing: 0.5,
       ),
       cursorColor: _cardHotPink,
       decoration: InputDecoration(
         labelText: label,
         labelStyle: TextStyle(
-          fontFamily: 'Circular',
-          fontSize: scaledFont * 0.82,
-          fontWeight: FontWeight.w400,
-          color: Colors.white70,
+          fontFamily: 'Circular', fontSize: scaledFont * 0.85,
+          fontWeight: FontWeight.w400, color: Colors.white70,
         ),
         floatingLabelStyle: TextStyle(
-          fontFamily: 'Circular',
-          fontSize: scaledFont * 0.64,
-          fontWeight: FontWeight.w700,
-          color: _cardHotPink,
+          fontFamily: 'Circular', fontSize: scaledFont * 0.7,
+          fontWeight: FontWeight.w700, color: _cardHotPink,
         ),
-        contentPadding: const EdgeInsets.symmetric(vertical: 12),
-        enabledBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Colors.white24, width: 2),
-        ),
-        focusedBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: _cardHotPink, width: 3),
-        ),
-        errorBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Colors.redAccent, width: 2),
-        ),
-        focusedErrorBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Colors.redAccent, width: 3),
-        ),
-        errorStyle: const TextStyle(fontFamily: 'Circular', color: Colors.redAccent, fontSize: 13),
         suffixIcon: suffixIcon,
+        contentPadding: const EdgeInsets.symmetric(vertical: 8),
+        enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24, width: 1.5)),
+        focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: _cardHotPink, width: 2.5)),
+        errorBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.redAccent, width: 1.5)),
+        focusedErrorBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.redAccent, width: 2.5)),
       ),
     );
   }
@@ -159,130 +151,138 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
             onPressed: () => Navigator.pop(context),
           ),
         ),
-        body: SafeArea(
-          child: Column(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: EdgeInsets.symmetric(horizontal: hPad, vertical: h * 0.02),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Welcome\nback.",
-                          style: TextStyle(
-                            fontFamily: 'Circular',
-                            fontSize: headerFont,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                            height: 1.1,
-                            letterSpacing: -1.0,
-                          ),
-                        ),
-                        SizedBox(height: h * 0.012),
-                        Text(
-                          "Sign in to your account.",
-                          style: TextStyle(
-                            fontFamily: 'Circular',
-                            fontSize: subFont,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white70,
-                          ),
-                        ),
-                        SizedBox(height: h * 0.045),
-  
-                        if (widget.showLinkingBanner) ...[
-                          Container(
-                            padding: EdgeInsets.all(w * 0.04),
-                            margin: EdgeInsets.only(bottom: h * 0.03),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: Colors.white24),
+        body: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          behavior: HitTestBehavior.opaque,
+          child: SafeArea(
+            child: Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: EdgeInsets.symmetric(horizontal: hPad, vertical: h * 0.02),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Welcome\nback.",
+                            style: TextStyle(
+                              fontFamily: 'Circular',
+                              fontSize: headerFont,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              height: 1.1,
+                              letterSpacing: -1.0,
                             ),
-                            child: Row(children: [
-                              const Icon(Icons.link_rounded, color: _cardHotPink, size: 24),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  'Sign in with your password to link your Google account.',
-                                  style: TextStyle(fontFamily: 'Circular', fontSize: subFont * 0.78,
-                                      color: Colors.white, height: 1.4, fontWeight: FontWeight.w500),
-                                ),
+                          ),
+                          SizedBox(height: h * 0.012),
+                          Text(
+                            "Sign in to your account.",
+                            style: TextStyle(
+                              fontFamily: 'Circular',
+                              fontSize: subFont,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white70,
+                            ),
+                          ),
+                          SizedBox(height: h * 0.045),
+  
+                          if (widget.showLinkingBanner) ...[
+                            Container(
+                              padding: EdgeInsets.all(w * 0.04),
+                              margin: EdgeInsets.only(bottom: h * 0.03),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: Colors.white24),
                               ),
-                            ]),
+                              child: Row(children: [
+                                const Icon(Icons.link_rounded, color: _cardHotPink, size: 24),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'Sign in with your password to link your Google account.',
+                                    style: TextStyle(fontFamily: 'Circular', fontSize: subFont * 0.78,
+                                        color: Colors.white, height: 1.4, fontWeight: FontWeight.w500),
+                                  ),
+                                ),
+                              ]),
+                            ),
+                          ],
+  
+                          _buildMinimalField(
+                            label: 'Email address',
+                            controller: _emailCtrl,
+                            scaledFont: fieldFont,
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                            autofocus: true,
+                            validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
                           ),
+                          SizedBox(height: h * 0.03),
+  
+                          _buildMinimalField(
+                            label: 'Password',
+                            controller: _passwordCtrl,
+                            scaledFont: fieldFont,
+                            obscureText: _obscure,
+                            textInputAction: TextInputAction.done,
+                            onSubmitted: _submit,
+                            suffixIcon: IconButton(
+                              icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: Colors.white70),
+                              onPressed: () => setState(() => _obscure = !_obscure),
+                            ),
+                            validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+                          ),
+                          SizedBox(height: h * 0.015),
+  
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: _forgotPassword,
+                              child: Text('Forgot password?',
+                                  style: TextStyle(fontFamily: 'Circular', color: _cardHotPink,
+                                      fontSize: subFont * 0.78, fontWeight: FontWeight.w700)),
+                            ),
+                          ),
+                          SizedBox(height: h * 0.04),
                         ],
-  
-                        _buildMinimalField(
-                          label: 'Email address',
-                          controller: _emailCtrl,
-                          scaledFont: fieldFont,
-                          keyboardType: TextInputType.emailAddress,
-                          validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
-                        ),
-                        SizedBox(height: h * 0.03),
-  
-                        _buildMinimalField(
-                          label: 'Password',
-                          controller: _passwordCtrl,
-                          scaledFont: fieldFont,
-                          obscureText: _obscure,
-                          suffixIcon: IconButton(
-                            icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: Colors.white70),
-                            onPressed: () => setState(() => _obscure = !_obscure),
-                          ),
-                          validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
-                        ),
-                        SizedBox(height: h * 0.015),
-  
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: _forgotPassword,
-                            child: Text('Forgot password?',
-                                style: TextStyle(fontFamily: 'Circular', color: _cardHotPink,
-                                    fontSize: subFont * 0.78, fontWeight: FontWeight.w700)),
-                          ),
-                        ),
-                        SizedBox(height: h * 0.04),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              
-              Padding(
-                padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 16),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: btnHeight,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(btnHeight / 2),
-                      gradient: const LinearGradient(colors: [_cardHotPink, _cardNeonPurple]),
-                      boxShadow: [
-                        BoxShadow(color: _cardHotPink.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))
-                      ],
-                    ),
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(btnHeight / 2)),
                       ),
-                      onPressed: _loading ? null : _submit,
-                      child: _loading
-                          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
-                          : Text('Sign in', style: TextStyle(fontFamily: 'Circular', fontSize: subFont, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 0.5)),
                     ),
                   ),
                 ),
-              ),
-            ],
+                
+                Padding(
+                  padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: btnHeight,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(btnHeight / 2),
+                        gradient: const LinearGradient(colors: [_cardHotPink, _cardNeonPurple]),
+                        boxShadow: [
+                          BoxShadow(color: _cardHotPink.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))
+                        ],
+                      ),
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(btnHeight / 2)),
+                        ),
+                        onPressed: _loading ? null : _submit,
+                        child: _loading
+                            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                            : Text('Sign in', style: TextStyle(fontFamily: 'Circular', fontSize: subFont, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 0.5)),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

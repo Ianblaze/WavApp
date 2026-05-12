@@ -96,10 +96,15 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
     required TextEditingController controller,
     required double scaledFont,
     TextInputType keyboardType = TextInputType.text,
+    TextInputAction? textInputAction,
+    VoidCallback? onSubmitted,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
+      textInputAction: textInputAction,
+      onFieldSubmitted: (_) => onSubmitted?.call(),
+      autofocus: true,
       style: TextStyle(
         fontFamily: 'Circular',
         fontSize: scaledFont,
@@ -158,133 +163,141 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
             },
           ),
         ),
-        body: SafeArea(
-          child: Column(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: EdgeInsets.symmetric(horizontal: hPad, vertical: h * 0.02),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _otpSent ? "My code is" : "What's your\nnumber?",
-                        style: TextStyle(
-                          fontFamily: 'Circular',
-                          fontSize: headerFont,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                          height: 1.1,
-                          letterSpacing: -1.0,
-                        ),
-                      ),
-                      SizedBox(height: h * 0.012),
-                      Text(
-                        _otpSent 
-                          ? 'We sent a 6-digit code to $_countryCode${_phoneCtrl.text}' 
-                          : 'We\'ll send a text with a code to verify your account.',
-                        style: TextStyle(
-                          fontFamily: 'Circular',
-                          fontSize: subFont,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white70,
-                          height: 1.3,
-                        ),
-                      ),
-                      SizedBox(height: h * 0.05),
-  
-                      if (!_otpSent) ...[
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Container(
-                              decoration: const BoxDecoration(
-                                border: Border(bottom: BorderSide(color: Colors.white24, width: 2)),
-                              ),
-                              child: CountryCodePicker(
-                                onChanged: (c) => setState(() => _countryCode = c.dialCode ?? '+91'),
-                                initialSelection: 'IN',
-                                favorite: const ['IN', 'US', 'GB'],
-                                showCountryOnly: false,
-                                showOnlyCountryWhenClosed: false,
-                                alignLeft: false,
-                                padding: EdgeInsets.zero,
-                                textStyle: TextStyle(color: Colors.white, fontFamily: 'Circular', fontSize: codePickerFont, fontWeight: FontWeight.w600),
-                                flagDecoration: BoxDecoration(borderRadius: BorderRadius.circular(4)),
-                              ),
-                            ),
-                            SizedBox(width: w * 0.04),
-                            Expanded(
-                              child: _buildMinimalField(
-                                label: 'Phone number',
-                                controller: _phoneCtrl,
-                                scaledFont: fieldFont,
-                                keyboardType: TextInputType.phone,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-  
-                      if (_otpSent) ...[
-                        _buildMinimalField(
-                          label: '6-digit OTP',
-                          controller: _otpCtrl,
-                          scaledFont: fieldFont,
-                          keyboardType: TextInputType.number,
-                        ),
-                        SizedBox(height: h * 0.025),
-                        TextButton(
-                          onPressed: _cooldownSeconds > 0 ? null : _sendOtp,
-                          child: Text(
-                            _cooldownSeconds > 0 ? 'Resend again in ${_cooldownSeconds}s' : 'Resend code',
-                            style: TextStyle(
-                              fontFamily: 'Circular', fontSize: subFont,
-                              color: _cooldownSeconds > 0 ? Colors.white38 : _cardHotPink,
-                              fontWeight: FontWeight.w700,
-                            ),
+        body: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          behavior: HitTestBehavior.opaque,
+          child: SafeArea(
+            child: Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: EdgeInsets.symmetric(horizontal: hPad, vertical: h * 0.02),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _otpSent ? "My code is" : "What's your\nnumber?",
+                          style: TextStyle(
+                            fontFamily: 'Circular',
+                            fontSize: headerFont,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            height: 1.1,
+                            letterSpacing: -1.0,
                           ),
                         ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-              
-              Padding(
-                padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 16),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: btnHeight,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(btnHeight / 2),
-                      gradient: const LinearGradient(colors: [_cardHotPink, _cardNeonPurple]),
-                      boxShadow: [
-                        BoxShadow(color: _cardHotPink.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))
-                      ],
-                    ),
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(btnHeight / 2)),
-                      ),
-                      onPressed: _loading || (_cooldownSeconds > 0 && !_otpSent)
-                          ? null
-                          : (_otpSent ? _verifyOtp : _sendOtp),
-                      child: _loading
-                          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
-                          : Text(
-                              _otpSent ? 'Continue' : 'Send Code',
-                              style: TextStyle(fontFamily: 'Circular', fontSize: subFont + 2, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 0.5),
+                        SizedBox(height: h * 0.012),
+                        Text(
+                          _otpSent 
+                            ? 'We sent a 6-digit code to $_countryCode${_phoneCtrl.text}' 
+                            : 'We\'ll send a text with a code to verify your account.',
+                          style: TextStyle(
+                            fontFamily: 'Circular',
+                            fontSize: subFont,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white70,
+                            height: 1.3,
+                          ),
+                        ),
+                        SizedBox(height: h * 0.05),
+    
+                        if (!_otpSent) ...[
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Container(
+                                decoration: const BoxDecoration(
+                                  border: Border(bottom: BorderSide(color: Colors.white24, width: 2)),
+                                ),
+                                child: CountryCodePicker(
+                                  onChanged: (c) => setState(() => _countryCode = c.dialCode ?? '+91'),
+                                  initialSelection: 'IN',
+                                  favorite: const ['IN', 'US', 'GB'],
+                                  showCountryOnly: false,
+                                  showOnlyCountryWhenClosed: false,
+                                  alignLeft: false,
+                                  padding: EdgeInsets.zero,
+                                  textStyle: TextStyle(color: Colors.white, fontFamily: 'Circular', fontSize: codePickerFont, fontWeight: FontWeight.w600),
+                                  flagDecoration: BoxDecoration(borderRadius: BorderRadius.circular(4)),
+                                ),
+                              ),
+                              SizedBox(width: w * 0.04),
+                              Expanded(
+                                child: _buildMinimalField(
+                                  label: 'Phone number',
+                                  controller: _phoneCtrl,
+                                  scaledFont: fieldFont,
+                                  keyboardType: TextInputType.phone,
+                                  textInputAction: TextInputAction.send,
+                                  onSubmitted: _sendOtp,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+    
+                        if (_otpSent) ...[
+                          _buildMinimalField(
+                            label: '6-digit OTP',
+                            controller: _otpCtrl,
+                            scaledFont: fieldFont,
+                            keyboardType: TextInputType.number,
+                            textInputAction: TextInputAction.done,
+                            onSubmitted: _verifyOtp,
+                          ),
+                          SizedBox(height: h * 0.025),
+                          TextButton(
+                            onPressed: _cooldownSeconds > 0 ? null : _sendOtp,
+                            child: Text(
+                              _cooldownSeconds > 0 ? 'Resend again in ${_cooldownSeconds}s' : 'Resend code',
+                              style: TextStyle(
+                                fontFamily: 'Circular', fontSize: subFont,
+                                color: _cooldownSeconds > 0 ? Colors.white38 : _cardHotPink,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ),
-              ),
-            ],
+                
+                Padding(
+                  padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: btnHeight,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(btnHeight / 2),
+                        gradient: const LinearGradient(colors: [_cardHotPink, _cardNeonPurple]),
+                        boxShadow: [
+                          BoxShadow(color: _cardHotPink.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))
+                        ],
+                      ),
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(btnHeight / 2)),
+                        ),
+                        onPressed: _loading || (_cooldownSeconds > 0 && !_otpSent)
+                            ? null
+                            : (_otpSent ? _verifyOtp : _sendOtp),
+                        child: _loading
+                            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                            : Text(
+                                _otpSent ? 'Continue' : 'Send Code',
+                                style: TextStyle(fontFamily: 'Circular', fontSize: subFont + 2, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 0.5),
+                              ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
