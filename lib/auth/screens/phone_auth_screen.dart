@@ -11,8 +11,8 @@ import '../widgets/auth_video_background.dart';
 
 import '../widgets/auth_snackbar.dart';
 
-const _cardHotPink     = Color(0xFFFFB3D9);
-const _cardNeonPurple  = Color(0xFFD9B3FF);
+const _cardHotPink     = Color(0xFFFF3399);
+const _cardNeonPurple  = Color(0xFF9D50BB);
 
 class PhoneAuthScreen extends StatefulWidget {
   const PhoneAuthScreen({super.key});
@@ -148,7 +148,7 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         extendBodyBehindAppBar: true,
-        resizeToAvoidBottomInset: false, // Custom animation handling
+        resizeToAvoidBottomInset: true, // Custom animation handling
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -168,6 +168,7 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
           onTap: () => FocusScope.of(context).unfocus(),
           behavior: HitTestBehavior.opaque,
           child: SafeArea(
+            bottom: false,
             child: Column(
               children: [
                 Expanded(
@@ -273,7 +274,7 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
                 AnimatedPadding(
                   duration: const Duration(milliseconds: 300),
                   curve: Curves.easeOutCubic,
-                  padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 16 + MediaQuery.of(context).viewInsets.bottom),
+                  padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 8),
                   child: SizedBox(
                     width: double.infinity,
                     height: btnHeight,

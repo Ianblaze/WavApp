@@ -22,8 +22,8 @@ class _EmailSignUpScreenState extends State<EmailSignUpScreen> {
   bool _usernameAvailable = false;
   String? _usernameError;
 
-  static const _cardHotPink = Color(0xFFFF2D87);
-  static const _cardNeonPurple = Color(0xFF9D50BB);
+  static const _cardHotPink     = Color(0xFFFF3399);
+  static const _cardNeonPurple  = Color(0xFF9D50BB);
 
   @override
   void dispose() {
@@ -81,7 +81,7 @@ class _EmailSignUpScreenState extends State<EmailSignUpScreen> {
         fontFamily: 'Circular',
         fontSize: scaledFont,
         fontWeight: FontWeight.w600,
-        color: Colors.white,
+        color: label.toLowerCase().contains('password') ? _cardHotPink : Colors.white,
       ),
       cursorColor: _cardHotPink,
       decoration: InputDecoration(
@@ -119,7 +119,7 @@ class _EmailSignUpScreenState extends State<EmailSignUpScreen> {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         extendBodyBehindAppBar: true,
-        resizeToAvoidBottomInset: false,
+        resizeToAvoidBottomInset: true,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -133,6 +133,7 @@ class _EmailSignUpScreenState extends State<EmailSignUpScreen> {
           onTap: () => FocusScope.of(context).unfocus(),
           behavior: HitTestBehavior.opaque,
           child: SafeArea(
+            bottom: false,
             child: Column(
               children: [
                 Expanded(
@@ -223,7 +224,7 @@ class _EmailSignUpScreenState extends State<EmailSignUpScreen> {
                             onSubmitted: _submit,
                             onChanged: (_) => setState(() {}),
                             suffixIcon: IconButton(
-                              icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: Colors.white70),
+                              icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: _cardHotPink),
                               onPressed: () => setState(() => _obscure = !_obscure),
                             ),
                             validator: (v) {
@@ -248,7 +249,7 @@ class _EmailSignUpScreenState extends State<EmailSignUpScreen> {
                 AnimatedPadding(
                   duration: const Duration(milliseconds: 300),
                   curve: Curves.easeOutCubic,
-                  padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 16 + MediaQuery.of(context).viewInsets.bottom),
+                  padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 8),
                   child: SizedBox(
                     width: double.infinity,
                     height: btnHeight,

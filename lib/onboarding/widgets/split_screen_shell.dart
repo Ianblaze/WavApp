@@ -38,9 +38,9 @@ class SplitScreenShell extends StatelessWidget {
         builder: (context, constraints) {
           final totalH = constraints.maxHeight;
           final totalW = constraints.maxWidth;
-          final illustrationMaxH = (totalH * 0.32).clamp(160.0, 320.0);
-          final titleFont = (totalW * 0.095).clamp(26.0, 40.0);
-          final subtitleFont = (totalW * 0.042).clamp(14.0, 18.0);
+          final illustrationMaxH = (totalH * 0.38).clamp(200.0, 360.0);
+          final titleFont = (totalW * 0.085).clamp(24.0, 36.0);
+          final subtitleFont = (totalW * 0.04).clamp(13.0, 16.0);
           final hPad = (totalW * 0.065).clamp(18.0, 26.0);
 
           return Column(
@@ -79,8 +79,10 @@ class SplitScreenShell extends StatelessWidget {
                   child: SafeArea(
                     top: false,
                     child: Padding(
-                      padding: EdgeInsets.fromLTRB(hPad, totalH * 0.035, hPad, totalH * 0.02),
-                      child: Column(
+                      padding: EdgeInsets.fromLTRB(hPad, 0, hPad, totalH * 0.015),
+                      child: SingleChildScrollView(
+                        physics: const ClampingScrollPhysics(),
+                        child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
@@ -119,7 +121,7 @@ class SplitScreenShell extends StatelessWidget {
                             SizedBox(height: totalH * 0.02),
                             extras!,
                           ],
-                          const Spacer(),
+                          const SizedBox(height: 20),
                           cta,
                         ],
                       ),
@@ -127,6 +129,7 @@ class SplitScreenShell extends StatelessWidget {
                   ),
                 ),
               ),
+            ),
             ],
           );
         },

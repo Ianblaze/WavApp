@@ -272,8 +272,8 @@ class _MatchCardsIllustrationState extends State<MatchCardsIllustration>
                                   children: [
                                     _GlassProfileCard(
                                       gradient: const [Color(0xFFFFB3D9), Color(0xFFFF99CC)],
-                                      width: 154,
-                                      height: 194,
+                                      width: 150,
+                                      height: 220,
                                     ),
                                     // Shimmer
                                     Positioned.fill(
@@ -354,8 +354,8 @@ class _MatchCardsIllustrationState extends State<MatchCardsIllustration>
                 ),
                 ),
 
-                // #6: Waveform (Clean visualizer, no touch)
-                SizedBox(height: (h * 0.05).clamp(10.0, 42.0)),
+                // #6: Waveform (Centered between cards and text)
+                SizedBox(height: (h * 0.12).clamp(40.0, 80.0)),
                 _ReactiveWaveform(swipeCtrl: _swipeCtrl, elapsed: _elapsed),
               ],
             ),
@@ -408,8 +408,8 @@ class _MatchCardsIllustrationState extends State<MatchCardsIllustration>
               child: _ProfileCard(
                 gradient: grad,
                 opacity: op,
-                width: 145,
-                height: 185,
+                width: 140,
+                height: 210,
               ),
             ),
           ),
@@ -589,25 +589,27 @@ class _ReactiveWaveformState extends State<_ReactiveWaveform> with SingleTickerP
   late AnimationController _idleCtrl;
 
   final int _barCount = 28;
-  final List<double> _baseHeights = List.generate(28, (_) => 14.0 + Random().nextDouble() * 26.0);
+  final List<double> _baseHeights = List.generate(28, (_) => 10.0 + Random().nextDouble() * 20.0);
 
   @override
   void initState() {
     super.initState();
+    _idleCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 1))..repeat();
   }
 
   @override
   void dispose() {
+    _idleCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: Listenable.merge([widget.swipeCtrl, widget.elapsed]),
+      animation: Listenable.merge([widget.swipeCtrl, widget.elapsed, _idleCtrl]),
       builder: (ctx, _) {
         return SizedBox(
-          height: 60,
+          height: 40,
           width: double.infinity,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -624,9 +626,9 @@ class _ReactiveWaveformState extends State<_ReactiveWaveform> with SingleTickerP
               )!;
               
               return Container(
-                width: 6,
+                width: 4,
                 height: h,
-                margin: const EdgeInsets.symmetric(horizontal: 2.2),
+                margin: const EdgeInsets.symmetric(horizontal: 1.5),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
@@ -1264,122 +1266,117 @@ class _MusicConversationIllustrationState
         offset: Offset(widget.parallaxOffset * 120, 0),
         child: FittedBox(
           fit: BoxFit.scaleDown,
-          child: SizedBox(
+          child: Container(
             width: 280,
             height: 350,
             child: Stack(
-            children: [
-              // ── Background Orbs ──
-              // Removed Background Orbs as requested
+              clipBehavior: Clip.none,
+              children: [
+                // ── Main Content ──
+                Column(
+                  children: [
+                    // ── Now Playing bar (top) ──
+                    _NowPlayingCard(elapsed: _elapsed),
+                    const SizedBox(height: 12),
 
-              // ── Main Content ──
-              Column(
-                children: [
-                  // ── Now Playing bar (top) ──
-                  _NowPlayingCard(elapsed: _elapsed),
-                  const SizedBox(height: 4),
+                    // ── Chat screen ──
+                    Expanded(
+                      child: Container(
+                        width: double.infinity,
+                        clipBehavior: Clip.hardEdge,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.35),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.5),
+                            width: 1,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // ── Chat header ──
+                            Row(
+                              children: [
+                                _ChatAvatar(
+                                  label: 'them',
+                                  gradient: const [Color(0xFFB3D9FF), Color(0xFF7BA7FF)],
+                                ),
+                                const Spacer(),
+                                _ChatAvatar(
+                                  label: 'you',
+                                  gradient: const [Color(0xFFFFB3D9), Color(0xFFFF99CC)],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
 
-                  // ── Chat screen ──
-                  Expanded(
-                    child: Container(
-                      width: double.infinity,
-                      clipBehavior: Clip.hardEdge,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.35),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.5),
-                          width: 1,
+                            // ── Messages area ──
+                            Expanded(
+                              child: AnimatedBuilder(
+                                animation: Listenable.merge([_msg1Ctrl, _msg2Ctrl, _msg3Ctrl]),
+                                builder: (ctx, _) {
+                                  return Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      if (_msg1Ctrl.value > 0)
+                                        _AnimatedMessage(
+                                          controller: _msg1Ctrl,
+                                          alignment: Alignment.centerLeft,
+                                          child: _ChatBubble(
+                                            text: 'i love the smiths.',
+                                            timestamp: '6:42 pm',
+                                            color: const Color(0xFF42A5FF),
+                                            textColor: Colors.white,
+                                            isLeft: true,
+                                          ),
+                                        ),
+
+                                      if (_msg2Ctrl.value > 0) ...[
+                                        const SizedBox(height: 6),
+                                        _AnimatedMessage(
+                                          controller: _msg2Ctrl,
+                                          alignment: Alignment.centerLeft,
+                                          child: _ChatBubble(
+                                            text: 'you have good taste in music.',
+                                            timestamp: '6:42 pm',
+                                            color: const Color(0xFF42A5FF),
+                                            textColor: Colors.white,
+                                            isLeft: true,
+                                          ),
+                                        ),
+                                      ],
+
+                                      if (_msg3Ctrl.value > 0) ...[
+                                        const SizedBox(height: 6),
+                                        _AnimatedMessage(
+                                          controller: _msg3Ctrl,
+                                          alignment: Alignment.centerRight,
+                                          child: _ChatBubble(
+                                            text: 'did we just become soulmates? 😭',
+                                            timestamp: '6:43 pm',
+                                            color: const Color(0xFFFF6FE8),
+                                            textColor: Colors.white,
+                                            isLeft: false,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // ── Chat header: "you" and "them" ──
-                          Row(
-                            children: [
-                              _ChatAvatar(
-                                label: 'them',
-                                gradient: const [Color(0xFFB3D9FF), Color(0xFF7BA7FF)],
-                              ),
-                              const Spacer(),
-                              _ChatAvatar(
-                                label: 'you',
-                                gradient: const [Color(0xFFFFB3D9), Color(0xFFFF99CC)],
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 5),
-
-                          // ── Messages area ──
-                          Expanded(
-                            child: AnimatedBuilder(
-                              animation: Listenable.merge([_msg1Ctrl, _msg2Ctrl, _msg3Ctrl]),
-                              builder: (ctx, _) {
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Message 1 — from match (left-aligned, blue)
-                                    if (_msg1Ctrl.value > 0)
-                                      _AnimatedMessage(
-                                        controller: _msg1Ctrl,
-                                        alignment: Alignment.centerLeft,
-                                        child: _ChatBubble(
-                                          text: 'i love the smiths.',
-                                          timestamp: '6:42 pm',
-                                          color: const Color(0xFF42A5FF),
-                                          textColor: Colors.white,
-                                          isLeft: true,
-                                        ),
-                                      ),
-
-                                    // Message 2 — from match (left-aligned, blue)
-                                    if (_msg2Ctrl.value > 0) ...[
-                                      const SizedBox(height: 2),
-                                      _AnimatedMessage(
-                                        controller: _msg2Ctrl,
-                                        alignment: Alignment.centerLeft,
-                                        child: _ChatBubble(
-                                          text: 'you have good taste in music.',
-                                          timestamp: '6:42 pm',
-                                          color: const Color(0xFF42A5FF),
-                                          textColor: Colors.white,
-                                          isLeft: true,
-                                        ),
-                                      ),
-                                    ],
-
-                                    // Message 3 — from you (right-aligned, pink)
-                                    if (_msg3Ctrl.value > 0) ...[
-                                      const SizedBox(height: 2),
-                                      _AnimatedMessage(
-                                        controller: _msg3Ctrl,
-                                        alignment: Alignment.centerRight,
-                                        child: _ChatBubble(
-                                          text: 'did we just become soulmates? 😭',
-                                          timestamp: '6:43 pm',
-                                          color: const Color(0xFFFF6FE8),
-                                          textColor: Colors.white,
-                                          isLeft: false,
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                );
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
-      ),
       ),
     );
   }

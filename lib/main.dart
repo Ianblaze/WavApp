@@ -34,12 +34,7 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  runApp(
-    DevicePreview(
-      enabled: true, // DevicePreview is always enabled for testing purposes
-      builder: (context) => const MyApp(),
-    ),
-  );
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -57,8 +52,6 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => OnboardingController()),
       ],
       child: MaterialApp(
-        locale: DevicePreview.locale(context),
-        builder: DevicePreview.appBuilder,
         debugShowCheckedModeBanner: false,
         title: "Wav",
         theme: ThemeData.dark(),

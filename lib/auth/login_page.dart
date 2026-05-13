@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
@@ -98,6 +99,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   late Animation<Offset> _mainCardsSlideOut;
   late Animation<double> _mainCardsOpacityOut;
   
+  // Card entrance scale animation
+  late Animation<double> _cardScaleEntrance;
+  
   // Background pattern animation
   late Animation<double> _backgroundOffset;
   
@@ -171,7 +175,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     
     _authMethodsSlide = Tween<Offset>(
       begin: const Offset(0, 1.0),
-      end: const Offset(0, 0.02), // Moved higher (was 0.15)
+      end: const Offset(0, 0.18), // Lowered further
     ).animate(CurvedAnimation(
       parent: _authMethodsController,
       curve: Curves.easeOutCubic,
@@ -215,6 +219,14 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     ).animate(CurvedAnimation(
       parent: _gradientShiftController,
       curve: Curves.easeInOutSine,
+    ));
+
+    _cardScaleEntrance = Tween<double>(
+      begin: 0.85,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _entranceController,
+      curve: const Interval(0.15, 0.9, curve: Curves.easeOutBack),
     ));
 
     _matchTimer = Timer.periodic(const Duration(milliseconds: 3800), (_) {
@@ -265,6 +277,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
   void _showAuthMethodsWithAnimation(bool isSignUpMode) {
     if (_authMethodsController.isAnimating) return;
+    HapticFeedback.lightImpact();
     
     setState(() {
       isSignUp = isSignUpMode;
@@ -280,6 +293,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   
   void _goBackToMainCards() {
     if (_authMethodsController.isAnimating) return;
+    HapticFeedback.lightImpact();
     
     _mainController.play();
     setState(() {
@@ -389,170 +403,203 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
           // ── Main Content Area ──
           SafeArea(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Header (Back navigation or spacing)
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  height: showAuthMethods ? 80 : 40,
-                  child: showAuthMethods
-                      ? Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Row(
-                            children: [
-                              Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  onTap: _goBackToMainCards,
-                                  borderRadius: BorderRadius.circular(30),
-                                  splashColor: Colors.white.withOpacity(0.3),
-                                  highlightColor: Colors.white.withOpacity(0.1),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(16),
-                                    child: const Icon(
-                                      Icons.arrow_back_rounded,
-                                      color: Colors.white,
-                                      size: 28,
+            child: SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Header (Back navigation or spacing)
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    height: showAuthMethods ? 50 : 40,
+                    child: showAuthMethods
+                        ? Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Row(
+                              children: [
+                                Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: _goBackToMainCards,
+                                    borderRadius: BorderRadius.circular(30),
+                                    splashColor: Colors.white.withOpacity(0.3),
+                                    highlightColor: Colors.white.withOpacity(0.1),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(16),
+                                      child: const Icon(
+                                        Icons.arrow_back_rounded,
+                                        color: Colors.white,
+                                        size: 28,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const Spacer(),
+                                const SizedBox(width: 40),
+                              ],
+                            ),
+                          )
+                        : const SizedBox(height: 40),
+                  ),
+                  
+                  const Spacer(flex: 1),
+                  
+                  // ── Brand Unit (Logo & Wordmark) ──
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final w = MediaQuery.of(context).size.width;
+                      final h = MediaQuery.of(context).size.height;
+                      final logoSize = (w * 0.28).clamp(90.0, 130.0);
+                      final wavHeight = (w * 0.45).clamp(120.0, 180.0);
+                      
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Image.asset(
+                            'assets/images/wav_final.png',
+                            height: wavHeight,
+                            fit: BoxFit.contain,
+                          ),
+                          Transform.translate(
+                            offset: const Offset(0, -10),
+                            child: Text(
+                              "match through music",
+                              style: TextStyle(
+                                fontFamily: 'Circular',
+                                fontSize: (w * 0.045).clamp(15.0, 18.0),
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFFD4E4FF).withOpacity(0.8),
+                                letterSpacing: 0.5,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black.withOpacity(0.4),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 1.5),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+                  ),
+
+                  const Spacer(flex: 1),
+                  
+                  // ── Cards Stack Area ──
+                  ScaleTransition(
+                    scale: _cardScaleEntrance,
+                    child: SizedBox(
+                      height: (h * 0.42).clamp(260.0, 360.0),
+                      child: RepaintBoundary(
+                        child: Stack(
+                          children: [
+                            RepaintBoundary(
+                              child: SlideTransition(
+                                position: _mainCardsSlideOut,
+                                child: FadeTransition(
+                                  opacity: _mainCardsOpacityOut,
+                                  child: IgnorePointer(
+                                    ignoring: showAuthMethods,
+                                    child: _buildMainCards(),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            RepaintBoundary(
+                              child: SlideTransition(
+                                position: _authMethodsSlide,
+                                child: FadeTransition(
+                                  opacity: _authMethodsOpacity,
+                                  child: IgnorePointer(
+                                    ignoring: !showAuthMethods,
+                                    child: GestureDetector(
+                                      onVerticalDragUpdate: (details) {
+                                        if (details.delta.dy < -10) _goBackToMainCards();
+                                      },
+                                      child: _buildAuthMethodCards(),
                                     ),
                                   ),
                                 ),
                               ),
-                              const Spacer(),
-                              const SizedBox(width: 40),
-                            ],
-                          ),
-                        )
-                      : const SizedBox(height: 40),
-                ),
-                
-                // Spacing to push content down near center (like hinge/tinder layouts)
-                const Spacer(flex: 2),
-
-                // ── Brand Unit (Logo & Wordmark) ──
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final w = MediaQuery.of(context).size.width;
-                    final h = MediaQuery.of(context).size.height;
-                    final logoSize = (w * 0.28).clamp(90.0, 130.0);
-                    final wavHeight = (w * 0.35).clamp(80.0, 120.0);
-                    
-                    return Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Image.asset(
-                          'assets/images/wav_final.png',
-                          height: wavHeight,
-                          fit: BoxFit.contain,
-                        ),
-                        SizedBox(height: h * 0.012),
-                        Text(
-                          "match through music",
-                          style: TextStyle(
-                            fontFamily: 'Circular',
-                            fontSize: (w * 0.045).clamp(14.0, 16.0),
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF8B84A6).withOpacity(0.9),
-                            letterSpacing: 0.2,
-                          ),
-                        ),
-                      ],
-                    );
-                  }
-                ),
-
-                const Spacer(flex: 5), // Combined spacer to push cards down
-                
-                // Cards Stack Area
-                SizedBox(
-                  height: (h * 0.45).clamp(280.0, 380.0), // Squeezed to prevent overflow
-                  child: RepaintBoundary(
-                    child: Stack(
-                      children: [
-                        RepaintBoundary(
-                          child: SlideTransition(
-                            position: _mainCardsSlideOut,
-                            child: FadeTransition(
-                              opacity: _mainCardsOpacityOut,
-                              child: IgnorePointer(
-                                ignoring: showAuthMethods,
-                                child: _buildMainCards(),
-                              ),
                             ),
-                          ),
+                          ],
                         ),
-                        RepaintBoundary(
-                          child: SlideTransition(
-                            position: _authMethodsSlide,
-                            child: FadeTransition(
-                              opacity: _authMethodsOpacity,
-                              child: IgnorePointer(
-                                ignoring: !showAuthMethods,
-                                child: GestureDetector(
-                                  onVerticalDragUpdate: (details) {
-                                    if (details.delta.dy < -10) { // Swipe up
-                                      _goBackToMainCards();
-                                    }
-                                  },
-                                  child: _buildAuthMethodCards(),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                // ── Terms & Conditions ──
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 10),
-                  child: RichText(
-                    textAlign: TextAlign.center,
-                    text: TextSpan(
-                      style: TextStyle(
-                        fontFamily: 'Circular',
-                        fontSize: 12,
-                        color: Colors.white.withOpacity(0.7),
-                        height: 1.4,
-                        letterSpacing: 0.1,
                       ),
-                      children: [
-                        const TextSpan(text: 'By tapping Sign in or Create account, you agree to our '),
-                        TextSpan(
-                          text: 'Terms of Service',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white.withOpacity(0.95),
-                            decoration: TextDecoration.underline,
-                          ),
-                        ),
-                        const TextSpan(text: '. Learn how we process your data in our '),
-                        TextSpan(
-                          text: 'Privacy Policy',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white.withOpacity(0.95),
-                            decoration: TextDecoration.underline,
-                          ),
-                        ),
-                        const TextSpan(text: ' and '),
-                        TextSpan(
-                          text: 'Cookies Policy',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white.withOpacity(0.95),
-                            decoration: TextDecoration.underline,
-                          ),
-                        ),
-                        const TextSpan(text: '.'),
-                      ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 20),
-              ],
+
+                  const Spacer(flex: 2),
+
+                  // ── Terms & Conditions ──
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 30),
+                    child: RichText(
+                      textAlign: TextAlign.center,
+                      text: TextSpan(
+                        style: const TextStyle(
+                          fontFamily: 'Circular',
+                          fontSize: 12,
+                          color: Colors.white70,
+                          height: 1.6,
+                          letterSpacing: 0.2,
+                        ),
+                        children: [
+                          const TextSpan(text: 'By tapping Sign in or Create account, you agree to our '),
+                          WidgetSpan(
+                            alignment: PlaceholderAlignment.middle,
+                            child: Text(
+                              'Terms of Service',
+                              style: TextStyle(
+                                fontFamily: 'Circular',
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF80FFEA).withOpacity(0.9),
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                          const TextSpan(text: '. Learn how we process your data in our '),
+                          WidgetSpan(
+                            alignment: PlaceholderAlignment.middle,
+                            child: Text(
+                              'Privacy Policy',
+                              style: TextStyle(
+                                fontFamily: 'Circular',
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF80FFEA).withOpacity(0.9),
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                          const TextSpan(text: ' and '),
+                          WidgetSpan(
+                            alignment: PlaceholderAlignment.middle,
+                            child: Text(
+                              'Cookies Policy',
+                              style: TextStyle(
+                                fontFamily: 'Circular',
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF80FFEA).withOpacity(0.9),
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                          const TextSpan(text: '.'),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  const Spacer(flex: 2),
+
+                  // This reserves space for the "you have new music?" text burned into the video
+                  const SizedBox(height: 85),
+                ],
+              ),
             ),
           ),
         ],
@@ -575,13 +622,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         
         // Calculate optimal card width (max 220, scales down on smaller screens)
         final cardWidth = (availableWidth - cardSpacing) / 2;
-        final responsiveCardWidth = cardWidth.clamp(120.0, 220.0); // Reduced min clamp for 320px screens
-        
-        // Calculate horizontal offset to maintain spacing
+        final responsiveCardWidth = cardWidth.clamp(120.0, 220.0);
         final horizontalOffset = (responsiveCardWidth + cardSpacing) / 2;
-        
-        // Scale card height proportionally
-        final cardHeight = (responsiveCardWidth * 1.27).clamp(160.0, 280.0); // Reduced min clamp
+        final cardHeight = (responsiveCardWidth * 1.27).clamp(160.0, 280.0);
         
         return Center(
           child: SizedBox(
@@ -681,14 +724,14 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         
         // Calculate card width (3 cards + 2 gaps)
         final cardWidth = (availableWidth - (cardSpacing * 2)) / 3;
-        final responsiveCardWidth = cardWidth.clamp(85.0, 140.0); // Reduced min clamp
+        final responsiveCardWidth = cardWidth.clamp(80.0, 115.0); // Shrinking cards
         
         // Calculate horizontal offset
         final horizontalOffset = responsiveCardWidth + cardSpacing;
         
         // Scale card height proportionally
-        final centerCardHeight = (responsiveCardWidth * 1.62).clamp(140.0, 235.0); // Reduced min clamp
-        final sideCardHeight = (responsiveCardWidth * 1.48).clamp(125.0, 215.0); // Reduced min clamp
+        final centerCardHeight = (responsiveCardWidth * 1.55).clamp(130.0, 210.0);
+        final sideCardHeight = (responsiveCardWidth * 1.4).clamp(115.0, 190.0);
         
         return Center(
           child: SizedBox(
@@ -859,7 +902,10 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         onTapUp: (_) {
           if (showAuthMethods) {
             setState(() => _activeCardIndex = null);
-            if (onTap != null) onTap();
+            if (onTap != null) {
+              HapticFeedback.lightImpact();
+              onTap();
+            }
           }
         },
         onTapCancel: () {
@@ -891,127 +937,127 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                 ),
               ],
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(24),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.asset(
-                    'assets/images/bgstatic.png',
-                    fit: BoxFit.cover,
-                  ),
-                  Container(
-                    color: Colors.black.withOpacity(0.1),
-                  ),
-                  Stack(
-                    children: [
-                      Positioned(
-                        top: cardHeight * 0.12,
-                        left: 0,
-                        right: 0,
-                        child: Center(
-                          child: AnimatedOpacity(
-                            opacity: isHovered ? 1.0 : 0.8,
-                            duration: const Duration(milliseconds: 200),
-                            child: showLoading
-                                ? SizedBox(
-                                    width: responsiveIconSize,
-                                    height: responsiveIconSize,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: cardWidth * 0.02,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : (iconWidget != null
-                                    ? SizedBox(
-                                        width: responsiveIconSize,
-                                        height: responsiveIconSize,
-                                        child: iconWidget,
-                                      )
-                                    : Icon(
-                                        icon,
-                                        size: responsiveIconSize,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.asset(
+                      'assets/images/bgstatic.png',
+                      fit: BoxFit.cover,
+                    ),
+                    Container(
+                      color: Colors.black.withOpacity(0.1),
+                    ),
+                    Stack(
+                      children: [
+                        Positioned(
+                          top: cardHeight * 0.12,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: AnimatedOpacity(
+                              opacity: isHovered ? 1.0 : 0.8,
+                              duration: const Duration(milliseconds: 200),
+                              child: showLoading
+                                  ? SizedBox(
+                                      width: responsiveIconSize,
+                                      height: responsiveIconSize,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: cardWidth * 0.02,
                                         color: Colors.white,
-                                        shadows: const [
-                                          Shadow(color: Colors.black45, blurRadius: 15, offset: Offset(0, 4))
-                                        ],
-                                      )),
+                                      ),
+                                    )
+                                  : (iconWidget != null
+                                      ? SizedBox(
+                                          width: responsiveIconSize,
+                                          height: responsiveIconSize,
+                                          child: iconWidget,
+                                        )
+                                      : Icon(
+                                          icon,
+                                          size: responsiveIconSize,
+                                          color: Colors.white,
+                                          shadows: const [
+                                            Shadow(color: Colors.black45, blurRadius: 15, offset: Offset(0, 4))
+                                          ],
+                                        )),
+                            ),
                           ),
                         ),
-                      ),
-                      Positioned(
-                        bottom: cardHeight * 0.14,
-                        left: 0,
-                        right: 0,
-                        child: Text(
-                          title,
-                          style: TextStyle(
-                            fontFamily: 'Circular',
-                            fontSize: cardWidth * 0.165,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                            height: 1.2,
-                            letterSpacing: -0.5,
-                            shadows: [
-                              Shadow(color: Colors.black.withOpacity(0.6), blurRadius: 15, offset: const Offset(0, 2))
-                            ],
+                        Positioned(
+                          bottom: cardHeight * 0.14,
+                          left: 0,
+                          right: 0,
+                          child: Text(
+                            title,
+                            style: TextStyle(
+                              fontFamily: 'Circular',
+                              fontSize: cardWidth * 0.165,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              height: 1.2,
+                              letterSpacing: -0.5,
+                              shadows: [
+                                Shadow(color: Colors.black.withOpacity(0.6), blurRadius: 15, offset: const Offset(0, 2))
+                              ],
+                            ),
+                            textAlign: TextAlign.center,
                           ),
-                          textAlign: TextAlign.center,
                         ),
-                      ),
-                    ],
-                  ),
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: AnimatedBuilder(
-                        animation: _shimmerController,
-                        builder: (context, child) {
-                          final activeFraction = 3.5 / 5.5;
-                          final progress = _shimmerController.value;
-                          final animProgress = (progress / activeFraction).clamp(0.0, 1.0);
-                          final curvedProgress = Curves.easeInOut.transform(animProgress);
-                          final leftPosition = (-cardWidth * 0.5) + (curvedProgress * (cardWidth * 1.8));
-                          
-                          return Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              Positioned(
-                                left: leftPosition,
-                                top: -cardHeight,
-                                bottom: -cardHeight,
-                                width: cardWidth * 0.25,
-                                child: Transform.rotate(
-                                  angle: 15 * math.pi / 180,
-                                  child: Container(
-                                    decoration: const BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.centerLeft,
-                                        end: Alignment.centerRight,
-                                        colors: [
-                                          Color(0x00FFFFFF),
-                                          Color.fromRGBO(255, 255, 255, 0.25),
-                                          Color(0x00FFFFFF),
-                                        ],
-                                        stops: [0.0, 0.5, 1.0],
+                      ],
+                    ),
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: AnimatedBuilder(
+                          animation: _shimmerController,
+                          builder: (context, child) {
+                            final activeFraction = 3.5 / 5.5;
+                            final progress = _shimmerController.value;
+                            final animProgress = (progress / activeFraction).clamp(0.0, 1.0);
+                            final curvedProgress = Curves.easeInOut.transform(animProgress);
+                            final leftPosition = (-cardWidth * 0.5) + (curvedProgress * (cardWidth * 1.8));
+                            
+                            return Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Positioned(
+                                  left: leftPosition,
+                                  top: -cardHeight,
+                                  bottom: -cardHeight,
+                                  width: cardWidth * 0.25,
+                                  child: Transform.rotate(
+                                    angle: 15 * math.pi / 180,
+                                    child: Container(
+                                      decoration: const BoxDecoration(
+                                        gradient: LinearGradient(
+                                          begin: Alignment.centerLeft,
+                                          end: Alignment.centerRight,
+                                          colors: [
+                                            Color(0x00FFFFFF),
+                                            Color.fromRGBO(255, 255, 255, 0.25),
+                                            Color(0x00FFFFFF),
+                                          ],
+                                          stops: [0.0, 0.5, 1.0],
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          );
-                        },
+                              ],
+                            );
+                          },
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
         ),
-      ),
-    );
-  }
+      );
+    }
 
   Widget _buildMainAuthCard({
     required int cardIndex,
@@ -1097,16 +1143,16 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                       ),
                     ],
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(28),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        // STATIC IMAGE BACKGROUND
-                        Image.asset(
-                          'assets/images/bgstatic.png',
-                          fit: BoxFit.cover,
-                        ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(28),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          // STATIC IMAGE BACKGROUND
+                          Image.asset(
+                            'assets/images/bgstatic.png',
+                            fit: BoxFit.cover,
+                          ),
 
                         // Very subtle dark tint
                         Container(

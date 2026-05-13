@@ -10,8 +10,8 @@ import '../widgets/auth_video_background.dart';
 
 import '../widgets/auth_snackbar.dart';
 
-const _cardHotPink     = Color(0xFFFFB3D9);
-const _cardNeonPurple  = Color(0xFFD9B3FF);
+const _cardHotPink     = Color(0xFFFF3399);
+const _cardNeonPurple  = Color(0xFF9D50BB);
 
 class EmailLoginScreen extends StatefulWidget {
   final bool showLinkingBanner;
@@ -104,7 +104,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
         fontFamily: 'Circular',
         fontSize: scaledFont,
         fontWeight: FontWeight.w600,
-        color: Colors.white,
+        color: label.toLowerCase().contains('password') ? _cardHotPink : Colors.white,
       ),
       cursorColor: _cardHotPink,
       decoration: InputDecoration(
@@ -142,7 +142,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         extendBodyBehindAppBar: true,
-        resizeToAvoidBottomInset: false,
+        resizeToAvoidBottomInset: true,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -156,6 +156,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
           onTap: () => FocusScope.of(context).unfocus(),
           behavior: HitTestBehavior.opaque,
           child: SafeArea(
+            bottom: false,
             child: Column(
               children: [
                 Expanded(
@@ -236,7 +237,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                             textInputAction: TextInputAction.done,
                             onSubmitted: _submit,
                             suffixIcon: IconButton(
-                              icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: Colors.white70),
+                              icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: _cardHotPink),
                               onPressed: () => setState(() => _obscure = !_obscure),
                             ),
                             validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
@@ -263,7 +264,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                 AnimatedPadding(
                   duration: const Duration(milliseconds: 300),
                   curve: Curves.easeOutCubic,
-                  padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 16 + MediaQuery.of(context).viewInsets.bottom),
+                  padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 8),
                   child: SizedBox(
                     width: double.infinity,
                     height: btnHeight,

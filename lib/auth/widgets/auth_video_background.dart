@@ -35,7 +35,7 @@ class _AuthVideoBackgroundState extends State<AuthVideoBackground> {
         setState(() {
           _isInitialized = true;
           _controller!.setLooping(true);
-          _controller!.setVolume(0); // Ensure muted for backgrounds
+          _controller!.setVolume(0);
           if (widget.isPlaying) {
             _controller!.play();
           }
@@ -66,16 +66,11 @@ class _AuthVideoBackgroundState extends State<AuthVideoBackground> {
 
   @override
   Widget build(BuildContext context) {
-    // Lock background to full screen dimensions
-    final mediaQuery = MediaQuery.of(context);
-    final totalHeight = mediaQuery.size.height + mediaQuery.viewInsets.bottom;
-    final totalWidth = mediaQuery.size.width;
-
     return RepaintBoundary(
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // ── Static Placeholder / Fallback ──
+          // ── 1. Static Placeholder ──
           Positioned.fill(
             child: Image.asset(
               'assets/images/bgstatic.png',
@@ -83,30 +78,105 @@ class _AuthVideoBackgroundState extends State<AuthVideoBackground> {
             ),
           ),
 
-          // ── Video Layer ──
+          // ── 2. Isolated Video Layer ──
+          // We isolate this to prevent rebuilds from the input fields affecting video performance.
           if (_isInitialized && _controller != null)
-            Positioned.fill(
-              child: FittedBox(
-                fit: BoxFit.cover,
-                child: SizedBox(
-                  width: _controller!.value.size.width,
-                  height: _controller!.value.size.height,
-                  child: VideoPlayer(_controller!),
-                ),
-              ),
-            ),
+            _VideoLayer(controller: _controller!),
 
-          // ── Dark Overlay ──
+          // ── 3. Dark Overlay ──
           Positioned.fill(
             child: ColoredBox(
               color: Colors.black.withOpacity(widget.overlayOpacity),
             ),
           ),
 
-          // ── Content ──
-          widget.child,
+          // ── 4. Loading Shimmer ──
+          if (!_isInitialized)
+            const Positioned.fill(
+              child: _LoadingShimmer(),
+            ),
+
+          // ── 5. Content ──
+          // Use a RepaintBoundary here too to isolate UI repaints from the background.
+          RepaintBoundary(child: widget.child),
         ],
       ),
+    );
+  }
+}
+
+class _VideoLayer extends StatelessWidget {
+  final VideoPlayerController controller;
+  const _VideoLayer({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    // Isolated repaint boundary for the video texture itself.
+    return Positioned.fill(
+      child: RepaintBoundary(
+        child: FittedBox(
+          fit: BoxFit.cover,
+          child: SizedBox(
+            width: controller.value.size.width,
+            height: controller.value.size.height,
+            child: VideoPlayer(controller),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadingShimmer extends StatefulWidget {
+  const _LoadingShimmer();
+  @override
+  State<_LoadingShimmer> createState() => _LoadingShimmerState();
+}
+
+class _LoadingShimmerState extends State<_LoadingShimmer>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _shimmerCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _shimmerCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _shimmerCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _shimmerCtrl,
+      builder: (context, child) {
+        final progress = _shimmerCtrl.value;
+        return ShaderMask(
+          shaderCallback: (bounds) {
+            return LinearGradient(
+              begin: Alignment(-1.0 + 2.0 * progress, -0.3),
+              end: Alignment(-0.5 + 2.0 * progress, 0.3),
+              colors: [
+                Colors.white.withOpacity(0.0),
+                Colors.white.withOpacity(0.08),
+                Colors.white.withOpacity(0.0),
+              ],
+              stops: const [0.0, 0.5, 1.0],
+            ).createShader(bounds);
+          },
+          blendMode: BlendMode.srcATop,
+          child: Container(
+            color: Colors.white.withOpacity(0.03),
+          ),
+        );
+      },
     );
   }
 }

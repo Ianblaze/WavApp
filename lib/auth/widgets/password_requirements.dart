@@ -10,12 +10,17 @@ class PasswordRequirements extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _Requirement('At least 8 characters', password.length >= 8),
-        _Requirement('One uppercase letter',
-            password.contains(RegExp(r'[A-Z]'))),
+        _Requirement(
+          'At least 8 characters',
+          password.length >= 8,
+          progress: (password.length / 8).clamp(0.0, 1.0),
+        ),
+        _Requirement('One uppercase letter', password.contains(RegExp(r'[A-Z]'))),
         _Requirement('One number', password.contains(RegExp(r'[0-9]'))),
-        _Requirement('One special character',
-            password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))),
+        _Requirement(
+          'One special character',
+          password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]')),
+        ),
       ],
     );
   }
@@ -24,8 +29,9 @@ class PasswordRequirements extends StatelessWidget {
 class _Requirement extends StatelessWidget {
   final String label;
   final bool met;
+  final double? progress;
 
-  const _Requirement(this.label, this.met);
+  const _Requirement(this.label, this.met, {this.progress});
 
   @override
   Widget build(BuildContext context) {
@@ -33,10 +39,26 @@ class _Requirement extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         children: [
-          Icon(
-            met ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-            color: met ? const Color(0xFF4ADE80) : Colors.black26,
-            size: 16,
+          SizedBox(
+            width: 16,
+            height: 16,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                if (progress != null && !met)
+                  CircularProgressIndicator(
+                    value: progress,
+                    strokeWidth: 2,
+                    color: const Color(0xFF4ADE80).withOpacity(0.5),
+                    backgroundColor: Colors.white10,
+                  ),
+                Icon(
+                  met ? Icons.check_circle_rounded : (progress != null ? null : Icons.radio_button_unchecked_rounded),
+                  color: met ? const Color(0xFF4ADE80) : Colors.white24,
+                  size: met ? 16 : 14,
+                ),
+              ],
+            ),
           ),
           const SizedBox(width: 8),
           Flexible(
@@ -46,7 +68,7 @@ class _Requirement extends StatelessWidget {
                 fontFamily: 'Circular',
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: met ? const Color(0xFF22C55E) : Colors.black38,
+                color: met ? const Color(0xFF4ADE80) : Colors.white54,
               ),
             ),
           ),

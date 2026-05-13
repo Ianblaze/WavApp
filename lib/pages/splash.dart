@@ -240,12 +240,12 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                       final minDimension = screenHeight;
                       logoSize = (minDimension * 0.3).clamp(100.0, 150.0);
                       wavFontSize = (minDimension * 0.25).clamp(80.0, 130.0);
-                      spacing = (minDimension * 0.02).clamp(8.0, 16.0);
+                      spacing = (minDimension * 0.01).clamp(2.0, 6.0);
                     } else {
                       // Portrait - Ultra Large Sizing
                       logoSize = (screenWidth * 0.45).clamp(140.0, 200.0);
                       wavFontSize = (screenWidth * 0.4).clamp(120.0, 180.0);
-                      spacing = (screenWidth * 0.03).clamp(12.0, 20.0);
+                      spacing = (screenWidth * 0.01).clamp(4.0, 10.0);
                     }
                     
                     // Ensure content fits within available space
@@ -296,14 +296,17 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                           AnimatedBuilder(
                             animation: _textController,
                             builder: (context, child) {
-                              return SlideTransition(
-                                position: _textSlide,
-                                child: FadeTransition(
-                                  opacity: _textOpacity,
-                                  child: Image.asset(
-                                    'assets/images/wav_final.png',
-                                    height: wavFontSize * 1.5,
-                                    fit: BoxFit.contain,
+                              return Transform.translate(
+                                offset: const Offset(-15, 0), // Pulled in closer to logo
+                                child: SlideTransition(
+                                  position: _textSlide,
+                                  child: FadeTransition(
+                                    opacity: _textOpacity,
+                                    child: Image.asset(
+                                      'assets/images/wav_final.png',
+                                      height: wavFontSize * 1.5,
+                                      fit: BoxFit.contain,
+                                    ),
                                   ),
                                 ),
                               );
