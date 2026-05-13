@@ -47,7 +47,7 @@ class _AnimatedWaveformState extends State<AnimatedWaveform> with SingleTickerPr
     // Smooth the curve towards the edges
     double gradientProgress = math.pow(distanceToCenterOffset, 1.2).toDouble().clamp(0.0, 1.0);
     
-    final centerColor = const Color(0xFFFF6FE8); // Vibrant Pink
+    final centerColor = const Color(0xFFFF3399); // Vibrant Pink
     final edgeColor = const Color(0xFFC0D5FF); // Soft Cool Lavender/Blue
 
     return Color.lerp(centerColor, edgeColor, gradientProgress) ?? centerColor;
@@ -99,3 +99,4 @@ class _AnimatedWaveformState extends State<AnimatedWaveform> with SingleTickerPr
     );
   }
 }
+

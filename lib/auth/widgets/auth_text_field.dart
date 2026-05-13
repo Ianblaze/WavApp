@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 // Matches the Y2K palette used across login screens
-const _cardHotPink = Color(0xFFFFB3D9);
+const _cardHotPink = Color(0xFFFF3399);
 
 class AuthTextField extends StatelessWidget {
   final TextEditingController controller;
@@ -79,3 +79,4 @@ class AuthTextField extends StatelessWidget {
     );
   }
 }
+

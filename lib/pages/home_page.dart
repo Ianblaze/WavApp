@@ -15,19 +15,20 @@ import '../providers/user_profile_provider.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/match_provider.dart';
+import '../auth/widgets/auth_video_background.dart';
 
 // ---------------------------------------------------------
 // 🎨 LIGHT Y2K BUBBLEGUM POP PALETTE
 // ---------------------------------------------------------
-const bgTop = Color(0xFFFFE6FF);        // pearl pink
-const bgMid = Color(0xFFF3E5FF);        // lilac pink
-const bgBottom = Color(0xFFE1E9FF);     // cotton blue
+const bgTop = Colors.transparent;
+const bgMid = Colors.transparent;
+const bgBottom = Colors.transparent;
 
-const y2kPink = Color(0xFFFF6FE8);      // bubblegum neon pink
-const y2kBlue = Color(0xFF7BA7FF);      // candy blue
-const y2kPurple = Color(0xFFB69CFF);    // lavender
-const y2kGlowPink = Color(0xFFFFC0FA);  // bright glow pink
-const y2kGlowBlue = Color(0xFFC4D8FF);  // glow blue
+const y2kPink = Color(0xFFFF3399);      // Hot Pink
+const y2kBlue = Color(0xFF7BA7FF);      // Candy Blue
+const y2kPurple = Color(0xFF9D50BB);    // Neon Purple
+const y2kGlowPink = Color(0xFFFF3399);  // Hot Pink
+const y2kGlowBlue = Color(0xFFC4D8FF);  // Glow Blue
 
 const textDark = Color(0xFF3A2A45);     // readable violet-brown
 const mutedText = Color(0xFF8A7EA5);     // pastel lavender-grey
@@ -45,7 +46,7 @@ class _HomePageState extends State<HomePage> {
   final GlobalKey _profileKey = GlobalKey();
   // Mood tint driven by WavPage
   final ValueNotifier<Color> _moodTintNotifier =
-      ValueNotifier<Color>(const Color(0xFFB69CFF));
+      ValueNotifier<Color>(const Color(0xFF9D50BB));
   OverlayEntry? _tutorialOverlay;
   bool _tutorialShown = false;
 
@@ -175,7 +176,7 @@ class _HomePageState extends State<HomePage> {
       valueListenable: _moodTintNotifier,
       builder: (_, moodTint, __) => Stack(
         children: [
-          _buildBackground(),   // 🌈 Y2K GRADIENT + GLOW BLOBS
+          _buildBackground(),   // 🎬 Cinematic Video Background
           // Full-screen mood tint — covers status bar, nav bar, everything
           AnimatedContainer(
             duration: const Duration(milliseconds: 800),
@@ -242,18 +243,9 @@ class _HomePageState extends State<HomePage> {
   // 🌈 BACKGROUND GRADIENT + MAX GLOW BLOBS
   // ---------------------------------------------------------
   Widget _buildBackground() {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            bgTop,     // soft pearl pink
-            bgMid,     // light lilac
-            bgBottom,  // pastel baby blue
-          ],
-        ),
-      ),
+    return const AuthVideoBackground(
+      overlayOpacity: 0.5,
+      child: SizedBox.expand(),
     );
   }
 

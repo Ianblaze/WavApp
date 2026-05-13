@@ -18,7 +18,7 @@ class _FloatingOrbsState extends State<FloatingOrbs>
 
   // Orb specs: [color, diameter, baseTop%, baseLeft%, duration-ms, delay-ms]
   static const _orbs = [
-    [0xFFFFB3D9, 80.0, 0.20, 0.14, 3200, 0],
+    [0xFFFF3399, 80.0, 0.20, 0.14, 3200, 0],
     [0xFFC9B3FF, 86.0, 0.17, 0.50, 2800, 400],
     [0xFFA8D4FF, 78.0, 0.22, 0.82, 3600, 200],
   ];
@@ -90,3 +90,4 @@ class _FloatingOrbsState extends State<FloatingOrbs>
     });
   }
 }
+

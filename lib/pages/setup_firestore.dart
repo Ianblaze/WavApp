@@ -188,3 +188,4 @@ class FirestoreSetupService {
     print("🎶 Added 10 sample songs.");
   }
 }
+

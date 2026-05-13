@@ -326,9 +326,9 @@ class _MatchDockPopupState extends State<MatchDockPopup>
     final tierEmoji = score >= 85 ? '🔥' : score >= 65 ? '⚡' : '💫';
     final tierLabel = score >= 85 ? 'Perfect Match' : score >= 65 ? 'Strong Match' : 'Potential Match';
     final tierColor = score >= 85
-        ? const Color(0xFFFF6FE8)
+        ? const Color(0xFFFF3399)
         : score >= 65
-            ? const Color(0xFFB69CFF)
+            ? const Color(0xFF9D50BB)
             : const Color(0xFF7BA7FF);
 
     // Build shared signal chips
@@ -806,3 +806,4 @@ class _Button3DStateImpl extends State<_Button3DState> {
     );
   }
 }
+

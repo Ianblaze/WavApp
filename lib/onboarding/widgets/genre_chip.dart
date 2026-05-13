@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 
 // Colour ramp matching Y2K palette — cycles through selections
 const _chipColors = [
-  Color(0xFFFFB3D9), // hot pink
-  Color(0xFFD9B3FF), // lavender
+  Color(0xFFFF3399), // hot pink
+  Color(0xFF9D50BB), // lavender
   Color(0xFFB3D9FF), // electric blue
   Color(0xFFFFD4B3), // peach
   Color(0xFFB3FFD9), // mint
@@ -97,3 +97,4 @@ class _GenreChipState extends State<GenreChip>
     );
   }
 }
+

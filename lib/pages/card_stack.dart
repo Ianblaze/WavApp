@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../widgets/card_stack_controller.dart';
 
-const _pink   = Color(0xFFFF6FE8);
-const _purple = Color(0xFFB69CFF);
+const _pink   = Color(0xFFFF3399);
+const _purple = Color(0xFF9D50BB);
 const _blue   = Color(0xFF7BA7FF);
 
 // Card dimensions are computed dynamically in _CardStackState.build()
@@ -2084,7 +2084,7 @@ class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color       = const Color(0xFFFF6FE8).withOpacity(0.045)
+      ..color       = const Color(0xFFFF3399).withOpacity(0.045)
       ..strokeWidth = 0.5;
 
     const step = 28.0;
@@ -2190,7 +2190,7 @@ class _AnimatedPauseOverlayState extends State<_AnimatedPauseOverlay>
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFFFF6FE8)
+                              color: const Color(0xFFFF3399)
                                   .withOpacity(0.3 * b * value),
                               blurRadius: 15 + 20 * b,
                               spreadRadius: 2 * b,

@@ -13,8 +13,8 @@ class ArtistOption {
 }
 
 const List<ArtistOption> kArtists = [
-  ArtistOption(name: 'The Weeknd',       genre: 'r&b / pop',   gradientColors: [0xFFFFB3D9, 0xFFFF6FE8]),
-  ArtistOption(name: 'Billie Eilish',    genre: 'alt / pop',   gradientColors: [0xFFD9B3FF, 0xFFB69CFF]),
+  ArtistOption(name: 'The Weeknd',       genre: 'r&b / pop',   gradientColors: [0xFFFF3399, 0xFFFF3399]),
+  ArtistOption(name: 'Billie Eilish',    genre: 'alt / pop',   gradientColors: [0xFF9D50BB, 0xFF9D50BB]),
   ArtistOption(name: 'Frank Ocean',      genre: 'r&b / soul',  gradientColors: [0xFFB3D9FF, 0xFF7BA7FF]),
   ArtistOption(name: 'SZA',             genre: 'r&b',          gradientColors: [0xFFFFD4B3, 0xFFFF9966]),
   ArtistOption(name: 'Doja Cat',         genre: 'pop / rap',   gradientColors: [0xFFB3FFD9, 0xFF5DCAA5]),
@@ -24,3 +24,4 @@ const List<ArtistOption> kArtists = [
   ArtistOption(name: 'Mitski',           genre: 'indie',       gradientColors: [0xFFB3E5FF, 0xFF85B7EB]),
   ArtistOption(name: 'Charli XCX',       genre: 'hyperpop',    gradientColors: [0xFFFFB3E5, 0xFFED93B1]),
 ];
+

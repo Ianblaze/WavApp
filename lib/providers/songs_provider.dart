@@ -243,3 +243,4 @@ class SongsProvider extends ChangeNotifier {
     }());
   }
 }
+

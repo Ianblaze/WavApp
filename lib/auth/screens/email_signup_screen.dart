@@ -283,3 +283,4 @@ class _EmailSignUpScreenState extends State<EmailSignUpScreen> {
     );
   }
 }
+

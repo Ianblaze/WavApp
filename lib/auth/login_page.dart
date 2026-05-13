@@ -23,14 +23,14 @@ const bgTop = Color(0xFFFFD4FF);      // Stronger light pink
 const bgMid = Color(0xFFEDD4FF);      // Stronger light lavender
 const bgBottom = Color(0xFFD4E4FF);   // Stronger light blue
 
-const y2kPink = Color(0xFFFF6FE8);
-const y2kPurple = Color(0xFFB69CFF);
+const y2kPink = Color(0xFFFF3399);
+const y2kPurple = Color(0xFF9D50BB);
 const mutedText = Color(0xFF8A7EA5);
 
 // Card colors - Faded/washed Y2K gradients with glass effect
-const cardHotPink = Color(0xFFFFB3D9);        // Washed out pink
+const cardHotPink = Color(0xFFFF3399);        // Washed out pink
 const cardElectricBlue = Color(0xFFB3D9FF);   // Washed out blue
-const cardNeonPurple = Color(0xFFD9B3FF);     // Washed out purple
+const cardNeonPurple = Color(0xFF9D50BB);     // Washed out purple
 const cardCyberPink = Color(0xFFFFCCE6);      // Very light pink
 const cardDigitalBlue = Color(0xFFCCE6FF);    // Very light blue
 const cardLavenderPop = Color(0xFFE6CCFF);    // Very light lavender

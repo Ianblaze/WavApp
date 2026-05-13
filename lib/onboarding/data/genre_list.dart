@@ -14,3 +14,4 @@ const List<String> kGenres = [
   'latin',
   'classical',
 ];
+

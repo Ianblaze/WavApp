@@ -97,3 +97,4 @@ class UserProfileProvider extends ChangeNotifier {
     super.dispose();
   }
 }
+

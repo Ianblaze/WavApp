@@ -26,7 +26,7 @@ class _DoneScreenState extends State<DoneScreen>
   bool _writeComplete = false;
 
   static const _confettiColors = [
-    Color(0xFFFFB3D9), Color(0xFFD9B3FF), Color(0xFFB3D9FF),
+    Color(0xFFFF3399), Color(0xFF9D50BB), Color(0xFFB3D9FF),
     Color(0xFFFF99CC), Color(0xFFFFD4B3), Color(0xFFB3FFD9),
   ];
 
@@ -158,7 +158,7 @@ class _DoneScreenState extends State<DoneScreen>
                   height: 56,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFFB3D9),
+                      backgroundColor: const Color(0xFFFF3399),
                       foregroundColor: const Color(0xFF4B1528),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(28)),
@@ -196,7 +196,7 @@ class _WavProfileCard extends StatelessWidget {
   });
 
   static const _chipColors = [
-    Color(0xFFFFB3D9), Color(0xFFD9B3FF),
+    Color(0xFFFF3399), Color(0xFF9D50BB),
     Color(0xFFB3D9FF), Color(0xFFFFD4B3), Color(0xFFB3FFD9),
   ];
   static const _chipText = [
@@ -204,8 +204,8 @@ class _WavProfileCard extends StatelessWidget {
     Color(0xFF042C53), Color(0xFF412402), Color(0xFF04342C),
   ];
   static const _artistGrads = [
-    [Color(0xFFFFB3D9), Color(0xFFFF6FE8)],
-    [Color(0xFFD9B3FF), Color(0xFFB69CFF)],
+    [Color(0xFFFF3399), Color(0xFFFF3399)],
+    [Color(0xFF9D50BB), Color(0xFF9D50BB)],
     [Color(0xFFB3D9FF), Color(0xFF7BA7FF)],
     [Color(0xFFFFD4B3), Color(0xFFFF9966)],
     [Color(0xFFB3FFD9), Color(0xFF5DCAA5)],
@@ -234,7 +234,7 @@ class _WavProfileCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: const LinearGradient(
-                    colors: [Color(0xFFFFB3D9), Color(0xFFD9B3FF)],
+                    colors: [Color(0xFFFF3399), Color(0xFF9D50BB)],
                   ),
                   image: photoUrl != null && photoUrl!.isNotEmpty
                       ? DecorationImage(
@@ -403,3 +403,4 @@ class _ConfettiPainter extends CustomPainter {
   @override
   bool shouldRepaint(_ConfettiPainter old) => old.progress != progress;
 }
+

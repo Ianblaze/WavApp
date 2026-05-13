@@ -81,7 +81,7 @@ class GenreStep extends StatelessWidget {
               opacity: done ? 1.0 : 0.5,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFFB3D9),
+                  backgroundColor: const Color(0xFFFF3399),
                   foregroundColor: const Color(0xFF4B1528),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(28)),
@@ -104,3 +104,4 @@ class GenreStep extends StatelessWidget {
     );
   }
 }
+

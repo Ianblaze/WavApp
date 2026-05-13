@@ -127,7 +127,7 @@ class _PhotoStepState extends State<PhotoStep> {
             width: double.infinity, height: 56,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFB3D9),
+                backgroundColor: const Color(0xFFFF3399),
                 foregroundColor: const Color(0xFF4B1528),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(28),
@@ -150,3 +150,4 @@ class _PhotoStepState extends State<PhotoStep> {
     );
   }
 }
+

@@ -36,3 +36,4 @@ String authErrorMessage(FirebaseAuthException e) {
 }
 
 String authExceptionMessage(AuthException e) => e.message;
+

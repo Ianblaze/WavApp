@@ -32,3 +32,4 @@ class AuthException implements Exception {
   @override
   String toString() => 'AuthException(${code.name}): $message';
 }
+

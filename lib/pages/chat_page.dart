@@ -4,20 +4,21 @@ import 'package:provider/provider.dart';
 import '../providers/chat_provider.dart';
 import '../models/message.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../auth/widgets/auth_video_background.dart';
 
 // ─── Y2K Palette ──────────────────────────────────────────────────────────────
 const _bgTop        = Color(0xFFFCF4F9);
 const _bgBottom     = Color(0xFFF0EAFF);
-const _hotPink      = Color(0xFFFFB3D9);
-const _neonPurple   = Color(0xFFD9B3FF);
-const _accentPink   = Color(0xFFFF6FE8);
+const _hotPink      = Color(0xFFFF3399);
+const _neonPurple   = Color(0xFF9D50BB);
+const _accentPink   = Color(0xFFFF3399);
 const _textPrimary  = Color(0xFF1A0D26);
 const _textMuted    = Color(0xFF8A7EA5);
 const _greenOnline  = Color(0xFF4ADE80);
 
 // Bubble gradients
-const _myBubbleStart  = Color(0xFFFFCCE6);
-const _myBubbleEnd    = Color(0xFFFFB3D9);
+const _myBubbleStart  = Color(0xFF9D50BB);
+const _myBubbleEnd    = Color(0xFFFF3399);
 const _theirBubbleClr = Colors.white;
 
 class ChatPage extends StatefulWidget {
@@ -73,14 +74,8 @@ class _ChatPageState extends State<ChatPage> {
     final h = MediaQuery.of(context).size.height;
     final hPad = w * 0.05;
 
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [_bgTop, _bgBottom],
-        ),
-      ),
+    return AuthVideoBackground(
+      overlayOpacity: 0.6,
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: SafeArea(

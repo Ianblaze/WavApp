@@ -185,3 +185,4 @@ class EmbeddingService {
     return [for (final v in vec) v / magnitude];
   }
 }
+

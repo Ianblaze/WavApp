@@ -69,7 +69,7 @@ class _HarmonyIllustrationState extends State<HarmonyIllustration>
               right: 20,
               top: 20 + _drifts[1].value,
               child: _GlassSymbol(
-                color: const Color(0xFFFFB3D9),
+                color: const Color(0xFFFF3399),
                 icon: Icons.favorite_rounded,
                 rotation: 0.12,
                 delay: 0.2,
@@ -88,14 +88,14 @@ class _HarmonyIllustrationState extends State<HarmonyIllustration>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: const LinearGradient(
-                    colors: [Color(0xFFD9B3FF), Color(0xFFB69CFF)],
+                    colors: [Color(0xFF9D50BB), Color(0xFF9D50BB)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   border: Border.all(color: Colors.white, width: 3),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFB69CFF).withOpacity(0.4),
+                      color: const Color(0xFF9D50BB).withOpacity(0.4),
                       blurRadius: 20,
                       spreadRadius: 2,
                     ),
@@ -166,3 +166,4 @@ class _GlassSymbol extends StatelessWidget {
     );
   }
 }
+

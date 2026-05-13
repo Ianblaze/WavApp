@@ -313,3 +313,4 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
     );
   }
 }
+

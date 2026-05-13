@@ -6,12 +6,12 @@ import '../auth/utils/auth_exception.dart';
 import 'profile_setup_dialog.dart';
 
 // ── Y2K Palette (mirrors home_page.dart) ─────────────────────────
-const _y2kPink = Color(0xFFFF6FE8);
-const _y2kPurple = Color(0xFFB69CFF);
+const _y2kPink = Color(0xFFFF3399);
+const _y2kPurple = Color(0xFF9D50BB);
 const _y2kBlue = Color(0xFF7BA7FF);
 const _textPrimary = Color(0xFF3A2A45);
 const _textMuted = Color(0xFF8A7EA5);
-const _hotPink = Color(0xFFFF2D8A);
+const _hotPink = Color(0xFFFF3399);
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -433,7 +433,7 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
 
     return AlertDialog(
       surfaceTintColor: Colors.transparent,
-      backgroundColor: const Color(0xFFFFF0F8),
+      backgroundColor: const Color(0xFF1A1A1A).withOpacity(0.95),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: const Text("Delete Account?",
           style: TextStyle(

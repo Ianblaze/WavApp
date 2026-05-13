@@ -145,3 +145,4 @@ class _ArtistCardState extends State<ArtistCard>
     );
   }
 }
+

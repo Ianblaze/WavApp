@@ -10,10 +10,10 @@ import '../pages/chat_page.dart';
 // ─── Y2K Palette ────────────────────────────────────────────────────────────
 const _bgTop       = Color(0xFFFCF4F9);
 const _bgBottom    = Color(0xFFF0EAFF);
-const _hotPink     = Color(0xFFFFB3D9);
-const _neonPurple  = Color(0xFFD9B3FF);
+const _hotPink     = Color(0xFFFF3399);
+const _neonPurple  = Color(0xFF9D50BB);
 const _electricBlue = Color(0xFFB3D9FF);
-const _accentPink  = Color(0xFFFF6FE8);
+const _accentPink  = Color(0xFFFF3399);
 const _textPrimary = Color(0xFF1A0D26);
 const _textMuted   = Color(0xFF8A7EA5);
 const _dividerClr  = Color(0xFFE8DDF5);
@@ -512,3 +512,4 @@ class _MessageTile extends StatelessWidget {
     );
   }
 }
+

@@ -37,3 +37,4 @@ class Song {
     'image': imageUrl,
   };
 }
+

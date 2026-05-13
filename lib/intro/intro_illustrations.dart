@@ -184,8 +184,8 @@ class _MatchCardsIllustrationState extends State<MatchCardsIllustration>
                                     shape: BoxShape.circle,
                                     gradient: RadialGradient(
                                       colors: [
-                                        const Color(0xFFD9B3FF).withOpacity(0.12),
-                                        const Color(0xFFD9B3FF).withOpacity(0.0),
+                                        const Color(0xFF9D50BB).withOpacity(0.12),
+                                        const Color(0xFF9D50BB).withOpacity(0.0),
                                       ],
                                     ),
                                   ),
@@ -271,7 +271,7 @@ class _MatchCardsIllustrationState extends State<MatchCardsIllustration>
                                 child: Stack(
                                   children: [
                                     _GlassProfileCard(
-                                      gradient: const [Color(0xFFFFB3D9), Color(0xFFFF99CC)],
+                                      gradient: const [Color(0xFFFF3399), Color(0xFFFF99CC)],
                                       width: 150,
                                       height: 220,
                                     ),
@@ -326,7 +326,7 @@ class _MatchCardsIllustrationState extends State<MatchCardsIllustration>
                                 child: Container(
                                   padding: const EdgeInsets.all(14),
                                   decoration: BoxDecoration(
-                                    color: _phase == 0 ? const Color(0xFFFF6FE8) : const Color(0xFF8A7EA5),
+                                    color: _phase == 0 ? const Color(0xFFFF3399) : const Color(0xFF8A7EA5),
                                     shape: BoxShape.circle,
                                     border: Border.all(color: Colors.white, width: 4),
                                     boxShadow: [
@@ -367,9 +367,9 @@ class _MatchCardsIllustrationState extends State<MatchCardsIllustration>
 
   /// Side cards with parallax bob + right card turns pink during rotation
   Widget _buildSideCard(int i, double spacing, {required double bobPhase, required double floatX}) {
-    const leftGrad = [Color(0xFFD9B3FF), Color(0xFFB3D9FF)];
-    const rightGrad = [Color(0xFFB3D9FF), Color(0xFFD9B3FF)];
-    const pinkGrad = [Color(0xFFFFB3D9), Color(0xFFFF99CC)];
+    const leftGrad = [Color(0xFF9D50BB), Color(0xFFB3D9FF)];
+    const rightGrad = [Color(0xFFB3D9FF), Color(0xFF9D50BB)];
+    const pinkGrad = [Color(0xFFFF3399), Color(0xFFFF99CC)];
 
     return AnimatedBuilder(
       animation: Listenable.merge([_rotateCtrl, _elapsed]),
@@ -555,7 +555,7 @@ class _MusicNoteParticles extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                   color: [
                     const Color(0xFFFF99CC),
-                    const Color(0xFFB69CFF),
+                    const Color(0xFF9D50BB),
                     const Color(0xFF7BA7FF),
                     Colors.white,
                   ][i % 4].withOpacity((0.8 * opacity).clamp(0.0, 1.0)),
@@ -621,7 +621,7 @@ class _ReactiveWaveformState extends State<_ReactiveWaveform> with SingleTickerP
               final centerDist = (i - (_barCount / 2)).abs() / (_barCount / 2);
               final color = Color.lerp(
                 const Color(0xFFFF7DB8), // Bright Pink center
-                i % 2 == 0 ? const Color(0xFFB69CFF) : const Color(0xFF7BA7FF), // Lavender/Blue edges
+                i % 2 == 0 ? const Color(0xFF9D50BB) : const Color(0xFF7BA7FF), // Lavender/Blue edges
                 centerDist.clamp(0.0, 1.0),
               )!;
               
@@ -843,7 +843,7 @@ class _SolarPainter extends CustomPainter {
   }
 
   static const _soloYou = [
-    _Genre('indie', Color(0xFFFF6FE8), Colors.white, _R1,  0.50,  0.0),
+    _Genre('indie', Color(0xFFFF3399), Colors.white, _R1,  0.50,  0.0),
     _Genre('pop',   Color(0xFFFF9D42), Colors.white, _R2, -0.34,  1.88),
   ];
   static const _soloThem = [
@@ -1048,7 +1048,7 @@ class _SolarPainter extends CustomPainter {
     final glowRadius = 34.0 + pulseMod * 4.0;
     
     // Ambient backglow
-    final baseGlow = const Color(0xFFD9B3FF);
+    final baseGlow = const Color(0xFF9D50BB);
     canvas.drawCircle(
       pos, glowRadius,
       Paint()
@@ -1062,7 +1062,7 @@ class _SolarPainter extends CustomPainter {
       pos, _SR,
       Paint()
         ..shader = LinearGradient(
-          colors: const [Color(0xFFFFB3D9), Color(0xFFD9B3FF)],
+          colors: const [Color(0xFFFF3399), Color(0xFF9D50BB)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ).createShader(Rect.fromCircle(center: pos, radius: _SR)),
@@ -1306,7 +1306,7 @@ class _MusicConversationIllustrationState
                                 const Spacer(),
                                 _ChatAvatar(
                                   label: 'you',
-                                  gradient: const [Color(0xFFFFB3D9), Color(0xFFFF99CC)],
+                                  gradient: const [Color(0xFFFF3399), Color(0xFFFF99CC)],
                                 ),
                               ],
                             ),
@@ -1356,7 +1356,7 @@ class _MusicConversationIllustrationState
                                           child: _ChatBubble(
                                             text: 'did we just become soulmates? 😭',
                                             timestamp: '6:43 pm',
-                                            color: const Color(0xFFFF6FE8),
+                                            color: const Color(0xFFFF3399),
                                             textColor: Colors.white,
                                             isLeft: false,
                                           ),
@@ -1409,7 +1409,7 @@ class _BackgroundOrbs extends StatelessWidget {
               bottom: 60 - (t * 30),
               right: 20 + (t * 20),
               child: _GlowOrb(
-                color: const Color(0xFFFFB3D9).withOpacity(0.25),
+                color: const Color(0xFFFF3399).withOpacity(0.25),
                 size: 160 + ((1 - t) * 20),
               ),
             ),
@@ -1566,7 +1566,7 @@ class _NowPlayingCard extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFD9B3FF).withOpacity(0.18),
+            color: const Color(0xFF9D50BB).withOpacity(0.18),
             blurRadius: 20,
             offset: const Offset(0, 6),
           ),
@@ -1693,7 +1693,7 @@ class _NowPlayingCard extends StatelessWidget {
                       height: h.clamp(4.0, 18.0),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(1.5),
-                        color: const Color(0xFFB69CFF).withOpacity(0.7),
+                        color: const Color(0xFF9D50BB).withOpacity(0.7),
                       ),
                     );
                   }),
@@ -1792,3 +1792,4 @@ class _ChatBubble extends StatelessWidget {
     );
   }
 }
+

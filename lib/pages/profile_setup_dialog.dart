@@ -11,11 +11,11 @@ import '../providers/auth_provider.dart';
 import '../providers/user_profile_provider.dart';
 import '../auth/utils/auth_exception.dart';
 
-const _y2kPink      = Color(0xFFFF6FE8);
-const _y2kPurple    = Color(0xFFB69CFF);
+const _y2kPink      = Color(0xFFFF3399);
+const _y2kPurple    = Color(0xFF9D50BB);
 const _textPrimary  = Color(0xFF3A2A45);
 const _textMuted    = Color(0xFF8A7EA5);
-const _hotPink      = Color(0xFFFF2D8A);
+const _hotPink      = Color(0xFFFF3399);
 
 class ProfileSetupDialog extends StatefulWidget {
   const ProfileSetupDialog({super.key});
@@ -117,13 +117,13 @@ class _ProfileSetupDialogState extends State<ProfileSetupDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: const Color(0xFFFFF0F8),
+      backgroundColor: const Color(0xFF1A1A1A).withOpacity(0.95),
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Container(
         padding: const EdgeInsets.all(28),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFF0F8),
+          color: const Color(0xFF1A1A1A).withOpacity(0.95),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: _y2kPink.withOpacity(0.2), width: 1.5),
         ),
@@ -134,7 +134,7 @@ class _ProfileSetupDialogState extends State<ProfileSetupDialog> {
               "Edit Profile",
               style: TextStyle(
                 fontFamily: 'Circular',
-                color: _textPrimary,
+                color: Colors.white,
                 fontSize: 22,
                 fontWeight: FontWeight.w900,
                 letterSpacing: -0.5,
@@ -222,3 +222,4 @@ class _ProfileSetupDialogState extends State<ProfileSetupDialog> {
     );
   }
 }
+

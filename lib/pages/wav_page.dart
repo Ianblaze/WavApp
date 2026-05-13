@@ -13,21 +13,21 @@ import '../models/song.dart';
 import '../widgets/card_stack_controller.dart';
 import 'card_stack.dart';
 
-const _pink   = Color(0xFFFF6FE8);
-const _purple = Color(0xFFB69CFF);
+const _pink   = Color(0xFFFF3399);
+const _purple = Color(0xFF9D50BB);
 const _blue   = Color(0xFF7BA7FF);
 const _dark   = Color(0xFF3A2A45);
 
 // ── Mood → subtle background tint ─────────────────────────────
 Color _moodTint(String mood) {
   switch (mood.toLowerCase()) {
-    case 'happy':       return const Color(0xFFFF6FE8); // hot pink
+    case 'happy':       return const Color(0xFFFF3399); // hot pink
     case 'energetic':   return const Color(0xFFFF6B2B); // vivid orange
     case 'chill':       return const Color(0xFF4A90FF); // bright blue
     case 'melancholic': return const Color(0xFF9B59FF); // deep violet
     case 'reflective':  return const Color(0xFF00C9B1); // teal
     case 'sad':         return const Color(0xFF3A6FFF); // electric blue
-    default:            return const Color(0xFFB69CFF); // lavender
+    default:            return const Color(0xFF9D50BB); // neon purple
   }
 }
 
@@ -823,12 +823,12 @@ class _WavPageState extends State<WavPage>
                             ),
                             borderRadius: BorderRadius.circular(50),
                             border: Border.all(
-                              color: const Color(0xFFFF6FE8).withOpacity(0.45),
+                              color: const Color(0xFFFF3399).withOpacity(0.45),
                               width: 1.2,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFFFF6FE8).withOpacity(0.18),
+                                color: const Color(0xFFFF3399).withOpacity(0.18),
                                 blurRadius: 24,
                                 spreadRadius: 0,
                                 offset: const Offset(0, 4),
@@ -853,13 +853,13 @@ class _WavPageState extends State<WavPage>
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                     colors: [
-                                      const Color(0xFFFF6FE8).withOpacity(0.25),
-                                      const Color(0xFFFF6FE8).withOpacity(0.08),
+                                      const Color(0xFFFF3399).withOpacity(0.25),
+                                      const Color(0xFFFF3399).withOpacity(0.08),
                                     ],
                                   ),
                                 ),
                                 child: const Icon(Icons.auto_awesome,
-                                    color: Color(0xFFFF6FE8), size: 14),
+                                    color: Color(0xFFFF3399), size: 14),
                               ),
                               const SizedBox(width: 10),
                               const Text(
@@ -1303,9 +1303,9 @@ class _AnimatedMoodStatState extends State<AnimatedMoodStat>
       ];
     } else if (m == 'happy') {
       shimmerColors = [
-        const Color(0xFFFF6FE8),
+        const Color(0xFFFF3399),
         Colors.white,
-        const Color(0xFFFF6FE8)
+        const Color(0xFFFF3399)
       ];
     } else {
       shimmerColors = [widget.tint, Colors.white, widget.tint];

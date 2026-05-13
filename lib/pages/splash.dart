@@ -4,6 +4,7 @@ import 'package:swipify/auth/auth_wrapper.dart';
 import 'package:swipify/providers/auth_provider.dart';
 import 'package:swipify/pages/home_page.dart';
 import 'package:swipify/auth/login_page.dart';
+import 'package:swipify/auth/widgets/auth_video_background.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../intro/intro_flow.dart';
 import 'package:video_player/video_player.dart';
@@ -30,8 +31,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   late AnimationController _gradientShiftController;
   late Animation<double> _gradientShift;
   
-  late VideoPlayerController _videoController;
-  bool _isVideoInitialized = false;
+  // Removed manual video player state
 
   @override
   void initState() {
@@ -112,13 +112,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     // Start animation sequence
     _startAnimationSequence();
 
-    _videoController = VideoPlayerController.asset('assets/images/splashbg.mp4')
-      ..initialize().then((_) {
-        setState(() => _isVideoInitialized = true);
-        _videoController.setLooping(true);
-        _videoController.setVolume(0);
-        _videoController.play();
-      });
+    // Removed manual video player init
   }
   
   void _startAnimationSequence() async {
@@ -191,39 +185,19 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     _pulseController.dispose();
     _textController.dispose();
     _gradientShiftController.dispose();
-    _videoController.dispose();
+    _gradientShiftController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            // ── Video Background ──
-            if (_isVideoInitialized)
-              Positioned.fill(
-                child: FittedBox(
-                  fit: BoxFit.cover,
-                  child: SizedBox(
-                    width: _videoController.value.size.width,
-                    height: _videoController.value.size.height,
-                    child: VideoPlayer(_videoController),
-                  ),
-                ),
-              ),
-            
-            // ── Dark Overlay (Optional, for better contrast) ──
-            Positioned.fill(
-              child: ColoredBox(color: Colors.black.withOpacity(0.2)),
-            ),
-
-            
-            Positioned.fill(
-              child: Center(
-                child: OrientationBuilder(
+    return const AuthVideoBackground(
+      overlayOpacity: 0.2,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
+          child: Center(
+            child: OrientationBuilder(
               builder: (context, orientation) {
                 return LayoutBuilder(
                   builder: (context, constraints) {
@@ -322,8 +296,6 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                 ),
               ),
             ),
-          ],
-        ),
       ),
     );
   }

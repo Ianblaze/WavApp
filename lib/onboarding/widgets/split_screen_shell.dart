@@ -137,3 +137,4 @@ class SplitScreenShell extends StatelessWidget {
     );
   }
 }
+

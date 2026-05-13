@@ -21,8 +21,8 @@ import 'package:provider/provider.dart';
 import '../providers/songs_provider.dart';
 
 // ── Palette ────────────────────────────────────────────────────────
-const _pink   = Color(0xFFFF6FE8);
-const _purple = Color(0xFFB69CFF);
+const _pink   = Color(0xFFFF3399);
+const _purple = Color(0xFF9D50BB);
 const _blue   = Color(0xFF7BA7FF);
 const _dark   = Color(0xFF3A2A45);
 const _muted  = Color(0xFF8A7EA5);
@@ -31,13 +31,13 @@ const _glass  = Color(0x8CFFFFFF);
 // ── Mood helpers ────────────────────────────────────────────────────
 Color _moodColor(String mood) {
   switch (mood.toLowerCase()) {
-    case 'happy':       return const Color(0xFFFF6FE8);
+    case 'happy':       return const Color(0xFFFF3399);
     case 'energetic':   return const Color(0xFFFF6B2B);
     case 'chill':       return const Color(0xFF4A90FF);
     case 'melancholic': return const Color(0xFF9B59FF);
     case 'reflective':  return const Color(0xFF00C9B1);
     case 'sad':         return const Color(0xFF3A6FFF);
-    default:            return const Color(0xFFB69CFF);
+    default:            return const Color(0xFF9D50BB);
   }
 }
 
@@ -708,7 +708,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                           child: LinearProgressIndicator(
                             value: match.compatibility / 100,
                             backgroundColor: _purple.withOpacity(0.15),
-                            valueColor: const AlwaysStoppedAnimation(Color(0xFFFF6FE8)),
+                            valueColor: const AlwaysStoppedAnimation(Color(0xFFFF3399)),
                             minHeight: 4,
                           ),
                         ),
@@ -744,7 +744,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
     final moods = [
       ('Energetic',   const Color(0xFFFF6B2B)),
       ('Chill',       const Color(0xFF4A90FF)),
-      ('Happy',       const Color(0xFFFF6FE8)),
+      ('Happy',       const Color(0xFFFF3399)),
       ('Melancholic', const Color(0xFF9B59FF)),
       ('Reflective',  const Color(0xFF00C9B1)),
     ];
@@ -903,7 +903,7 @@ class _MusicDNAVisualizerState extends State<MusicDNAVisualizer> with SingleTick
   
   Color _genreColor(String genre) {
     switch (genre.toLowerCase()) {
-      case 'pop': return const Color(0xFFFF6FE8);
+      case 'pop': return const Color(0xFFFF3399);
       case 'rock': return const Color(0xFFFF6B2B);
       case 'hip hop': case 'rap': return const Color(0xFF4A90FF);
       case 'r&b': case 'soul': return const Color(0xFF9B59FF);
@@ -911,14 +911,14 @@ class _MusicDNAVisualizerState extends State<MusicDNAVisualizer> with SingleTick
       case 'indie': case 'alternative': return const Color(0xFF3A6FFF);
       case 'classical': case 'jazz': return const Color(0xFFE8D05C);
       default:
-        if (genre.isEmpty) return const Color(0xFFB69CFF);
+        if (genre.isEmpty) return const Color(0xFF9D50BB);
         return Colors.primaries[genre.hashCode % Colors.primaries.length];
     }
   }
 
   Color _moodColor(String mood) {
     switch (mood.toLowerCase()) {
-      case 'happy':       return const Color(0xFFFF6FE8);
+      case 'happy':       return const Color(0xFFFF3399);
       case 'energetic':   return const Color(0xFFFF6B2B);
       case 'chill':       return const Color(0xFF4A90FF);
       case 'melancholic': return const Color(0xFF9B59FF);
@@ -1076,3 +1076,4 @@ class _SimpleDNAPainter extends CustomPainter {
   bool shouldRepaint(covariant _SimpleDNAPainter old) =>
       old.time != time || old.scrollOffset != scrollOffset || old.colorA != colorA || old.colorB != colorB || old.bpmRange != bpmRange;
 }
+

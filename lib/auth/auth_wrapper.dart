@@ -11,9 +11,9 @@ import 'widgets/auth_video_background.dart';
 import 'widgets/auth_snackbar.dart';
 
 // Y2K colors from login_page.dart
-const cardHotPink = Color(0xFFFFB3D9);
+const cardHotPink = Color(0xFFFF3399);
 const cardElectricBlue = Color(0xFFB3D9FF);
-const cardNeonPurple = Color(0xFFD9B3FF);
+const cardNeonPurple = Color(0xFF9D50BB);
 const cardCyberPink = Color(0xFFFFCCE6);
 const cardDigitalBlue = Color(0xFFCCE6FF);
 const cardLavenderPop = Color(0xFFE6CCFF);

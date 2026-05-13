@@ -180,3 +180,4 @@ class _LoadingShimmerState extends State<_LoadingShimmer>
     );
   }
 }
+

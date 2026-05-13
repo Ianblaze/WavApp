@@ -159,7 +159,7 @@ class MatchProvider extends ChangeNotifier {
             duration: const Duration(seconds: 4),
             action: SnackBarAction(
               label: 'View',
-              textColor: const Color(0xFFFF6FE8),
+              textColor: const Color(0xFFFF3399),
               onPressed: () => onNavigateToMatches?.call(),
             ),
           ),
@@ -194,4 +194,5 @@ class MatchProvider extends ChangeNotifier {
     super.dispose();
   }
 }
+
 

@@ -10,8 +10,8 @@ import '../widgets/auth_video_background.dart';
 import '../widgets/auth_snackbar.dart';
 import '../widgets/password_requirements.dart';
 
-const _cardHotPink     = Color(0xFFFFB3D9);
-const _cardNeonPurple  = Color(0xFFD9B3FF);
+const _cardHotPink     = Color(0xFFFF3399);
+const _cardNeonPurple  = Color(0xFF9D50BB);
 
 class ReauthPasswordScreen extends StatefulWidget {
   final User user;
@@ -232,3 +232,4 @@ class _ReauthPasswordScreenState extends State<ReauthPasswordScreen> {
     );
   }
 }
+
