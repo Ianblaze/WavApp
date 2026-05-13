@@ -46,11 +46,18 @@ class _Requirement extends StatelessWidget {
               alignment: Alignment.center,
               children: [
                 if (progress != null && !met)
-                  CircularProgressIndicator(
-                    value: progress,
-                    strokeWidth: 2,
-                    color: const Color(0xFF4ADE80).withOpacity(0.5),
-                    backgroundColor: Colors.white10,
+                  TweenAnimationBuilder<double>(
+                    tween: Tween<double>(begin: 0, end: progress),
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, value, child) {
+                      return CircularProgressIndicator(
+                        value: value,
+                        strokeWidth: 2,
+                        color: const Color(0xFF4ADE80).withOpacity(0.5),
+                        backgroundColor: Colors.white10,
+                      );
+                    },
                   ),
                 Icon(
                   met ? Icons.check_circle_rounded : (progress != null ? null : Icons.radio_button_unchecked_rounded),

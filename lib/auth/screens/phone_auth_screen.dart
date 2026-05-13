@@ -274,7 +274,7 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
                 AnimatedPadding(
                   duration: const Duration(milliseconds: 300),
                   curve: Curves.easeOutCubic,
-                  padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 8),
+                  padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 20),
                   child: SizedBox(
                     width: double.infinity,
                     height: btnHeight,
