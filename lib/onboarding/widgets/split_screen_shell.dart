@@ -90,16 +90,10 @@ class SplitScreenShell extends StatelessWidget {
                             style: TextStyle(
                               fontFamily: 'Circular',
                               fontSize: titleFont,
-                              fontWeight: FontWeight.w800, // Slightly cleaner than w900
+                              fontWeight: FontWeight.w800,
                               color: Colors.white,
                               letterSpacing: -1.0,
                               height: 1.1,
-                              shadows: [
-                                Shadow(
-                                  color: Colors.white.withOpacity(0.25),
-                                  blurRadius: 15,
-                                ),
-                              ],
                             ),
                             overflow: TextOverflow.visible,
                             maxLines: 3,
