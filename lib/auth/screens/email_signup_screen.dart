@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../widgets/auth_video_background.dart';
 import '../widgets/password_requirements.dart';
+import '../widgets/auth_snackbar.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
+import '../utils/auth_exception.dart';
+import '../utils/auth_error_messages.dart';
 
 class EmailSignUpScreen extends StatefulWidget {
   const EmailSignUpScreen({super.key});
@@ -46,13 +52,45 @@ class _EmailSignUpScreenState extends State<EmailSignUpScreen> {
 
   void _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _loading = true);
-    await Future.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
-    setState(() => _loading = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Account created! (Demo mode)')),
-    );
+    
+    setState(() {
+      _loading = true;
+      _usernameError = null;
+    });
+
+    try {
+      final auth = context.read<AuthProvider>();
+      await auth.signUpWithEmail(
+        email: _emailCtrl.text.trim(),
+        password: _passwordCtrl.text,
+        name: _usernameCtrl.text.trim(),
+      );
+      
+      // If successful, AuthWrapper will handle navigation based on status
+      // We pop THIS screen so the user sees the Verification Check screen underneath
+      if (mounted) {
+        Navigator.pop(context);
+        AuthSnackBar.show(
+          context, 
+          'Verification email sent! Check your inbox.', 
+          isError: false,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      
+      String msg = 'An unexpected error occurred.';
+      if (e is AuthException) {
+        msg = e.message;
+      } else if (e is FirebaseAuthException) {
+        msg = authErrorMessage(e);
+      } else {
+        msg = e.toString().replaceFirst('Exception: ', '');
+      }
+
+      AuthSnackBar.show(context, msg);
+    }
   }
 
   Widget _buildMinimalField({
