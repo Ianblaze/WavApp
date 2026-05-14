@@ -326,7 +326,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           // ── Main Content Area ──
           SafeArea(
             child: SingleChildScrollView(
-              physics: const ClampingScrollPhysics(),
+              physics: const NeverScrollableScrollPhysics(),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
