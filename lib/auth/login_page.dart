@@ -14,6 +14,7 @@ import 'dart:ui' show ImageFilter;
 import 'dart:async';
 import 'widgets/animated_waveform.dart';
 import 'widgets/auth_snackbar.dart';
+import 'widgets/auth_video_background.dart';
 import 'package:video_player/video_player.dart';
 
 // ----------------------
@@ -48,10 +49,6 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
-  late VideoPlayerController _mainController;
-  late VideoPlayerController _authController;
-  bool _isMainInitialized = false;
-  bool _isAuthInitialized = false;
   bool isLoading = false;
   bool showLanding = false;
   
@@ -237,28 +234,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       }
     });
 
-    _mainController = VideoPlayerController.asset('assets/images/finalbg.mp4')
-      ..initialize().then((_) {
-        if (mounted) {
-          setState(() => _isMainInitialized = true);
-          _mainController.setLooping(true);
-          _mainController.setVolume(0);
-          _mainController.play();
-          
-          // COORDINATION: Start entrance animation only when video is ready
-          if (!showLanding) {
-            _entranceController.forward();
-          }
-        }
-      });
-
-    _authController = VideoPlayerController.asset('assets/images/finalfinalbg.mp4')
-      ..initialize().then((_) {
-        setState(() => _isAuthInitialized = true);
-        _authController.setLooping(true);
-        _authController.setVolume(0);
-        _authController.pause(); // Start paused, play when switched
-      });
+    // ── Pre-warm entrance if video is already ready ──
+    _entranceController.forward();
   }
 
   @override
@@ -270,8 +247,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     _gradientShiftController.dispose();
     _shimmerController.dispose();
     _matchTimer?.cancel();
-    _mainController.dispose();
-    _authController.dispose();
     super.dispose();
   }
 
@@ -285,28 +260,20 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       _hoveredCardIndex = null;
       _activeCardIndex = null;
     });
-    _authController.play();
-    _authMethodsController.forward().then((_) {
-      if (mounted) _mainController.pause();
-    });
+    _authMethodsController.forward();
   }
   
   void _goBackToMainCards() {
     if (_authMethodsController.isAnimating) return;
     HapticFeedback.lightImpact();
     
-    _mainController.play();
     setState(() {
       showAuthMethods = false;
       _hoveredCardIndex = null;
       _activeCardIndex = null;
     });
     
-    _authMethodsController.reverse().then((_) {
-      if (mounted) {
-        _authController.pause();
-      }
-    });
+    _authMethodsController.reverse();
   }
 
 
@@ -344,62 +311,17 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final h = MediaQuery.of(context).size.height;
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      extendBodyBehindAppBar: true,
-      resizeToAvoidBottomInset: false,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // LAYER 1: DUAL VIDEO BACKGROUND WITH CROSS-FADE
-          Stack(
-            fit: StackFit.expand,
-            children: [
-              // Main video (finalbg.mp4)
-              Positioned.fill(
-                child: AnimatedOpacity(
-                  opacity: _isMainInitialized ? (showAuthMethods ? 0.0 : 1.0) : 0.0,
-                  duration: const Duration(milliseconds: 800),
-                  curve: Curves.easeInOut,
-                  child: SizedBox.expand(
-                    child: FittedBox(
-                      fit: BoxFit.fill,
-                      alignment: Alignment.center,
-                      child: SizedBox(
-                        width: _isMainInitialized ? _mainController.value.size.width : 1,
-                        height: _isMainInitialized ? _mainController.value.size.height : 1,
-                        child: VideoPlayer(_mainController),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              // Auth video (finalfinalbg.mp4)
-              Positioned.fill(
-                child: AnimatedOpacity(
-                  opacity: _isAuthInitialized ? (showAuthMethods ? 1.0 : 0.0) : 0.0,
-                  duration: const Duration(milliseconds: 800),
-                  curve: Curves.easeInOut,
-                  child: SizedBox.expand(
-                    child: FittedBox(
-                      fit: BoxFit.fill,
-                      alignment: Alignment.center,
-                      child: SizedBox(
-                        width: _isAuthInitialized ? _authController.value.size.width : 1,
-                        height: _isAuthInitialized ? _authController.value.size.height : 1,
-                        child: VideoPlayer(_authController),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          // LAYER 2: DARK OVERLAY
-          const SizedBox.expand(
-            child: ColoredBox(color: Color(0x4D000000)),
-          ),
+    return AuthVideoBackground(
+      overlayOpacity: 0.45,
+      videoPath: 'assets/images/finalbg.mp4',
+      secondaryVideoPath: 'assets/images/finalfinalbg.mp4',
+      showSecondary: showAuthMethods,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        extendBodyBehindAppBar: true,
+        resizeToAvoidBottomInset: false,
+        body: Stack(
+          children: [
 
           // ── Main Content Area ──
           SafeArea(
@@ -442,7 +364,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                         : const SizedBox(height: 40),
                   ),
                   
-                  const Spacer(flex: 1),
+                  const SizedBox(height: 20),
                   
                   // ── Brand Unit (Logo & Wordmark) ──
                   LayoutBuilder(
@@ -485,7 +407,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                     }
                   ),
 
-                  const Spacer(flex: 1),
+                  const SizedBox(height: 20),
                   
                   // ── Cards Stack Area ──
                   ScaleTransition(
@@ -530,7 +452,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                     ),
                   ),
 
-                  const Spacer(flex: 2),
+                  const SizedBox(height: 30),
 
                   // ── Terms & Conditions ──
                   Padding(
@@ -594,7 +516,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                     ),
                   ),
                   
-                  const Spacer(flex: 2),
+                  const SizedBox(height: 20),
 
                   // This reserves space for the "you have new music?" text burned into the video
                   const SizedBox(height: 85),
@@ -604,8 +526,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildMainCards() {
     return LayoutBuilder(

@@ -36,11 +36,16 @@ class WavPage extends StatefulWidget {
   final bool isIdle;
   final bool isActive;
 
+  final ValueChanged<double>? onLikeProgress;
+  final ValueChanged<double>? onDislikeProgress;
+
   const WavPage({
     super.key,
     this.isIdle = false,
     this.isActive = false,
     this.onMoodChanged,
+    this.onLikeProgress,
+    this.onDislikeProgress,
   });
 
   @override
@@ -177,6 +182,9 @@ class _WavPageState extends State<WavPage>
     });
     // Notify home_page so the full-screen tint updates
     widget.onMoodChanged?.call(_moodTint(song['mood'] ?? ''));
+    // Reset progress on card change
+    widget.onLikeProgress?.call(0.0);
+    widget.onDislikeProgress?.call(0.0);
   }
 
   // ── ODOMETER ──────────────────────────────────────────────────
@@ -246,8 +254,8 @@ class _WavPageState extends State<WavPage>
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: globalOn
-                ? _pink.withOpacity(0.3)
-                : _dark.withOpacity(0.15),
+                ? _pink.withOpacity(0.4)
+                : Colors.white.withOpacity(0.3),
             width: 1,
           ),
         ),
@@ -264,7 +272,7 @@ class _WavPageState extends State<WavPage>
                     ? Icons.volume_up_rounded
                     : Icons.volume_off_rounded,
                 key: ValueKey(globalOn),
-                color: globalOn ? _pink : _dark.withOpacity(0.5),
+                color: globalOn ? _pink : Colors.white.withOpacity(0.6),
                 size: 13,
               ),
             ),
@@ -287,7 +295,7 @@ class _WavPageState extends State<WavPage>
                       width: 3,
                       height: h,
                       decoration: BoxDecoration(
-                        color: globalOn ? _pink : _dark.withOpacity(0.4),
+                        color: globalOn ? _pink : Colors.white.withOpacity(0.4),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -509,66 +517,6 @@ class _WavPageState extends State<WavPage>
           clipBehavior: Clip.none,
           fit: StackFit.expand,
           children: [
-            // ── PASS (UP) GLOW ──
-            Positioned(
-              top: -200,
-              left: -100,
-              right: -100,
-              bottom: 0,
-              child: ValueListenableBuilder<double>(
-                valueListenable: _dislikeDragProgress,
-                builder: (_, progress, child) => AnimatedOpacity(
-                  opacity: progress,
-                  duration: Duration(milliseconds: progress == 0.0 ? 350 : 0),
-                  curve: Curves.easeOut,
-                  child: child,
-                ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      center: Alignment.topCenter,
-                      radius: 1.2,
-                      colors: [
-                        const Color(0xFFFF2A2A).withOpacity(0.85),
-                        Colors.transparent,
-                      ],
-                      stops: const [0.3, 1.0],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-            // ── LIKE (DOWN) GLOW ──
-            Positioned(
-              top: 0,
-              left: -100,
-              right: -100,
-              bottom: -200,
-              child: ValueListenableBuilder<double>(
-                valueListenable: _likeDragProgress,
-                builder: (_, progress, child) => AnimatedOpacity(
-                  opacity: progress,
-                  duration: Duration(milliseconds: progress == 0.0 ? 350 : 0),
-                  curve: Curves.easeOut,
-                  child: child,
-                ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      center: Alignment.bottomCenter,
-                      radius: 1.2,
-                      colors: [
-                        const Color(0xFF00FF66).withOpacity(0.85),
-                        Colors.transparent,
-                      ],
-                      stops: const [0.3, 1.0],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
             SafeArea(
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: hPad),
@@ -659,6 +607,8 @@ class _WavPageState extends State<WavPage>
                             onDragUpdate: (likeProg, passProg) {
                               _likeDragProgress.value    = likeProg;
                               _dislikeDragProgress.value = passProg;
+                              widget.onLikeProgress?.call(likeProg);
+                              widget.onDislikeProgress?.call(passProg);
                             },
                             onLike: (song) async {
                               final s = Song(

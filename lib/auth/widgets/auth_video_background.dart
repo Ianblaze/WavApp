@@ -5,12 +5,18 @@ class AuthVideoBackground extends StatefulWidget {
   final Widget child;
   final double overlayOpacity;
   final bool isPlaying;
+  final String videoPath;
+  final String? secondaryVideoPath;
+  final bool showSecondary;
 
   const AuthVideoBackground({
     super.key,
     required this.child,
     this.overlayOpacity = 0.4,
     this.isPlaying = true,
+    this.videoPath = 'assets/images/splashbg.mp4',
+    this.secondaryVideoPath,
+    this.showSecondary = false,
   });
 
   @override
@@ -19,7 +25,9 @@ class AuthVideoBackground extends StatefulWidget {
 
 class _AuthVideoBackgroundState extends State<AuthVideoBackground> {
   VideoPlayerController? _controller;
+  VideoPlayerController? _secondaryController;
   bool _isInitialized = false;
+  bool _isSecondaryInitialized = false;
 
   @override
   void initState() {
@@ -28,7 +36,7 @@ class _AuthVideoBackgroundState extends State<AuthVideoBackground> {
   }
 
   Future<void> _initializeVideo() async {
-    _controller = VideoPlayerController.asset('assets/images/splashbg.mp4');
+    _controller = VideoPlayerController.asset(widget.videoPath);
     try {
       await _controller!.initialize();
       if (mounted) {
@@ -36,24 +44,61 @@ class _AuthVideoBackgroundState extends State<AuthVideoBackground> {
           _isInitialized = true;
           _controller!.setLooping(true);
           _controller!.setVolume(0);
-          if (widget.isPlaying) {
+          if (widget.isPlaying && !widget.showSecondary) {
             _controller!.play();
           }
         });
       }
     } catch (e) {
-      debugPrint('Error initializing background video: $e');
+      debugPrint('Error initializing primary video: $e');
+    }
+
+    if (widget.secondaryVideoPath != null) {
+      _secondaryController = VideoPlayerController.asset(widget.secondaryVideoPath!);
+      try {
+        await _secondaryController!.initialize();
+        if (mounted) {
+          setState(() {
+            _isSecondaryInitialized = true;
+            _secondaryController!.setLooping(true);
+            _secondaryController!.setVolume(0);
+            if (widget.isPlaying && widget.showSecondary) {
+              _secondaryController!.play();
+            }
+          });
+        }
+      } catch (e) {
+        debugPrint('Error initializing secondary video: $e');
+      }
     }
   }
 
   @override
   void didUpdateWidget(AuthVideoBackground oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.isPlaying != oldWidget.isPlaying && _isInitialized) {
+    
+    // Handle play/pause
+    if (widget.isPlaying != oldWidget.isPlaying) {
       if (widget.isPlaying) {
-        _controller?.play();
+        if (widget.showSecondary) {
+          _secondaryController?.play();
+        } else {
+          _controller?.play();
+        }
       } else {
         _controller?.pause();
+        _secondaryController?.pause();
+      }
+    }
+
+    // Handle cross-fade video state
+    if (widget.showSecondary != oldWidget.showSecondary && widget.isPlaying) {
+      if (widget.showSecondary) {
+        _secondaryController?.play();
+        _controller?.pause();
+      } else {
+        _controller?.play();
+        _secondaryController?.pause();
       }
     }
   }
@@ -61,46 +106,69 @@ class _AuthVideoBackgroundState extends State<AuthVideoBackground> {
   @override
   void dispose() {
     _controller?.dispose();
+    _secondaryController?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return RepaintBoundary(
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          // ── 1. Static Placeholder ──
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/bgstatic.png',
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // ── 1. Static Placeholder ──
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('assets/images/bgstatic.png'),
               fit: BoxFit.cover,
             ),
           ),
+        ),
 
-          // ── 2. Isolated Video Layer ──
-          // We isolate this to prevent rebuilds from the input fields affecting video performance.
-          if (_isInitialized && _controller != null)
-            _VideoLayer(controller: _controller!),
-
-          // ── 3. Dark Overlay ──
+        // ── 2. Primary Video Layer ──
+        if (_isInitialized && _controller != null)
           Positioned.fill(
+            child: IgnorePointer(
+              child: AnimatedOpacity(
+                opacity: widget.showSecondary ? 0.0 : 1.0,
+                duration: const Duration(milliseconds: 800),
+                child: _VideoLayer(controller: _controller!),
+              ),
+            ),
+          ),
+
+        // ── 3. Secondary Video Layer ──
+        if (_isSecondaryInitialized && _secondaryController != null)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: AnimatedOpacity(
+                opacity: widget.showSecondary ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 800),
+                child: _VideoLayer(controller: _secondaryController!),
+              ),
+            ),
+          ),
+
+        // ── 4. Dark Overlay ──
+        Positioned.fill(
+          child: IgnorePointer(
             child: ColoredBox(
               color: Colors.black.withOpacity(widget.overlayOpacity),
             ),
           ),
+        ),
 
-          // ── 4. Loading Shimmer ──
-          if (!_isInitialized)
-            const Positioned.fill(
+        // ── 5. Loading Shimmer ──
+        if (!_isInitialized)
+          const Positioned.fill(
+            child: IgnorePointer(
               child: _LoadingShimmer(),
             ),
+          ),
 
-          // ── 5. Content ──
-          // Use a RepaintBoundary here too to isolate UI repaints from the background.
-          RepaintBoundary(child: widget.child),
-        ],
-      ),
+        // ── 6. Content ──
+        widget.child,
+      ],
     );
   }
 }
@@ -111,17 +179,18 @@ class _VideoLayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Isolated repaint boundary for the video texture itself.
-    return Positioned.fill(
-      child: RepaintBoundary(
-        child: FittedBox(
-          fit: BoxFit.cover,
-          child: SizedBox(
-            width: controller.value.size.width,
-            height: controller.value.size.height,
-            child: VideoPlayer(controller),
-          ),
-        ),
+    final size = controller.value.size;
+    if (size.width == 0 || size.height == 0) {
+      return const SizedBox.shrink();
+    }
+
+    return FittedBox(
+      fit: BoxFit.fill,
+      alignment: Alignment.center,
+      child: SizedBox(
+        width: size.width,
+        height: size.height,
+        child: VideoPlayer(controller),
       ),
     );
   }

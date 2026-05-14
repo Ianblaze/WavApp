@@ -117,6 +117,21 @@ class HomeTab extends StatefulWidget {
 
   @override
   State<HomeTab> createState() => _HomeTabState();
+
+  static String timeGreeting() {
+    final h = DateTime.now().hour;
+    if (h >= 5 && h < 12) {
+      return 'Morning melodies';
+    } else if (h >= 12 && h < 17) {
+      return 'Afternoon rhythm';
+    } else if (h >= 17 && h < 21) {
+      return 'Evening vibes';
+    } else if (h >= 21 || h < 2) {
+      return 'Late night wavs';
+    } else {
+      return 'Night owl sessions';
+    }
+  }
 }
 
 class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
@@ -131,6 +146,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
   String            _userName      = '';
   int               _newMatchCount = 0;
   int               _totalLikedCount = 0;
+  String            _currentGreeting = '';
 
   // ── Entrance animation ──────────────────────────────────────────
   late final AnimationController _entranceCtrl;
@@ -147,8 +163,6 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 900),
     )..forward();
 
-
-    _greeting = _timeGreeting();
     _loadData();
   }
 
@@ -159,12 +173,41 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  String _timeGreeting() {
+  // ── Dynamic Narrator Engine ──────────────────────────────────
+  String _generateGreeting({bool includeStats = false}) {
     final h = DateTime.now().hour;
-    if (h < 12) return 'Good morning';
-    if (h < 17) return 'Good afternoon';
-    return 'Good evening';
+    final name = _userName.isNotEmpty ? _userName : 'there';
+    
+    // Anytime / Default pool
+    final anytime = ["Hey $name", "Hi $name", "Back for more, $name?", "Heyyy (as a friend), $name", "Back at it, $name?"];
+
+    // 1. STATS OVERRIDE (High priority)
+    if (includeStats) {
+      if (_newMatchCount > 0) {
+        final lines = [
+          '$_newMatchCount people matched while you slept, $name.',
+          '$_newMatchCount people matched in your area while you slept, $name.',
+        ];
+        return (lines..shuffle()).first;
+      }
+      final topArt = _dnaData.topArtist;
+      if (topArt.isNotEmpty && math.Random().nextDouble() > 0.5) {
+        return "A lot of $topArt fans are matching lately, $name... but you didn't hear that from us.";
+      }
+    }
+
+    // 2. CASUAL/TIME-BASED (The "Hook")
+    if (h >= 1 && h < 5) {
+      final lines = ["Working the graveyard shift again, $name?", "Back at the late night shift, huh $name?", "Still up, $name?", ...anytime];
+      return (lines..shuffle()).first;
+    } else if (h >= 5 && h < 11) {
+      final lines = ["Early start, $name?", "Morning $name", "Yo $name, what's the wave?", ...anytime];
+      return (lines..shuffle()).first;
+    } else {
+      return (anytime..shuffle()).first;
+    }
   }
+
 
   // ── Data loading ────────────────────────────────────────────────
   Future<void> _loadData() async {
@@ -172,12 +215,23 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
     if (uid == null) { setState(() => _loading = false); return; }
     try {
       final db = FirebaseFirestore.instance;
+      
+      // 1. Fetch user doc first so we ALWAYS have the name even if other queries fail
+      final userDoc = await db.collection('users').doc(uid).get();
+      if (userDoc.exists) {
+        final userData = userDoc.data() as Map<String, dynamic>? ?? {};
+        setState(() {
+          _userName = userData['username'] as String? ?? '';
+          // Refresh greeting now that we have the name
+          _currentGreeting = _generateGreeting(includeStats: false);
+        });
+      }
+
+      // 2. Fetch others in parallel
       final results = await Future.wait([
-        db.collection('users').doc(uid).get(),
         db.collection('matches')
             .where('users', arrayContains: uid)
-            .orderBy('compatibilityScore', descending: true)
-            .limit(5)
+            .limit(20)
             .get(),
         db.collection('songs')
             .orderBy('likeCount', descending: true)
@@ -186,13 +240,21 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
         db.collection('users').doc(uid).collection('likedSongs').get(),
       ]);
 
-      final userDoc     = results[0] as DocumentSnapshot;
-      final matchesSnap = results[1] as QuerySnapshot;
-      final songsSnap   = results[2] as QuerySnapshot;
-      final likedSnap   = results[3] as QuerySnapshot;
-
+      final matchesSnap = results[0] as QuerySnapshot;
+      final songsSnap   = results[1] as QuerySnapshot;
+      final likedSnap   = results[2] as QuerySnapshot;
+      
       final userData = userDoc.data() as Map<String, dynamic>? ?? {};
       _userName = userData['username'] as String? ?? '';
+    
+      // Delay the stat-based update so it doesn't feel rushed
+      Future.delayed(const Duration(seconds: 5), () {
+        if (mounted) {
+          setState(() {
+            _currentGreeting = _generateGreeting(includeStats: true);
+          });
+        }
+      });
 
       final todayStart = DateTime.now().copyWith(
           hour: 0, minute: 0, second: 0, millisecond: 0);
@@ -385,12 +447,32 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('$_greeting$nameStr 👋',
-                style: TextStyle(
-                  fontFamily: 'Circular',
-                  fontSize: (sw * 0.058).clamp(18.0, 24.0),
-                  fontWeight: FontWeight.w800,
-                  color: _dark, letterSpacing: -0.5,
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 600),
+                transitionBuilder: (child, anim) => FadeTransition(
+                  opacity: anim,
+                  child: SlideTransition(
+                    position: anim.drive(Tween(begin: const Offset(0, 0.2), end: Offset.zero).chain(CurveTween(curve: Curves.easeOutCubic))),
+                    child: child,
+                  ),
+                ),
+                child: Text(_currentGreeting.isEmpty ? _generateGreeting() : _currentGreeting,
+                  key: ValueKey(_currentGreeting.isEmpty ? 'init' : _currentGreeting),
+                  style: TextStyle(
+                    fontFamily: 'Circular',
+                    fontSize: (sw * 0.052).clamp(16.0, 22.0),
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white, 
+                    letterSpacing: -0.4,
+                    height: 1.2,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black.withOpacity(0.4),
+                        offset: const Offset(0, 2),
+                        blurRadius: 10,
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 3),
@@ -398,7 +480,14 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                 style: TextStyle(
                   fontFamily: 'Circular',
                   fontSize: (sw * 0.032).clamp(11.0, 14.0),
-                  fontWeight: FontWeight.w500, color: _muted,
+                  fontWeight: FontWeight.w500, color: Colors.white.withOpacity(0.85),
+                  shadows: [
+                    Shadow(
+                      color: Colors.black.withOpacity(0.3),
+                      offset: const Offset(0, 1),
+                      blurRadius: 4,
+                    ),
+                  ],
                 ),
               ),
             ],

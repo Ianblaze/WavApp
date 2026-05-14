@@ -265,47 +265,56 @@ class _MatchDockPopupState extends State<MatchDockPopup>
       child: Stack(
         children: [
           // Backdrop - clicking dismisses
-          AnimatedBuilder(
-            animation: orbSlideCtrl,
-            builder: (_, __) {
-              final t = orbSlideCtrl.value.clamp(0.0, 1.0);
-              return GestureDetector(
-                onTap: _dismissCompletely,
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(
-                    sigmaX: 8 * t,
-                    sigmaY: 8 * t,
-                  ),
-                  child: Container(
-                    color: Colors.black.withOpacity(0.3 * t),
-                  ),
-                ),
-              );
-            },
-          ),
-
-          // Orb that expands into card
-          if (stage >= 2)
-            AnimatedBuilder(
-              animation: Listenable.merge([orbSlideCtrl, orbBounceCtrl, expandCtrl]),
+          Positioned.fill(
+            child: AnimatedBuilder(
+              animation: orbSlideCtrl,
               builder: (_, __) {
-                final slide = Curves.easeOutCubic.transform(orbSlideCtrl.value.clamp(0.0, 1.0));
-                final bounce = math.sin(orbBounceCtrl.value * math.pi) * 8;
-
-                return Positioned(
-                  top: -100 + slide * 106 + bounce,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: GestureDetector(
-                      onTap: toggleExpand,
-                      onHorizontalDragUpdate: dragUpdate,
-                      onHorizontalDragEnd: dragEnd,
-                      child: _buildDockCard(),
+                final t = orbSlideCtrl.value.clamp(0.0, 1.0);
+                return GestureDetector(
+                  onTap: _dismissCompletely,
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(
+                      sigmaX: 8 * t,
+                      sigmaY: 8 * t,
+                    ),
+                    child: Container(
+                      color: Colors.black.withOpacity(0.3 * t),
                     ),
                   ),
                 );
               },
+            ),
+          ),
+
+          // Orb that expands into card
+          if (stage >= 2)
+            Positioned.fill(
+              child: AnimatedBuilder(
+                animation: Listenable.merge([orbSlideCtrl, orbBounceCtrl, expandCtrl]),
+                builder: (_, __) {
+                  final slide = Curves.easeOutCubic.transform(orbSlideCtrl.value.clamp(0.0, 1.0));
+                  final bounce = math.sin(orbBounceCtrl.value * math.pi) * 8;
+
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned(
+                        top: -100 + slide * 106 + bounce,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: GestureDetector(
+                            onTap: toggleExpand,
+                            onHorizontalDragUpdate: dragUpdate,
+                            onHorizontalDragEnd: dragEnd,
+                            child: _buildDockCard(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
         ],
       ),

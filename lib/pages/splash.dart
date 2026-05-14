@@ -185,13 +185,12 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     _pulseController.dispose();
     _textController.dispose();
     _gradientShiftController.dispose();
-    _gradientShiftController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return const AuthVideoBackground(
+    return AuthVideoBackground(
       overlayOpacity: 0.2,
       child: Scaffold(
         backgroundColor: Colors.transparent,
