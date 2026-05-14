@@ -149,9 +149,11 @@ class _AuthVideoBackgroundState extends State<AuthVideoBackground> {
             ),
           ),
 
-        // ── 4. Dark Overlay ──
+        // ── 4. Dark Overlay (Intercepts long-press/right-click to block video download) ──
         Positioned.fill(
-          child: IgnorePointer(
+          child: GestureDetector(
+            onSecondaryTap: () {}, // Catch right-click on web
+            onLongPress: () {},    // Catch long-press on mobile/web
             child: ColoredBox(
               color: Colors.black.withOpacity(widget.overlayOpacity),
             ),
