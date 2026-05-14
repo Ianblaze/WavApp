@@ -1,11 +1,11 @@
 {
-    "name": "swipify",
-    "short_name": "swipify",
+    "name": "Wav",
+    "short_name": "Wav",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#1A0D26",
+    "theme_color": "#FF3399",
+    "description": "match through music",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
